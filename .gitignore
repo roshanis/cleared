@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+.vercel/
+.data/
+.codex-backups/
+.codex-*.log
+*.log
+*.tsbuildinfo
+*.bak
+.DS_Store
+.env
+.env.*
+!.env.example

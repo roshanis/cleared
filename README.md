@@ -1,0 +1,115 @@
+# Cleared — compliance review, before it ships
+
+A web app where teams get customer-facing documents reviewed for compliance.
+An AI pipeline — two reviewer subagents plus deterministic orchestration —
+checks each document against a versioned rubric and returns a verdict with
+exact quotes and fixes. Humans stay in charge: failed or uncertain documents
+land in a review queue, every decision needs a note, and the full history is
+exportable for audit.
+
+Built from [GOAL.md](./GOAL.md). Tests: `npm test` (40 tests + golden-set
+evals). Deploys to Vercel as a single Next.js project.
+
+## Quick start
+
+```sh
+npm install
+npm run dev        # http://localhost:3000
+```
+
+No configuration needed: without an `ANTHROPIC_API_KEY` the app runs in demo
+mode (a deterministic heuristic reviewer — the UI says so), storage is a local
+JSON file (`.data/db.json`), and the store self-seeds with demo documents on
+first run.
+
+Sign in as a persona to see each customer's experience:
+
+| Persona | Role | What they do |
+|---|---|---|
+| Maya Chen | author | Submit documents, act on findings, resubmit |
+| Devon Park | officer | Review queue, accept/dismiss findings, approve/reject with a note |
+| Priya Nair | admin | Everything + rubric editing, dashboard |
+| Sam Osei | admin | Audit history and CSV export |
+
+## Model mode
+
+Set `ANTHROPIC_API_KEY` and reviews run through two model reviewer subagents
+(`claude-opus-4-8` via the Vercel AI SDK) — one for content criteria, one for
+data-handling risk. Their findings are merged, deduped, and scored **in code**
+(`src/agent/`): the rubric owns severities and verdict rules, so verdicts stay
+auditable regardless of model behavior. Low-confidence fail-level findings
+route to a human instead of failing outright.
+
+## The regression loop (the part that matters)
+
+- `evals/golden/` — golden documents with expected outcomes
+- `evals/grade.ts` — grading harness (verdict + expected criteria)
+- `npm test` — runs the golden set through the full pipeline in CI
+- `npm run eval` — same from the CLI (uses model reviewers when a key is set)
+- **Rubric publish gate** — editing the rubric in the UI creates a draft
+  version; the app runs the golden set against it and shows per-case deltas
+  before allowing publish. Rubric versions are immutable and every review
+  records which version judged it.
+
+Grow `evals/golden/` with sanitized real documents — that's what makes prompt,
+rubric, and model changes safe.
+
+## Storage
+
+Pluggable single-store driver (`src/lib/store.ts`):
+
+| Environment | Driver | Durability |
+|---|---|---|
+| Local dev | JSON file in `.data/` | Durable |
+| Vercel + Upstash env vars | Upstash Redis | Durable |
+| Vercel without a store | In-memory | Per-instance demo only (the dashboard warns) |
+
+For production on Vercel, add Upstash Redis from the Vercel Marketplace and set
+`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. The single-blob JSON
+store is deliberate for this stage — swap the driver for Postgres when volume
+or concurrency demands it; the store API is the seam.
+
+## Auth
+
+Demo persona sign-in with signed httpOnly cookies (`src/lib/session.ts`,
+HMAC via `AUTH_SECRET`). Optionally gate the whole deployment with a shared
+`APP_ACCESS_CODE`. **Swap in a real identity provider before opening this to
+untrusted users** — the role model (`author` / `officer` / `admin`) and every
+`requireRole()` call site carry over unchanged.
+
+## Environment variables
+
+See `.env.example`. Everything is optional; the app degrades honestly without
+each one.
+
+## Deploy
+
+```sh
+npm run deploy     # vercel deploy
+```
+
+From a clean clone: `npm install`, set env vars in the Vercel dashboard
+(at minimum `AUTH_SECRET`; add `ANTHROPIC_API_KEY` for model reviews and the
+Upstash pair for durable storage), then deploy. The seed runs automatically on
+first access so the deployed app looks alive immediately.
+
+## Layout
+
+```
+src/agent/        review pipeline: model + heuristic reviewers, merge, verdict
+src/prompts/      orchestrator + reviewer prompts, rubric template (markdown)
+src/lib/          store (drivers), sessions/roles, seed, metrics, highlight, csv
+src/app/          Next.js App Router: pages per persona + API routes
+src/components/   result view w/ inline quote highlights, decision panel, rubric editor…
+evals/            golden set, grading harness, pipeline eval, eval CLI
+```
+
+## A note on eve
+
+GOAL.md targeted Vercel's eve agent framework. eve shipped after this
+implementation's knowledge cutoff and its docs weren't reachable during the
+build, so rather than guess at its API the review pipeline is implemented
+directly on the Vercel AI SDK — deployable today, with the agent definition
+kept portable in `src/agent.config.ts` + `src/prompts/`. Migrating the
+pipeline onto eve (durable execution, built-in approvals) is a contained swap
+inside `src/agent/run.ts` and the two API routes that call it.
