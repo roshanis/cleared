@@ -66,7 +66,7 @@ export default async function DocumentsPage() {
       ) : (
         <TableCard>
           <table className="w-full min-w-[780px] text-sm">
-            <thead className="bg-well">
+            <thead className="bg-rail">
               <tr>
                 <Th>Document</Th>
                 <Th>Author</Th>
@@ -80,7 +80,7 @@ export default async function DocumentsPage() {
               {documents.map(({ document, latestVersion, run, decision }) => (
                 <tr
                   key={document.id}
-                  className="transition-colors duration-150 hover:bg-paper"
+                  className="transition-colors duration-150 hover:bg-rail/60"
                 >
                   <td className="px-4 py-3">
                     <Link

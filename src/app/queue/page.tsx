@@ -38,7 +38,7 @@ export default async function QueuePage() {
       ) : (
         <TableCard>
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-well">
+            <thead className="bg-rail">
               <tr>
                 <Th>Waiting</Th>
                 <Th>Document</Th>
@@ -52,7 +52,7 @@ export default async function QueuePage() {
               {queue.map(({ run, document, version }) => (
                 <tr
                   key={run.id}
-                  className="transition-colors duration-150 hover:bg-paper"
+                  className="transition-colors duration-150 hover:bg-rail/60"
                 >
                   <td className="px-4 py-3 whitespace-nowrap font-medium text-warn">
                     {relativeTime(run.createdAt)}

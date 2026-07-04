@@ -60,29 +60,29 @@ export function LoginCards({
           />
         </label>
       )}
-      <div className="grid gap-3">
+      <div className="grid gap-2.5">
         {personas.map((persona) => (
           <button
             key={persona.id}
             type="button"
             onClick={() => signIn(persona.id)}
             disabled={pending !== null}
-            className="group flex w-full items-center gap-3.5 rounded-xl border border-line bg-surface p-4 text-left shadow-card transition-all duration-150 hover:border-accent hover:shadow-raised disabled:pointer-events-none disabled:opacity-60"
+            className="group flex min-h-[4.75rem] w-full items-center gap-3.5 rounded-lg border border-line bg-surface p-4 text-left shadow-card transition-colors duration-150 hover:border-accent hover:bg-accent-soft/35 disabled:pointer-events-none disabled:opacity-60"
           >
             <span
               aria-hidden
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-strong"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-sm font-semibold text-accent-strong"
             >
               {initials(persona.name)}
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2">
                 <span className="font-medium">{persona.name}</span>
-                <span className="rounded-full bg-well px-2 py-0.5 text-[11px] font-medium text-muted">
+                <span className="rounded-md bg-well px-2 py-0.5 text-[11px] font-medium text-muted">
                   {persona.role}
                 </span>
               </span>
-              <span className="mt-0.5 block truncate text-sm text-muted">
+              <span className="mt-0.5 block text-sm leading-5 text-muted">
                 {pending === persona.id ? "Signing in…" : persona.tagline}
               </span>
             </span>

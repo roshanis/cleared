@@ -25,7 +25,7 @@ export function NavLinks({
             className={`shrink-0 rounded-md px-3 py-1.5 font-medium transition-colors duration-150 ${
               active
                 ? "bg-accent-soft text-accent-strong"
-                : "text-muted hover:bg-well hover:text-ink"
+                : "text-muted hover:bg-rail hover:text-ink"
             }`}
           >
             {link.label}

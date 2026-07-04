@@ -42,12 +42,14 @@ export function ResultView({
 
   return (
     <div className="space-y-4">
-      <Card className="p-5">
+      <Card className="border-accent/20 bg-rail p-5">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <VerdictBadge verdict={result.verdict} />
-              <StatusBadge tone={result.findings.length === 0 ? "pass" : "neutral"}>
+              <StatusBadge
+                tone={result.findings.length === 0 ? "pass" : "neutral"}
+              >
                 {result.findings.length} finding
                 {result.findings.length === 1 ? "" : "s"}
               </StatusBadge>
@@ -71,7 +73,7 @@ export function ResultView({
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
         <Card className="overflow-hidden">
-          <div className="flex items-baseline justify-between gap-3 border-b border-line bg-paper/60 px-5 py-3">
+          <div className="flex items-baseline justify-between gap-3 border-b border-line bg-rail px-5 py-3">
             <SectionHeading>Document</SectionHeading>
             <span className="text-xs text-muted">
               {result.findings.length > 0
@@ -111,7 +113,7 @@ export function ResultView({
             <Card className="flex items-center gap-3 p-5">
               <span
                 aria-hidden
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pass-soft"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-pass-soft"
               >
                 <svg
                   viewBox="0 0 16 16"
@@ -130,9 +132,9 @@ export function ResultView({
               </p>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className="overflow-hidden rounded-lg border border-line bg-surface">
               {result.findings.map((finding, i) => (
-                <Card key={i} className="p-4">
+                <article key={i} className="border-b border-line p-4 last:border-b-0">
                   <div className="flex items-center justify-between gap-3">
                     <a
                       href={`#quote-${i}`}
@@ -149,13 +151,13 @@ export function ResultView({
                   <p className="mt-3 text-sm leading-6">
                     {finding.explanation}
                   </p>
-                  <p className="mt-2 rounded-md bg-paper px-3 py-2 text-sm leading-6">
+                  <p className="mt-2 rounded-md bg-rail px-3 py-2 text-sm leading-6">
                     <span className="font-semibold text-accent-strong">
                       Fix:{" "}
                     </span>
                     {finding.recommendation}
                   </p>
-                </Card>
+                </article>
               ))}
             </div>
           )}

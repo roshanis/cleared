@@ -103,7 +103,7 @@ export default async function DocumentPage({
       />
 
       {diff && (
-        <Card className="space-y-3 p-4 text-sm">
+        <Card className="space-y-3 border-accent/20 bg-rail p-4 text-sm">
           <div className="font-semibold">
             Changes since v{previousWithResult!.version.number}
           </div>
@@ -128,7 +128,7 @@ export default async function DocumentPage({
       )}
 
       {latest?.decision && (
-        <Card className="border-l-4 border-l-accent p-4">
+        <Card className="border-accent/20 bg-rail p-4">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <StatusBadge
               tone={latest.decision.action === "approve" ? "pass" : "fail"}
@@ -158,6 +158,11 @@ export default async function DocumentPage({
           <SectionHeading count={timeline.length}>History</SectionHeading>
         </div>
         <Card className="overflow-hidden">
+          <div className="hidden grid-cols-[7rem_1fr_auto] gap-3 border-b border-line bg-rail px-4 py-2 text-xs font-semibold text-muted sm:grid">
+            <span>Version</span>
+            <span>Review outcome</span>
+            <span>Decision</span>
+          </div>
           <div className="divide-y divide-line">
           {timeline.map(({ version, run, decision }) => (
             <div

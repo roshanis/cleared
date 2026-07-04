@@ -93,22 +93,26 @@ export function SubmitForm({
 
   return (
     <div className="space-y-6">
-      <Card className="p-5 sm:p-6">
-        <form onSubmit={submit} className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-            <div>
-              <h2 className="text-base font-semibold tracking-tight">
-                Document draft
-              </h2>
-              <p className="mt-0.5 text-sm text-muted">
-                {wordCount.toLocaleString()} words ready for review
-              </p>
-            </div>
-            {reviewer === "heuristic" && (
-              <StatusBadge tone="warn">Demo reviewer</StatusBadge>
-            )}
+      <Card className="overflow-hidden">
+        <div className="grid gap-4 border-b border-line bg-rail px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div>
+            <h2 className="text-base font-semibold tracking-tight">
+              Review packet
+            </h2>
+            <p className="mt-0.5 text-sm text-muted">
+              Paste the source document exactly as the customer would see it.
+            </p>
           </div>
-
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge tone={wordCount > 0 ? "accent" : "neutral"}>
+              {wordCount.toLocaleString()} words
+            </StatusBadge>
+            <StatusBadge tone={reviewer === "heuristic" ? "warn" : "accent"}>
+              {reviewer === "heuristic" ? "Demo reviewer" : "Model reviewers"}
+            </StatusBadge>
+          </div>
+        </div>
+        <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">
           <label className="block">
             <span className={fieldLabelClass}>Title</span>
             <input
@@ -133,7 +137,7 @@ export function SubmitForm({
             />
           </label>
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
             <button
               type="submit"
               disabled={busy || content.trim().length === 0}
@@ -141,30 +145,34 @@ export function SubmitForm({
             >
               {busy ? "Reviewing..." : "Submit for review"}
             </button>
-            {reviewer === "heuristic" && (
-              <span className="text-xs leading-5 text-muted">
-                Set ANTHROPIC_API_KEY for model reviews.
-              </span>
-            )}
+            <span className="text-xs leading-5 text-muted">
+              {reviewer === "heuristic"
+                ? "Set ANTHROPIC_API_KEY for model reviews."
+                : "Model reviewers will check policy and data-handling risk."}
+            </span>
           </div>
         </form>
       </Card>
 
       {busy && (
-        <Card className="space-y-3 border-accent/20 p-5" aria-live="polite">
+        <Card className="space-y-4 border-accent/25 bg-accent-soft/45 p-5" aria-live="polite">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Review in progress</h2>
             <span className="text-xs tabular-nums text-muted">{elapsed}s</span>
           </div>
-          <ProgressStep done label="Document submitted" />
-          <ProgressStep
-            done={false}
-            label={
-              phase === "submitting"
-                ? "Creating review run..."
-                : "Reviewers reading your document..."
-            }
-          />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ProgressStep done label="Document submitted" />
+            <ProgressStep
+              done={phase === "reviewing"}
+              active={phase === "submitting"}
+              label="Review run created"
+            />
+            <ProgressStep
+              done={false}
+              active={phase === "reviewing"}
+              label="Reviewers reading"
+            />
+          </div>
           <p className="pt-1 text-xs text-muted">
             Two reviewers check policy claims and data-handling risk in
             parallel, then findings are merged and the verdict is
@@ -211,16 +219,26 @@ export function SubmitForm({
   );
 }
 
-function ProgressStep({ done, label }: { done: boolean; label: string }) {
+function ProgressStep({
+  done,
+  active = false,
+  label,
+}: {
+  done: boolean;
+  active?: boolean;
+  label: string;
+}) {
   return (
     <div className="flex items-center gap-2.5 text-sm">
       <span
         aria-hidden
         className={`h-2.5 w-2.5 rounded-full ${
-          done ? "bg-pass" : "animate-pulse-soft bg-accent"
+          done ? "bg-pass" : active ? "animate-pulse-soft bg-accent" : "bg-line-strong"
         }`}
       />
-      <span className={done ? "text-muted" : "font-medium"}>{label}</span>
+      <span className={done ? "text-muted" : active ? "font-medium" : "text-muted"}>
+        {label}
+      </span>
     </div>
   );
 }

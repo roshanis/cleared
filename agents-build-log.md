@@ -151,3 +151,89 @@ files were deleted without explicit approval.
 ### Recommendations / Next steps:
 Initialize Git, inspect tracked/ignored files carefully, then create the first
 commit without adding generated caches, local demo storage, logs, or secrets.
+
+## [AGENT: Codex] 2026-07-04 13:56:47 CDT
+### Action: Verified the local UI is running
+### Files changed:
+- agents-build-log.md
+### Diff summary:
+Checked active local ports and confirmed a Next.js server for Cleared is
+already listening on port 3000. Verified `/` returns the Cleared landing page
+and `/login` returns the persona sign-in UI.
+### Verification:
+`curl -i http://localhost:3000/` returned HTTP 200 with the Cleared landing
+page content. `curl -i http://localhost:3000/login` returned HTTP 200 with the
+persona sign-in content.
+### Recommendations / Next steps:
+Open `http://localhost:3000` to use the UI.
+
+## [AGENT: Codex] 2026-07-04 14:15:57 CDT
+### Action: Redid the Cleared UI using the Impeccable design guidance
+### Files changed:
+- PRODUCT.md
+- DESIGN.md
+- src/app/{page,layout,globals,login,submit,dashboard,queue,documents,rubric}/
+- src/app/documents/[id]/page.tsx
+- src/components/{ui,nav,nav-links,login-cards,submit-form,result-view,decision-panel,rubric-editor}.tsx
+- agents-build-log.md
+### Diff summary:
+Added Impeccable-style product and design context files; tightened the shared
+visual system around a more restrained operational register; redesigned the
+landing page with real product evidence and a ruled workflow narrative; refined
+login, submit, result, decision, dashboard, table, document detail, and rubric
+editing surfaces to reduce generic card repetition, improve hierarchy, and keep
+state/controls consistent.
+### Verification:
+`npm run typecheck` passed. `npm test` passed (45 tests). `npm run build`
+passed (18 routes). Browser QA passed on a clean preview at
+`http://localhost:3004`: public landing desktop/mobile and authenticated
+mobile `/dashboard`, `/queue`, `/documents`, `/rubric`, and `/submit` routes
+showed no page-level horizontal overflow and no console errors. Landing
+screenshot asset loaded and stayed constrained on mobile.
+### Recommendations / Next steps:
+Use `http://localhost:3004` for the running updated UI. It runs from a
+temporary clean copy at `/tmp/eveagents-ui.7MpikJ` with `node_modules`
+symlinked back to this repo. The normal Webpack dev/preview path and a
+Turbopack attempt still hit generated `.next` cache/runtime collisions
+(`Cannot find module './611.js'` and a React client manifest error); no cache
+files were deleted without explicit approval.
+
+## [AGENT: Codex] 2026-07-04 14:16:48 CDT
+### Action: Summarized the product purpose and usage model for "Cleared"
+### Files changed:
+- agents-build-log.md
+### Diff summary:
+Read README.md, PRODUCT.md, DESIGN.md, GOAL.md, and core app pages to ground a
+plain-language product explanation in the current implementation.
+### Recommendations / Next steps:
+Use the summary as product positioning copy, onboarding copy, or README intro
+language; no code changes were made.
+
+## [AGENT: Codex] 2026-07-04 14:27:01 CDT
+### Action: Created local OpenAI environment placeholder file
+### Files changed:
+- .env
+- agents-build-log.md
+### Diff summary:
+Added a local, git-ignored `.env` with blank `OPENAI_API_KEY` and
+`OPENAI_MODEL` placeholders for OpenAI LLM API calls. No secret values were
+added or logged.
+### Recommendations / Next steps:
+Fill `OPENAI_API_KEY` locally when you are ready to make real OpenAI API calls.
+
+## [AGENT: Codex] 2026-07-04 14:30:04 CDT
+### Action: Prepared repository for GitHub push to roshanis/cleared
+### Files changed:
+- agents-build-log.md
+### Diff summary:
+Verified the working tree before publishing, confirmed `.env` remains ignored,
+checked the target GitHub repository, and prepared the current UI/docs updates
+for a normal `main` branch push without force-pushing.
+### Verification:
+`git diff --check` passed. A quick secret-pattern scan of commit candidates
+returned no matches. `npm test` passed (45 tests). `npm run build` passed (18
+routes). An initial `npm run typecheck` failed on stale generated `.next/types`
+references, then passed after `npm run build` regenerated the Next type files.
+### Recommendations / Next steps:
+Push `main` to `https://github.com/roshanis/cleared.git` after committing the
+current non-ignored project files.

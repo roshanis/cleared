@@ -33,7 +33,7 @@ export default async function SubmitPage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <PageHeader
         title={resubmit ? `Resubmit: ${resubmit.title}` : "Submit a document"}
         subtitle={

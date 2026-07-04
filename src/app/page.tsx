@@ -8,32 +8,26 @@ const homeByRole = {
   admin: "/dashboard",
 } as const;
 
-const productStats = [
-  { label: "Human-review queue", value: "Always on" },
-  { label: "Rubric versions", value: "Auditable" },
-  { label: "Exports", value: "CSV-ready" },
-];
-
 const workflow = [
   {
     step: "Submit",
-    title: "Authors paste customer-facing copy",
-    body: "Marketing emails, letters, landing-page text, and other outbound material enter one review flow before they ship.",
+    title: "Authors enter the review lane",
+    body: "Marketing emails, letters, landing-page copy, and other customer-facing text move through one intake path.",
   },
   {
     step: "Review",
-    title: "AI reviewers cite the exact problem",
-    body: "Two reviewer lanes check policy claims and data-handling risk, then return structured findings with quotes, severity, explanations, and fixes.",
+    title: "AI returns evidence, not vibes",
+    body: "Two reviewer lanes check policy claims and data-handling risk, then cite exact quotes with severity, explanation, and fix guidance.",
   },
   {
     step: "Decide",
-    title: "Compliance keeps final authority",
-    body: "Failed or uncertain documents route to a queue where officers accept or dismiss findings and approve or reject with a required note.",
+    title: "Compliance makes the call",
+    body: "Failed or uncertain documents route to an officer queue where every override and final decision requires a note.",
   },
   {
     step: "Audit",
-    title: "Every version remains traceable",
-    body: "Cleared stores rubric version, review result, decision notes, timestamps, and CSV export paths for compliance and audit review.",
+    title: "History stays attached",
+    body: "Rubric version, review result, decision notes, timestamps, and export records stay traceable for each document version.",
   },
 ];
 
@@ -56,26 +50,38 @@ const audiences = [
   },
 ];
 
+const proofPoints = [
+  ["Reviewer mode", "Model or demo reviewer is visible before submission."],
+  ["Human authority", "Officer decisions override the agent and enter the audit trail."],
+  ["Rubric control", "Draft versions run against the golden set before publish."],
+  ["Audit export", "CSV history includes reviews, findings, decisions, and notes."],
+] as const;
+
 export default async function LandingPage() {
   const session = await getSession();
   const appHref = session ? homeByRole[session.role] : "/login";
   const appLabel = session ? "Open Cleared" : "Try the demo";
+  const secondaryLabel = session ? "Open workspace" : "View personas";
+  const bottomCopy = session
+    ? "Continue into your current demo workspace to inspect the seeded review data."
+    : "Sign in as an author, officer, admin, or auditor to inspect the same product from each role.";
+  const bottomAction = session ? "Open Cleared" : "Sign in as a persona";
 
   return (
     <div className="-mx-6 -mt-8">
       <section
         className="relative isolate overflow-hidden border-b border-line bg-ink text-white"
-        style={{ minHeight: "min(620px, calc(100svh - 9rem))" }}
+        style={{ minHeight: "min(540px, calc(100svh - 10rem))" }}
       >
         <div
           aria-hidden
-          className="absolute inset-0 bg-cover bg-center opacity-45"
+          className="absolute inset-0 bg-cover bg-center opacity-55"
           style={{ backgroundImage: "url('/landing-dashboard.png')" }}
         />
-        <div aria-hidden className="absolute inset-0 bg-ink/55" />
+        <div aria-hidden className="absolute inset-0 bg-ink/62" />
         <div className="relative mx-auto flex min-h-[inherit] w-full max-w-6xl flex-col justify-center px-6 py-16">
           <div className="max-w-3xl">
-            <p className="mb-4 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/85">
+            <p className="mb-4 inline-flex rounded-md border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/85">
               AI-assisted compliance review
             </p>
             <h1 className="font-serif text-5xl leading-none tracking-tight sm:text-6xl lg:text-7xl">
@@ -92,32 +98,26 @@ export default async function LandingPage() {
                 {appLabel}
               </Link>
               <Link
-                href="/login"
+                href={appHref}
                 className="inline-flex items-center justify-center rounded-md border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/20"
               >
-                View personas
+                {secondaryLabel}
               </Link>
             </div>
           </div>
-          <div className="mt-12 grid max-w-3xl gap-3 sm:grid-cols-3">
-            {productStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="border-l border-white/25 pl-4 text-sm"
-              >
-                <p className="font-semibold text-white">{stat.value}</p>
-                <p className="mt-1 text-white/65">{stat.label}</p>
+          <div className="mt-12 grid max-w-4xl border-y border-white/18 text-sm sm:grid-cols-4">
+            {proofPoints.map(([label, detail]) => (
+              <div key={label} className="border-white/18 py-4 sm:border-l sm:px-4 first:sm:border-l-0">
+                <p className="font-semibold text-white">{label}</p>
+                <p className="mt-1 leading-5 text-white/68">{detail}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[0.9fr_1.1fr] lg:py-16">
-        <div>
-          <p className="text-sm font-semibold text-accent-strong">
-            What the product does
-          </p>
+      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[0.85fr_1.15fr] lg:py-16">
+        <div className="max-w-md">
           <h2 className="mt-3 text-3xl font-semibold tracking-tight">
             A review system for regulated customer communications.
           </h2>
@@ -128,34 +128,47 @@ export default async function LandingPage() {
             Vercel-ready web app.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {workflow.map((item) => (
+        <div className="border-t border-line">
+          {workflow.map((item, index) => (
             <article
               key={item.step}
-              className="rounded-lg border border-line bg-surface p-5 shadow-card"
+              className="grid gap-4 border-b border-line py-5 sm:grid-cols-[7rem_1fr]"
             >
               <p className="font-mono text-xs font-semibold text-accent-strong">
-                {item.step}
+                {String(index + 1).padStart(2, "0")} / {item.step}
               </p>
-              <h3 className="mt-3 text-base font-semibold tracking-tight">
-                {item.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-muted">{item.body}</p>
+              <div>
+                <h3 className="text-base font-semibold tracking-tight">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">{item.body}</p>
+              </div>
             </article>
           ))}
         </div>
       </section>
 
       <section className="border-y border-line bg-surface">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1fr_1fr]">
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1fr_1.1fr]">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
-              Built around the people who touch the review.
+            <h2 className="text-2xl font-semibold tracking-tight text-ink">
+              Built around the actual handoffs.
             </h2>
             <p className="mt-3 text-sm leading-7 text-muted">
               Each screen has a job: faster author fixes, less officer re-read,
               safer rubric changes, and cleaner audit exports.
             </p>
+            <figure
+              className="mt-8 overflow-hidden rounded-lg border border-line bg-rail"
+              style={{ aspectRatio: "16 / 10" }}
+            >
+              <img
+                src="/landing-dashboard.png"
+                alt="Cleared dashboard showing review volume, pass rate, criteria, and audit export."
+                className="block h-full w-full max-w-full object-cover object-top"
+                style={{ height: "100%", width: "100%" }}
+              />
+            </figure>
           </div>
           <div className="grid gap-4">
             {audiences.map((audience) => (
@@ -174,18 +187,17 @@ export default async function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-4 rounded-lg border border-line bg-accent-soft p-6 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="grid gap-4 border-y border-accent/25 bg-accent-soft px-1 py-6 sm:grid-cols-[1fr_auto] sm:items-center sm:px-0">
           <div>
             <h2 className="text-xl font-semibold tracking-tight text-accent-strong">
               See the demo workflow with seeded compliance examples.
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted">
-              Sign in as an author, officer, admin, or auditor to inspect the
-              same product from each role.
+              {bottomCopy}
             </p>
           </div>
-          <Link href="/login" className={buttonClass("primary")}>
-            Sign in as a persona
+          <Link href={appHref} className={buttonClass("primary")}>
+            {bottomAction}
           </Link>
         </div>
       </section>

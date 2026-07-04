@@ -104,7 +104,7 @@ export function RubricEditor({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-paper/60 px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-rail px-5 py-4">
         <div>
           <SectionHeading count={criteria.length}>Criteria</SectionHeading>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
@@ -118,80 +118,90 @@ export function RubricEditor({
       </div>
 
       <div className="space-y-5 p-5">
-        <div className="space-y-3">
-        {criteria.map((criterion, i) => (
-          <div
-            key={i}
-            className="grid gap-3 rounded-lg border border-line bg-surface p-3 lg:grid-cols-[5.5rem_9rem_10rem_1fr_auto]"
-          >
-            <label className="block">
-              <span className={`${fieldLabelClass} lg:hidden`}>ID</span>
-              <input
-                aria-label="Criterion ID"
-                value={criterion.id}
-                onChange={(e) => updateCriterion(i, { id: e.target.value })}
-                className={`${inputClass} font-mono`}
-              />
-            </label>
-            <label className="block">
-              <span className={`${fieldLabelClass} lg:hidden`}>Severity</span>
-              <select
-                aria-label="Severity"
-                value={criterion.severity}
-                onChange={(e) =>
-                  updateCriterion(i, { severity: e.target.value as Severity })
-                }
-                className={selectClass}
-              >
-                {severities.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className={`${fieldLabelClass} lg:hidden`}>Reviewer</span>
-              <select
-                aria-label="Reviewer area"
-                value={criterion.area}
-                onChange={(e) =>
-                  updateCriterion(i, { area: e.target.value as CriterionArea })
-                }
-                className={selectClass}
-              >
-                {areas.map((a) => (
-                  <option key={a} value={a}>
-                    {a === "content" ? "policy reviewer" : "risk reviewer"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className={`${fieldLabelClass} lg:hidden`}>Description</span>
-              <textarea
-                aria-label="Criterion description"
-                value={criterion.description}
-                onChange={(e) =>
-                  updateCriterion(i, { description: e.target.value })
-                }
-                rows={2}
-                className={textareaClass}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                touch();
-                setCriteria((prev) => prev.filter((_, idx) => idx !== i));
-              }}
-              className={`${buttonClass("ghost", "sm")} self-start`}
-              aria-label={`Remove ${criterion.id}`}
-            >
-              Remove
-            </button>
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
+          <div className="hidden grid-cols-[5.5rem_9rem_10rem_1fr_5rem] gap-3 border-b border-line bg-rail px-3 py-2 text-xs font-semibold text-muted lg:grid">
+            <span>ID</span>
+            <span>Severity</span>
+            <span>Reviewer</span>
+            <span>Description</span>
+            <span />
           </div>
-        ))}
+          {criteria.map((criterion, i) => (
+            <div
+              key={i}
+              className="grid gap-3 border-b border-line p-3 last:border-b-0 lg:grid-cols-[5.5rem_9rem_10rem_1fr_auto]"
+            >
+              <label className="block">
+                <span className={`${fieldLabelClass} lg:hidden`}>ID</span>
+                <input
+                  aria-label="Criterion ID"
+                  value={criterion.id}
+                  onChange={(e) => updateCriterion(i, { id: e.target.value })}
+                  className={`${inputClass} font-mono`}
+                />
+              </label>
+              <label className="block">
+                <span className={`${fieldLabelClass} lg:hidden`}>Severity</span>
+                <select
+                  aria-label="Severity"
+                  value={criterion.severity}
+                  onChange={(e) =>
+                    updateCriterion(i, { severity: e.target.value as Severity })
+                  }
+                  className={selectClass}
+                >
+                  {severities.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className={`${fieldLabelClass} lg:hidden`}>Reviewer</span>
+                <select
+                  aria-label="Reviewer area"
+                  value={criterion.area}
+                  onChange={(e) =>
+                    updateCriterion(i, { area: e.target.value as CriterionArea })
+                  }
+                  className={selectClass}
+                >
+                  {areas.map((a) => (
+                    <option key={a} value={a}>
+                      {a === "content" ? "policy reviewer" : "risk reviewer"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className={`${fieldLabelClass} lg:hidden`}>
+                  Description
+                </span>
+                <textarea
+                  aria-label="Criterion description"
+                  value={criterion.description}
+                  onChange={(e) =>
+                    updateCriterion(i, { description: e.target.value })
+                  }
+                  rows={2}
+                  className={textareaClass}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  touch();
+                  setCriteria((prev) => prev.filter((_, idx) => idx !== i));
+                }}
+                className={`${buttonClass("ghost", "sm")} self-start`}
+                aria-label={`Remove ${criterion.id}`}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -210,15 +220,13 @@ export function RubricEditor({
         >
           Add criterion
         </button>
-      </div>
-
-      <fieldset className="rounded-lg border border-line bg-paper/50 p-4 text-sm">
+      <fieldset className="rounded-lg border border-line bg-rail p-4 text-sm">
         <legend className="px-1 font-medium">Fail the document on</legend>
         <div className="mt-2 flex flex-wrap gap-3">
           {severities.map((s) => (
             <label
               key={s}
-              className="inline-flex items-center gap-2 rounded-md border border-line-strong bg-surface px-3 py-2"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line-strong bg-surface px-3 py-2"
             >
               <input
                 type="checkbox"

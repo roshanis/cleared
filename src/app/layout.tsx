@@ -26,7 +26,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-paper font-sans text-ink antialiased">
         <Nav />
-        <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
       </body>
     </html>
   );

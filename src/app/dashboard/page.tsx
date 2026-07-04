@@ -29,26 +29,28 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Documents" value={String(metrics.totalDocuments)} />
-        <Stat label="Reviews, last 30 days" value={String(metrics.runs30d)} />
-        <Stat
-          label="Pass rate"
-          value={
-            metrics.passRate === null
-              ? "—"
-              : `${Math.round(metrics.passRate * 100)}%`
-          }
-        />
-        <Stat
-          label="Median time to decision"
-          value={
-            metrics.medianMinutesToDecision === null
-              ? "—"
-              : `${Math.round(metrics.medianMinutesToDecision)}m`
-          }
-        />
-      </div>
+      <Card className="overflow-hidden">
+        <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+          <MetricCell label="Documents" value={String(metrics.totalDocuments)} />
+          <MetricCell label="Reviews, last 30 days" value={String(metrics.runs30d)} />
+          <MetricCell
+            label="Pass rate"
+            value={
+              metrics.passRate === null
+                ? "—"
+                : `${Math.round(metrics.passRate * 100)}%`
+            }
+          />
+          <MetricCell
+            label="Median time to decision"
+            value={
+              metrics.medianMinutesToDecision === null
+                ? "—"
+                : `${Math.round(metrics.medianMinutesToDecision)}m`
+            }
+          />
+        </div>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
@@ -121,7 +123,7 @@ export default async function DashboardPage() {
       </div>
 
       {storageKind() === "memory" && (
-        <div className="flex items-start gap-3 rounded-lg border border-line bg-well px-4 py-3 text-xs leading-5 text-muted">
+        <div className="flex items-start gap-3 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-xs leading-5 text-muted">
           <svg
             aria-hidden
             viewBox="0 0 16 16"
@@ -147,13 +149,13 @@ export default async function DashboardPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="px-5 py-4 lg:py-5">
+    <div className="px-5 py-4 lg:py-5">
       <p className="text-xs font-medium text-muted">{label}</p>
       <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
         {value}
       </p>
-    </Card>
+    </div>
   );
 }

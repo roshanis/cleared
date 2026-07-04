@@ -25,41 +25,28 @@ export default async function LoginPage() {
   if (session) redirect("/");
   const needsAccessCode = Boolean(process.env.APP_ACCESS_CODE);
   return (
-    <div className="mx-auto grid max-w-5xl items-start gap-8 py-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:py-12">
-      <section className="rounded-2xl bg-accent-strong p-8 text-white shadow-raised sm:p-10">
-        <h1 className="font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-          Compliance review,
-          <br />
-          before it ships.
+    <div className="mx-auto grid max-w-6xl items-start gap-8 py-6 lg:grid-cols-[1fr_0.9fr] lg:gap-14 lg:py-12">
+      <section className="rounded-lg bg-accent-strong p-8 text-white shadow-raised sm:p-10">
+        <p className="mb-5 inline-flex rounded-md border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+          Persona demo
+        </p>
+        <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+          Choose the role. See the same review system from each seat.
         </h1>
         <p className="mt-4 max-w-md text-sm leading-6 text-white/75">
           Cleared reviews customer-facing documents against your compliance
           rubric. An AI reviewer finds the problems; your team makes the calls.
         </p>
-        <ul className="mt-8 space-y-5">
+        <ul className="mt-8 divide-y divide-white/14 border-y border-white/14">
           {valueProps.map((prop) => (
-            <li key={prop.title} className="flex gap-3">
+            <li key={prop.title} className="grid gap-2 py-4 sm:grid-cols-[10rem_1fr]">
               <span
-                aria-hidden
-                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/15"
+                className="block text-sm font-semibold text-white"
               >
-                <svg
-                  viewBox="0 0 16 16"
-                  className="h-3 w-3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M13.5 4.5 6.4 11.6 2.5 7.7" />
-                </svg>
+                {prop.title}
               </span>
-              <span>
-                <span className="block text-sm font-semibold">{prop.title}</span>
-                <span className="mt-0.5 block text-sm leading-6 text-white/70">
-                  {prop.detail}
-                </span>
+              <span className="block text-sm leading-6 text-white/70">
+                {prop.detail}
               </span>
             </li>
           ))}

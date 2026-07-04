@@ -26,7 +26,7 @@ export async function Nav() {
   const session = await getSession();
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface">
-      <div className="mx-auto flex min-h-14 w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:flex-nowrap sm:px-6">
+      <div className="mx-auto flex min-h-14 w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:flex-nowrap sm:px-6">
         <Link
           href="/"
           className="shrink-0 text-lg font-semibold tracking-tight text-accent-strong"
@@ -65,7 +65,7 @@ export async function Nav() {
               </span>
               <Link
                 href="/login"
-                className="rounded-md bg-accent px-3 py-1.5 font-semibold text-white transition-colors duration-150 hover:bg-accent-strong"
+                className="inline-flex min-h-8 items-center rounded-md bg-accent px-3 py-1.5 font-semibold text-white transition-colors duration-150 hover:bg-accent-strong"
               >
                 Sign in
               </Link>

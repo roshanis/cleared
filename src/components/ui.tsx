@@ -8,17 +8,17 @@ const buttonBase =
   "inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants = {
-  primary: "bg-accent text-white shadow-card hover:bg-accent-strong",
+  primary: "bg-accent text-white hover:bg-accent-strong active:bg-accent-strong",
   secondary:
-    "border border-line-strong bg-surface text-accent-strong shadow-card hover:border-accent hover:bg-accent-soft/60",
-  danger: "bg-fail text-white shadow-card hover:bg-fail-strong",
-  success: "bg-pass text-white shadow-card hover:bg-pass-strong",
-  ghost: "text-muted hover:bg-well hover:text-ink",
+    "border border-line-strong bg-surface text-accent-strong hover:border-accent hover:bg-accent-soft/70 active:bg-accent-soft",
+  danger: "bg-fail text-white hover:bg-fail-strong active:bg-fail-strong",
+  success: "bg-pass text-white hover:bg-pass-strong active:bg-pass-strong",
+  ghost: "text-muted hover:bg-rail hover:text-ink active:bg-well",
 } as const;
 
 const buttonSizes = {
-  md: "px-4 py-2 text-sm",
-  sm: "px-3 py-1.5 text-xs",
+  md: "min-h-10 px-4 py-2 text-sm",
+  sm: "min-h-8 px-3 py-1.5 text-xs",
 } as const;
 
 export function buttonClass(
@@ -29,10 +29,10 @@ export function buttonClass(
 }
 
 export const inputClass =
-  "w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm shadow-card transition-colors duration-150 placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
+  "min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
 
 export const selectClass =
-  "w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm shadow-card transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
+  "min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
 
 export const textareaClass = `${inputClass} leading-6`;
 
@@ -44,6 +44,7 @@ const badgeTones = {
   pass: "bg-pass-soft text-pass ring-pass/25",
   warn: "bg-warn-soft text-warn ring-warn/25",
   fail: "bg-fail-soft text-fail ring-fail/25",
+  info: "bg-info-soft text-info ring-info/20",
 } as const;
 
 export function StatusBadge({
@@ -161,7 +162,7 @@ export function SectionHeading({
   count?: number;
 }) {
   return (
-    <h2 className="flex items-baseline gap-2 text-sm font-semibold tracking-tight">
+    <h2 className="flex items-baseline gap-2 text-sm font-semibold tracking-tight text-ink">
       {children}
       {count !== undefined && (
         <span className="text-xs font-medium tabular-nums text-muted">
@@ -185,7 +186,7 @@ export function EmptyState({
     <Card className="flex flex-col items-center gap-2 px-6 py-16 text-center">
       <span
         aria-hidden
-        className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft"
+        className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-accent-soft"
       >
         <svg
           viewBox="0 0 16 16"
@@ -216,9 +217,11 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          {title}
+        </h1>
         {subtitle && (
           <div className="mt-1.5 max-w-2xl text-sm leading-6 text-muted">
             {subtitle}

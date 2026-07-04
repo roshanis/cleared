@@ -27,7 +27,7 @@ export default async function RubricPage() {
         </h2>
         <TableCard>
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-well">
+            <thead className="bg-rail">
               <tr>
                 <Th>Version</Th>
                 <Th>Author</Th>
@@ -40,7 +40,7 @@ export default async function RubricPage() {
               {versions.map((rubric) => (
                 <tr
                   key={rubric.version}
-                  className="transition-colors duration-150 hover:bg-paper"
+                  className="transition-colors duration-150 hover:bg-rail/60"
                 >
                   <td className="px-4 py-3 font-mono text-xs font-semibold">
                     v{rubric.version}

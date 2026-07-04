@@ -62,7 +62,7 @@ export function DecisionPanel({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-warn-soft/60 px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-warn-soft px-5 py-4">
         <div>
           <h2 className="text-base font-semibold tracking-tight">
             Your decision
@@ -79,11 +79,11 @@ export function DecisionPanel({
       </div>
 
       <div className="space-y-4 p-5">
-        <ul className="space-y-2">
+        <ul className="overflow-hidden rounded-lg border border-line bg-surface">
           {findings.map((finding, i) => (
             <li
               key={i}
-              className="grid gap-3 rounded-lg border border-line bg-surface px-3 py-3 text-sm sm:grid-cols-[auto_1fr_auto]"
+              className="grid gap-3 border-b border-line px-3 py-3 text-sm last:border-b-0 sm:grid-cols-[auto_1fr_auto]"
             >
               <div className="flex items-center gap-2">
                 <CriterionChip id={finding.criterionId} />
@@ -99,7 +99,7 @@ export function DecisionPanel({
               <span
                 role="group"
                 aria-label={`Finding ${finding.criterionId}`}
-                className="flex w-max overflow-hidden rounded-md border border-line-strong text-xs"
+                className="flex min-h-8 w-max overflow-hidden rounded-md border border-line-strong text-xs"
               >
                 {(["accept", "dismiss"] as const).map((action) => (
                   <button
