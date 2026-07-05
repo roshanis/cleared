@@ -11,7 +11,7 @@ import { requireRole } from "@/lib/session";
 import { getDb, storageKind } from "@/lib/store";
 
 export default async function DashboardPage() {
-  await requireRole("officer", "admin");
+  await requireRole("officer", "admin", "auditor");
   const db = await getDb();
   const metrics = computeMetrics(db);
   const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));

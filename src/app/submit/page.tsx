@@ -1,7 +1,7 @@
 import { SubmitForm } from "@/components/submit-form";
 import { PageHeader } from "@/components/ui";
 import { activeReviewer } from "@/agent/run";
-import { requireSession } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric } from "@/lib/store";
 
 export default async function SubmitPage({
@@ -9,7 +9,7 @@ export default async function SubmitPage({
 }: {
   searchParams: Promise<{ documentId?: string }>;
 }) {
-  const session = await requireSession();
+  const session = await requireRole("author", "admin");
   const { documentId } = await searchParams;
   const db = await getDb();
   const rubric = publishedRubric(db);

@@ -9,6 +9,7 @@ interface PersonaCard {
   name: string;
   role: string;
   tagline: string;
+  sees: string;
 }
 
 export function LoginCards({
@@ -84,6 +85,9 @@ export function LoginCards({
               </span>
               <span className="mt-0.5 block text-sm leading-5 text-muted">
                 {pending === persona.id ? "Signing in…" : persona.tagline}
+              </span>
+              <span className="mt-0.5 block text-xs leading-4 text-muted/70">
+                {persona.sees}
               </span>
             </span>
             <svg

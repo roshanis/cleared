@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { signToken, verifyToken } from "./token";
 
-export type Role = "author" | "officer" | "admin";
+export type Role = "author" | "officer" | "admin" | "auditor";
 
 export interface Session {
   personaId: string;
@@ -20,30 +20,35 @@ export const personas: readonly {
   name: string;
   role: Role;
   tagline: string;
+  sees: string;
 }[] = [
   {
     id: "maya",
     name: "Maya Chen",
     role: "author",
     tagline: "Content author — submits documents and fixes findings",
+    sees: "Submit page, your documents, review results",
   },
   {
     id: "devon",
     name: "Devon Park",
     role: "officer",
     tagline: "Compliance officer — owns the review queue and decisions",
+    sees: "Review queue, decisions, dashboard",
   },
   {
     id: "priya",
     name: "Priya Nair",
     role: "admin",
     tagline: "Compliance lead — rubric, dashboard, and everything below",
+    sees: "Everything + rubric editor",
   },
   {
     id: "sam",
     name: "Sam Osei",
-    role: "admin",
-    tagline: "Auditor — document history and CSV export",
+    role: "auditor",
+    tagline: "Auditor — read-only history, decisions, and CSV export",
+    sees: "Documents, audit log, CSV export",
   },
 ];
 

@@ -20,6 +20,11 @@ const linksByRole: Record<Role, { href: string; label: string }[]> = {
     { href: "/rubric", label: "Rubric" },
     { href: "/dashboard", label: "Dashboard" },
   ],
+  auditor: [
+    { href: "/documents", label: "Documents" },
+    { href: "/audit", label: "Audit log" },
+    { href: "/dashboard", label: "Dashboard" },
+  ],
 };
 
 export async function Nav() {

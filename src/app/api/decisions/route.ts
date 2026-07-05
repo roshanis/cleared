@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { canDecide } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { addDecision } from "@/lib/store";
 
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
-  if (session.role === "author") {
+  if (!canDecide(session.role)) {
     return NextResponse.json(
       { error: "Only compliance officers can record decisions." },
       { status: 403 },

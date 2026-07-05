@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { activeReviewer } from "@/agent/run";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { createSubmission, getDb } from "@/lib/store";
 
@@ -18,6 +19,12 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  }
+  if (!canSubmit(session.role)) {
+    return NextResponse.json(
+      { error: "Only authors and admins can submit documents." },
+      { status: 403 },
+    );
   }
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

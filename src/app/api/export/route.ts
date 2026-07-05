@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { toCsv } from "@/lib/csv";
+import { canExport } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { decisionForRun, getDb } from "@/lib/store";
 
 /** Full audit export: one row per review run, with the human decision if any. */
 export async function GET() {
   const session = await getSession();
-  if (!session || session.role === "author") {
+  if (!session || !canExport(session.role)) {
     return NextResponse.json(
       { error: "Only compliance staff can export the audit log." },
       { status: 403 },

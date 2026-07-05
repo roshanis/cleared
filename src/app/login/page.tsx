@@ -62,11 +62,12 @@ export default async function LoginPage() {
         {canUseDemoAuth ? (
           <div className="mt-5">
             <LoginCards
-              personas={personas.map(({ id, name, role, tagline }) => ({
+              personas={personas.map(({ id, name, role, tagline, sees }) => ({
                 id,
                 name,
                 role,
                 tagline,
+                sees,
               }))}
               needsAccessCode={needsAccessCode}
             />
