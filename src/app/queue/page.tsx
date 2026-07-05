@@ -34,6 +34,11 @@ export default async function QueuePage() {
         <EmptyState
           title="The queue is clear"
           hint="Nothing is waiting on a decision. New submissions that fail or need human review will appear here."
+          action={
+            <Link href="/dashboard" className={buttonClass("secondary")}>
+              View dashboard
+            </Link>
+          }
         />
       ) : (
         <TableCard>

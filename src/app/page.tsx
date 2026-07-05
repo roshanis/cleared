@@ -1,13 +1,6 @@
 import Link from "next/link";
-import { getSession } from "@/lib/session";
+import { getSession, homeByRole } from "@/lib/session";
 import { buttonClass } from "@/components/ui";
-
-const homeByRole: Record<import("@/lib/session").Role, string> = {
-  author: "/submit",
-  officer: "/queue",
-  admin: "/dashboard",
-  auditor: "/audit",
-};
 
 const workflow = [
   {

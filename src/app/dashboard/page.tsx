@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Card,
   CriterionChip,
@@ -5,17 +6,39 @@ import {
   SectionHeading,
   StatusBadge,
   buttonClass,
+  relativeTime,
 } from "@/components/ui";
 import { computeMetrics } from "@/lib/metrics";
 import { requireRole } from "@/lib/session";
-import { getDb, storageKind } from "@/lib/store";
+import { getDb, publishedRubric, storageKind } from "@/lib/store";
 
 export default async function DashboardPage() {
-  await requireRole("officer", "admin", "auditor");
+  const session = await requireRole("officer", "admin", "auditor");
   const db = await getDb();
   const metrics = computeMetrics(db);
   const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));
   const maxCriteria = Math.max(1, ...metrics.topCriteria.map((c) => c.count));
+
+  // Rubric health — only computed for admin, but data loaded regardless to avoid
+  // branching the getDb() call. Render the card only for admins.
+  const isAdmin = session.role === "admin";
+  const liveRubric = (() => {
+    try {
+      return publishedRubric(db);
+    } catch {
+      return null;
+    }
+  })();
+  const newerDraft = liveRubric
+    ? db.rubrics.find(
+        (r) => r.publishedAt === null && r.version > liveRubric.version,
+      ) ?? null
+    : null;
+  const goldenGate = liveRubric?.goldenGate ?? null;
+  const goldenPassCount = goldenGate
+    ? goldenGate.cases.filter((c) => c.pass).length
+    : 0;
+  const goldenTotalCount = goldenGate ? goldenGate.cases.length : 0;
 
   return (
     <div className="space-y-8">
@@ -121,6 +144,45 @@ export default async function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {isAdmin && liveRubric && (
+        <Card className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <Link
+              href="/rubric"
+              className="text-sm font-semibold tracking-tight text-accent-strong hover:underline"
+            >
+              Rubric health
+            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              {newerDraft && (
+                <StatusBadge tone="warn">
+                  Draft v{newerDraft.version} pending
+                </StatusBadge>
+              )}
+              {goldenGate && (
+                <StatusBadge tone={goldenGate.pass ? "pass" : "fail"}>
+                  Golden gate: {goldenPassCount}/{goldenTotalCount} pass
+                </StatusBadge>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 grid gap-1 text-sm text-muted sm:grid-cols-2">
+            <span>
+              Live rubric:{" "}
+              <span className="font-medium text-ink">v{liveRubric.version}</span>
+            </span>
+            <span>
+              Published{" "}
+              <span className="font-medium text-ink">
+                {liveRubric.publishedAt
+                  ? relativeTime(liveRubric.publishedAt)
+                  : "—"}
+              </span>
+            </span>
+          </div>
+        </Card>
+      )}
 
       {storageKind() === "memory" && (
         <div className="flex items-start gap-3 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-xs leading-5 text-muted">

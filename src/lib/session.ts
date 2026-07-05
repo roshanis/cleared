@@ -52,6 +52,14 @@ export const personas: readonly {
   },
 ];
 
+/** Single source of truth for role → home page mapping. */
+export const homeByRole: Record<Role, string> = {
+  author: "/documents",
+  officer: "/queue",
+  admin: "/dashboard",
+  auditor: "/audit",
+};
+
 export const SESSION_COOKIE = "cleared_session";
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 
