@@ -202,7 +202,8 @@ export default async function DashboardPage() {
             <StatusBadge tone="warn">Demo storage</StatusBadge>
             <p>
               Running on ephemeral demo storage — data resets between serverless
-              instances. Connect Upstash Redis (see README) for durability.
+              instances. Set DATABASE_URL to a Postgres connection string (see
+              README) for durability.
             </p>
           </div>
         </div>

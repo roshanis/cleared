@@ -81,7 +81,7 @@ HMAC via `AUTH_SECRET`). Persona auth is enabled by default only outside
 production. To deploy the persona demo intentionally, set `DEMO_AUTH=1`,
 `AUTH_SECRET`, and `APP_ACCESS_CODE`. **Swap in a real identity provider before
 opening this to untrusted users** — the role model (`author` / `officer` /
-`admin`) and every `requireRole()` call site carry over unchanged.
+`admin` / `auditor`) and every `requireRole()` call site carry over unchanged.
 
 ## Environment variables
 
@@ -96,10 +96,15 @@ npm run deploy     # vercel deploy
 ```
 
 From a clean clone: `npm install`, set env vars in the Vercel dashboard
-(add `OPENAI_API_KEY` for model reviews, the Upstash pair for durable storage,
-and `DEMO_AUTH=1` / `AUTH_SECRET` / `APP_ACCESS_CODE` only if you are
+(add `OPENAI_API_KEY` for model reviews, `DATABASE_URL` for durable Postgres
+storage, and `DEMO_AUTH=1` / `AUTH_SECRET` / `APP_ACCESS_CODE` only if you are
 intentionally deploying the persona demo), then deploy. The seed runs
 automatically on first access so the deployed app looks alive immediately.
+
+The execute and rubric-gate routes declare `maxDuration = 300` for model-mode
+reviews. That works on Vercel Pro and on Hobby projects with Fluid Compute
+(the default for new projects); if your deploy rejects it, lower both to 60 —
+demo-reviewer runs finish instantly either way.
 
 ## Layout
 
