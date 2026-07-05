@@ -349,3 +349,30 @@ origin/main at a01fd08f7977af9ba7e2b03b5353383b4ac203bd.
 Current checkout remains redesign-ui-db with existing uncommitted WS4 changes
 in src/lib/db/sqlite.ts plus untracked src/lib/db/index.ts and
 src/lib/db/postgres.ts. Treat that as separate in-progress WS4 work.
+
+## [AGENT: Claude] 2026-07-05 14:35 CDT
+### Action: WS4 complete — per-entity SQLite/Postgres storage; redesign branch finished
+### Files changed: src/lib/db/{driver,memory,sqlite,postgres,index}.ts,
+src/lib/store.ts (internals only), store.concurrency.test.ts, next.config.ts,
+.env.example, README.md, package.json (pg added, @upstash/redis removed)
+### Diff summary:
+store.ts rewritten onto a driver layer with every exported signature
+preserved (store.test.ts passes unmodified). SQLite via built-in node:sqlite
+at .data/app.db locally; Postgres via pg pool when DATABASE_URL/POSTGRES_URL
+set; memory for tests and Vercel-without-DB. Real concurrency guards:
+atomic claimRun UPDATE, UNIQUE(run_id) on decisions, UNIQUE(document_id,
+number) on versions. 28 driver contract tests + 9 concurrency race tests.
+### Verification (all on branch redesign-ui-db, commit 413a617):
+130 tests: 127 pass, 3 postgres cases skip without DATABASE_URL; tsc clean;
+next build 20 routes; seed idempotent across two runs. Live E2E walk on
+SQLite: landing renders real pipeline review; four personas land on correct
+homes; auditor blocked from submit (307), submissions API (403), decisions
+API (403); Maya sample submit → fail w/ 3 findings → Devon reject → Sam sees
+note in /audit + CSV export → SERVER RESTARTED → decision and document
+survived (durability the blob store never had). npm run eval: all golden
+cases pass.
+### Recommendations / Next steps:
+Branch ready for Codex to merge (user's call). Postgres driver is
+contract-covered but unexercised against a live DB — set DATABASE_URL and
+run the suite once after provisioning (operator step). Legacy .data/db.json
+can be deleted.
