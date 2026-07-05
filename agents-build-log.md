@@ -318,3 +318,14 @@ store.ts untouched — app still runs on the JSON-blob store and the original
 Resume WS4 from PLAN-REDESIGN.md step 4 (implement sqlite.ts), then store.ts
 rewrite + concurrency tests + postgres driver + cleanup. Do not merge the
 branch before WS4 finishes or the red contract tests are removed.
+
+## [AGENT: Claude] 2026-07-05 10:35 CDT
+### Action: Merged redesign-ui-db into main (fast-forward)
+### Diff summary:
+WS1-3 of PLAN-REDESIGN.md are now on main: auditor role + tested auth
+matrix, per-role homes incl. /audit, landing redo with live pipeline proof.
+The WS4 WIP (per-entity DB drivers) was reverted before merge to keep main
+green — the work is preserved in history at 04c990e (revert 829153f);
+resume by reverting the revert or cherry-picking, then continue from
+PLAN-REDESIGN.md WS4 step 4.
+### Verification: 93/93 tests, tsc clean, next build — on main post-merge.
