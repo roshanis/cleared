@@ -299,3 +299,22 @@ React SSR comment nodes).
 ### Recommendations / Next steps:
 Officer-side comprehension (decision panel rule descriptions) left out to
 keep scope tight — ResultView above the panel now carries them.
+
+## [AGENT: Claude] 2026-07-05 10:30 CDT
+### Action: Redesign branch checkpoint — WS1-3 done, WS4 saved as WIP
+### Files changed: (branch redesign-ui-db, commits 126cede..04c990e)
+### Diff summary:
+Approved plan in PLAN-REDESIGN.md. Landed and verified: WS2 auditor role +
+tested authorization matrix (src/lib/roles.ts, 28 tests); WS3 per-role homes
+(homeByRole in session.ts, author status board, admin rubric-health card,
+new /audit decision log, 15 tests); WS1 landing redo (live pipeline-rendered
+sample review via real ResultView, persona deep-links to /login?as=).
+WS4 (SQLite/Postgres per-entity storage) was stopped by the user mid-TDD and
+committed as WIP 04c990e: driver interface + memory driver + 28 contract
+tests exist; sqlite.ts is a stub (its 14 contract tests are red by design);
+store.ts untouched — app still runs on the JSON-blob store and the original
+93 tests pass. tsc clean at every commit.
+### Recommendations / Next steps:
+Resume WS4 from PLAN-REDESIGN.md step 4 (implement sqlite.ts), then store.ts
+rewrite + concurrency tests + postgres driver + cleanup. Do not merge the
+branch before WS4 finishes or the red contract tests are removed.
