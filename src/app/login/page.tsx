@@ -20,7 +20,12 @@ const valueProps = [
   },
 ];
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ as?: string }>;
+}) {
+  const { as: highlightPersona } = await searchParams;
   const session = await getSession();
   if (session) redirect("/");
   const needsAccessCode = Boolean(process.env.APP_ACCESS_CODE);
@@ -35,8 +40,8 @@ export default async function LoginPage() {
           Choose the role. See the same review system from each seat.
         </h1>
         <p className="mt-4 max-w-md text-sm leading-6 text-white/75">
-          Cleared reviews customer-facing documents against your compliance
-          rubric. An AI reviewer finds the problems; your team makes the calls.
+          Each persona has different access — author, officer, admin, and
+          auditor all see different screens, queues, and actions.
         </p>
         <ul className="mt-8 divide-y divide-white/14 border-y border-white/14">
           {valueProps.map((prop) => (
@@ -70,6 +75,7 @@ export default async function LoginPage() {
                 sees,
               }))}
               needsAccessCode={needsAccessCode}
+              highlight={highlightPersona}
             />
           </div>
         ) : (

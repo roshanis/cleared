@@ -268,3 +268,30 @@ export function relativeTime(iso: string, now = Date.now()): string {
   const days = Math.round(hours / 24);
   return `${days}d ago`;
 }
+
+/** Numbered step for "how it works" explanations — extracted from SubmitForm
+ *  so the landing page can reuse the same component. */
+export function HowItWorksStep({
+  step,
+  title,
+  detail,
+}: {
+  step: number;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex gap-3">
+      <span
+        aria-hidden
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold tabular-nums text-accent-strong"
+      >
+        {step}
+      </span>
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-0.5 text-xs leading-5 text-muted">{detail}</p>
+      </div>
+    </div>
+  );
+}

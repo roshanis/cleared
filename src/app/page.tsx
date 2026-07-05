@@ -1,197 +1,190 @@
 import Link from "next/link";
-import { getSession, homeByRole } from "@/lib/session";
-import { buttonClass } from "@/components/ui";
+import { getSession, homeByRole, personas } from "@/lib/session";
+import { runReview } from "@/agent/run";
+import { defaultRubricDraft } from "@/lib/rubric";
+import { sampleDocument } from "@/lib/copy";
+import { ResultView } from "@/components/result-view";
+import { HowItWorksStep, buttonClass, initials } from "@/components/ui";
 
-const workflow = [
+const steps = [
   {
-    step: "Submit",
-    title: "Authors enter the review lane",
-    body: "Marketing emails, letters, landing-page copy, and other customer-facing text move through one intake path.",
+    step: 1,
+    title: "Submit",
+    detail:
+      "Authors paste customer-facing text — emails, letters, landing pages — into one intake path.",
   },
   {
-    step: "Review",
-    title: "AI returns evidence, not vibes",
-    body: "Two reviewer lanes check policy claims and data-handling risk, then cite exact quotes with severity, explanation, and fix guidance.",
+    step: 2,
+    title: "Review",
+    detail:
+      "AI reviewers check every claim against the compliance rubric and cite exact quotes with severity and fix guidance.",
   },
   {
-    step: "Decide",
-    title: "Compliance makes the call",
-    body: "Failed or uncertain documents route to an officer queue where every override and final decision requires a note.",
+    step: 3,
+    title: "Decide",
+    detail:
+      "Compliance officers work one queue with every finding highlighted; every override requires a note.",
   },
   {
-    step: "Audit",
-    title: "History stays attached",
-    body: "Rubric version, review result, decision notes, timestamps, and export records stay traceable for each document version.",
+    step: 4,
+    title: "Audit",
+    detail:
+      "Rubric version, review result, decision notes, timestamps, and export records stay traceable for each document version.",
   },
 ];
-
-const audiences = [
-  {
-    name: "Content authors",
-    detail: "Get quote-level feedback and practical fixes without waiting days for a first read.",
-  },
-  {
-    name: "Compliance officers",
-    detail: "Work one queue ordered by risk, with every finding already attached to highlighted source text.",
-  },
-  {
-    name: "Compliance leads",
-    detail: "Edit criteria and severities in the UI, then run the golden-set gate before publishing a new rubric.",
-  },
-  {
-    name: "Auditors",
-    detail: "Open the full document history and export decisions, findings, notes, and rubric versions.",
-  },
-];
-
-const proofPoints = [
-  ["Reviewer mode", "Model or demo reviewer is visible before submission."],
-  ["Human authority", "Officer decisions override the agent and enter the audit trail."],
-  ["Rubric control", "Draft versions run against the golden set before publish."],
-  ["Audit export", "CSV history includes reviews, findings, decisions, and notes."],
-] as const;
 
 export default async function LandingPage() {
   const session = await getSession();
   const appHref = session ? homeByRole[session.role] : "/login";
   const appLabel = session ? "Open Cleared" : "Try the demo";
-  const secondaryLabel = session ? "Open workspace" : "View personas";
-  const bottomCopy = session
-    ? "Continue into your current demo workspace to inspect the seeded review data."
-    : "Sign in as an author, officer, admin, or auditor to inspect the same product from each role.";
-  const bottomAction = session ? "Open Cleared" : "Sign in as a persona";
+
+  const result = await runReview(
+    sampleDocument.content,
+    defaultRubricDraft,
+    "heuristic",
+  );
 
   return (
     <div className="-mx-6 -mt-8">
-      <section
-        className="relative isolate overflow-hidden border-b border-line bg-ink text-white"
-        style={{ minHeight: "min(540px, calc(100svh - 10rem))" }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-cover bg-center opacity-55"
-          style={{ backgroundImage: "url('/landing-dashboard.png')" }}
-        />
-        <div aria-hidden className="absolute inset-0 bg-ink/62" />
-        <div className="relative mx-auto flex min-h-[inherit] w-full max-w-6xl flex-col justify-center px-6 py-16">
-          <div className="max-w-3xl">
-            <p className="mb-4 inline-flex rounded-md border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/85">
-              AI-assisted compliance review
-            </p>
-            <h1 className="font-serif text-5xl leading-none tracking-tight sm:text-6xl lg:text-7xl">
-              Cleared
-            </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/82">
-              Cleared helps teams review customer-facing documents before they
-              ship. AI reviewers flag risky claims and data-handling issues with
-              exact quotes and suggested fixes, while compliance officers keep
-              the final decision and audit trail.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={appHref} className={buttonClass("primary")}>
-                {appLabel}
-              </Link>
-              <Link
-                href={appHref}
-                className="inline-flex items-center justify-center rounded-md border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/20"
-              >
-                {secondaryLabel}
-              </Link>
-            </div>
-          </div>
-          <div className="mt-12 grid max-w-4xl border-y border-white/18 text-sm sm:grid-cols-4">
-            {proofPoints.map(([label, detail]) => (
-              <div key={label} className="border-white/18 py-4 sm:border-l sm:px-4 first:sm:border-l-0">
-                <p className="font-semibold text-white">{label}</p>
-                <p className="mt-1 leading-5 text-white/68">{detail}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[0.85fr_1.15fr] lg:py-16">
-        <div className="max-w-md">
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-            A review system for regulated customer communications.
-          </h2>
-          <p className="mt-4 text-sm leading-7 text-muted">
-            Cleared is built for teams that need evidence, not just a pass/fail
-            score. It connects document submission, rubric-based AI review,
-            human approval, version history, and exportable audit records in one
-            Vercel-ready web app.
+      {/* ── Hero ──────────────────────────────────────────────────────── */}
+      <section className="bg-accent-strong text-white">
+        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+          <h1 className="font-serif text-4xl leading-tight tracking-tight text-white sm:text-5xl">
+            Compliance review, before it ships.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-white/80">
+            Cleared runs customer-facing documents through an AI compliance
+            reviewer that quotes exact violations and proposes fixes, while your
+            team keeps the final decision and an unbroken audit trail.
           </p>
-        </div>
-        <div className="border-t border-line">
-          {workflow.map((item, index) => (
-            <article
-              key={item.step}
-              className="grid gap-4 border-b border-line py-5 sm:grid-cols-[7rem_1fr]"
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href={appHref}
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md bg-white px-4 py-2 text-sm font-semibold text-accent-strong transition-colors duration-150 hover:bg-white/90 active:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              <p className="font-mono text-xs font-semibold text-accent-strong">
-                {String(index + 1).padStart(2, "0")} / {item.step}
-              </p>
-              <div>
-                <h3 className="text-base font-semibold tracking-tight">
-                  {item.title}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-muted">{item.body}</p>
-              </div>
-            </article>
-          ))}
+              {appLabel}
+            </Link>
+            <Link
+              href="#live-review"
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/20 active:bg-white/30"
+            >
+              See a real review
+            </Link>
+          </div>
         </div>
       </section>
 
-      <section className="border-y border-line bg-surface">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1fr_1.1fr]">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-ink">
-              Built around the actual handoffs.
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-muted">
-              Each screen has a job: faster author fixes, less officer re-read,
-              safer rubric changes, and cleaner audit exports.
-            </p>
-            <figure
-              className="mt-8 overflow-hidden rounded-lg border border-line bg-rail"
-              style={{ aspectRatio: "16 / 10" }}
-            >
-              <img
-                src="/landing-dashboard.png"
-                alt="Cleared dashboard showing review volume, pass rate, criteria, and audit export."
-                className="block h-full w-full max-w-full object-cover object-top"
-                style={{ height: "100%", width: "100%" }}
-              />
-            </figure>
+      {/* ── Live review proof (centerpiece) ───────────────────────────── */}
+      <section id="live-review" className="border-t border-line">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <h2 className="text-2xl font-semibold tracking-tight text-ink">
+            A real review, run at page load.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            This is the demo reviewer&apos;s output for the sample document
+            below — run through the actual pipeline at request time, not a
+            mockup. The document is a synthetic investor email designed to
+            trigger the rubric.
+          </p>
+          <div className="mt-8">
+            <ResultView
+              content={sampleDocument.content}
+              result={result}
+              criteria={defaultRubricDraft.criteria}
+            />
           </div>
-          <div className="grid gap-4">
-            {audiences.map((audience) => (
-              <div
-                key={audience.name}
-                className="grid gap-2 border-t border-line pt-4 sm:grid-cols-[10rem_1fr]"
-              >
-                <h3 className="font-semibold">{audience.name}</h3>
-                <p className="text-sm leading-6 text-muted">
-                  {audience.detail}
-                </p>
-              </div>
+        </div>
+      </section>
+
+      {/* ── How it works ──────────────────────────────────────────────── */}
+      <section className="border-t border-line bg-surface">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <h2 className="text-2xl font-semibold tracking-tight text-ink">
+            How it works
+          </h2>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+            One path from draft to cleared — with AI finding the problems and
+            humans making the calls.
+          </p>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.map((s) => (
+              <HowItWorksStep key={s.step} {...s} />
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-4 border-y border-accent/25 bg-accent-soft px-1 py-6 sm:grid-cols-[1fr_auto] sm:items-center sm:px-0">
+      {/* ── Personas ──────────────────────────────────────────────────── */}
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <h2 className="text-2xl font-semibold tracking-tight text-ink">
+            Four seats, one system
+          </h2>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+            Sign in as any persona to see the review system from their vantage
+            point.
+          </p>
+          <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
+            {personas.map((persona) => (
+              <Link
+                key={persona.id}
+                href={`/login?as=${persona.id}`}
+                className="group flex items-center gap-3.5 rounded-lg border border-line bg-surface p-4 shadow-card transition-colors duration-150 hover:border-accent hover:bg-accent-soft/35"
+              >
+                <span
+                  aria-hidden
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-sm font-semibold text-accent-strong"
+                >
+                  {initials(persona.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-ink">
+                      {persona.name}
+                    </span>
+                    <span className="rounded-md bg-well px-2 py-0.5 text-[11px] font-medium text-muted">
+                      {persona.role}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-5 text-muted">
+                    {persona.sees}
+                  </span>
+                </span>
+                <svg
+                  aria-hidden
+                  viewBox="0 0 16 16"
+                  className="h-4 w-4 shrink-0 text-line-strong transition-colors duration-150 group-hover:text-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M6 3.5 10.5 8 6 12.5" />
+                </svg>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Bottom CTA band ───────────────────────────────────────────── */}
+      <section className="border-t border-line bg-accent-soft">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-6 py-10">
           <div>
             <h2 className="text-xl font-semibold tracking-tight text-accent-strong">
-              See the demo workflow with seeded compliance examples.
+              {session
+                ? "Continue into your workspace."
+                : "Sign in as a persona and try it."}
             </h2>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              {bottomCopy}
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+              {session
+                ? "Continue into your current demo workspace to inspect the seeded review data."
+                : "Sign in as an author, officer, admin, or auditor to inspect the same product from each role."}
             </p>
           </div>
           <Link href={appHref} className={buttonClass("primary")}>
-            {bottomAction}
+            {session ? "Open Cleared" : "Sign in as a persona"}
           </Link>
         </div>
       </section>
