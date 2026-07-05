@@ -376,3 +376,18 @@ Branch ready for Codex to merge (user's call). Postgres driver is
 contract-covered but unexercised against a live DB — set DATABASE_URL and
 run the suite once after provisioning (operator step). Legacy .data/db.json
 can be deleted.
+
+## [AGENT: Claude] 2026-07-05 15:05 CDT
+### Action: Vercel deploy-readiness audit + fixes (branch redesign-ui-db)
+### Diff summary:
+Fixed stale Upstash references (dashboard banner, README deploy section) to
+DATABASE_URL/Postgres; added auditor to README role list; pinned engines
+node>=22.5; documented maxDuration plan-tier behavior. Simulated both
+deployed configurations with VERCEL=1 (memory driver): bare deploy fails
+closed; configured demo deploy passes the full walk. 127 pass / 3 pg-skip,
+tsc clean, build 20 routes.
+### Recommendations / Next steps:
+Operator: merge+push via Codex, then in Vercel set DEMO_AUTH=1, AUTH_SECRET,
+APP_ACCESS_CODE (sign-in), DATABASE_URL pooled Postgres (durability),
+OPENAI_API_KEY (model reviews). Run suite once with DATABASE_URL to exercise
+the 3 skipped postgres tests.
