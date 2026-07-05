@@ -57,18 +57,22 @@ rubric, and model changes safe.
 
 ## Storage
 
-Pluggable single-store driver (`src/lib/store.ts`):
+Per-entity driver layer (`src/lib/store.ts` → `src/lib/db/`):
 
 | Environment | Driver | Durability |
 |---|---|---|
-| Local dev | JSON file in `.data/` | Durable |
-| Vercel + Upstash env vars | Upstash Redis | Durable |
-| Vercel without a store | In-memory | Per-instance demo only (the dashboard warns) |
+| Local dev | SQLite (`.data/app.db`) | Durable |
+| Production (DATABASE_URL set) | Postgres via `DATABASE_URL` | Durable |
+| Tests / Vercel without DB | In-memory | Per-instance demo only (dashboard warns) |
 
-For production on Vercel, add Upstash Redis from the Vercel Marketplace and set
-`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. The single-blob JSON
-store is deliberate for this stage — swap the driver for Postgres when volume
-or concurrency demands it; the store API is the seam.
+For production on Vercel, set `DATABASE_URL` to a Neon or Vercel Postgres
+connection string. The app bootstraps the schema and seeds demo data on first
+access automatically. The legacy `.data/db.json` can be deleted — the store
+reseeds from scratch on first run.
+
+Concurrent writes are safe: SQLite uses `BEGIN IMMEDIATE` transactions
+serialized in-process; Postgres uses interactive transactions with unique
+constraints as the conflict arbiter.
 
 ## Auth
 

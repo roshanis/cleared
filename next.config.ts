@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/**": ["./src/prompts/**", "./evals/golden/**"],
   },
+  // pg must not be bundled by the Next.js edge bundler — it is server-only.
+  serverExternalPackages: ["pg"],
 };
 
 export default nextConfig;

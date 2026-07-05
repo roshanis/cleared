@@ -1,8 +1,18 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { ReviewResult } from "@/schema";
 import type { ReviewerKind } from "@/agent/run";
 import type { GoldenGateReport, RubricDraft, RubricVersion } from "./rubric";
+import {
+  getDriver,
+  setDriverForTests,
+  onDriverChange,
+} from "./db/index";
+import { createMemoryDriver } from "./db/memory";
+import { UniqueViolationError } from "./db/driver";
+import type { StorageKind } from "./db/driver";
+
+// ---------------------------------------------------------------------------
+// Domain types — kept verbatim so no import site changes.
+// ---------------------------------------------------------------------------
 
 export interface DocumentRecord {
   id: string;
@@ -71,159 +81,115 @@ export const newId = (prefix: string) =>
   `${prefix}_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`;
 
 // ---------------------------------------------------------------------------
-// Drivers. Upstash Redis when configured (durable on Vercel), a JSON file in
-// local dev, in-memory otherwise (tests; Vercel demo without a store — data
-// then lives per serverless instance only, which the UI surfaces honestly).
+// Ready-memo — initialises the driver and seeds on first boot.
+// Resets whenever setDriverForTests() fires a driver-change event.
 // ---------------------------------------------------------------------------
 
-interface Driver {
-  name: "redis" | "file" | "memory";
-  load(): Promise<Db | null>;
-  save(db: Db): Promise<void>;
-}
+let readyPromise: Promise<void> | null = null;
 
-const globalStore = globalThis as unknown as { __clearedDb?: Db };
-
-const memoryDriver = (): Driver => ({
-  name: "memory",
-  async load() {
-    return globalStore.__clearedDb ?? null;
-  },
-  async save(db) {
-    globalStore.__clearedDb = db;
-  },
+onDriverChange(() => {
+  readyPromise = null;
 });
 
-const FILE_PATH = path.join(process.cwd(), ".data", "db.json");
+async function initStore(): Promise<void> {
+  const driver = getDriver();
+  await driver.init();
 
-const fileDriver = (): Driver => ({
-  name: "file",
-  async load() {
-    try {
-      return normalizeDb(JSON.parse(await fs.readFile(FILE_PATH, "utf8")) as Db);
-    } catch (error) {
-      if (isMissingFileError(error)) return null;
-      throw new Error(
-        `Stored database at ${FILE_PATH} could not be read. Refusing to reseed over existing data.`,
-      );
+  // Fast-path: check whether seed is needed before running reviews.
+  const maxVer = await driver.transact((tx) => tx.maxRubricVersion());
+  if (maxVer > 0) return;
+
+  // Build seed data OUTSIDE any transaction (seedInto runs async reviews).
+  const seedDb = emptyDb();
+  const { seedInto } = await import("./seed");
+  await seedInto(seedDb, { demoData: process.env.SEED_DEMO_DATA !== "0" });
+
+  // Bulk-insert in one transaction; swallow UniqueViolationError as a seed race.
+  await driver.transact(async (tx) => {
+    for (const rubric of seedDb.rubrics) {
+      try {
+        await tx.insertRubric(rubric);
+      } catch (e) {
+        if (!(e instanceof UniqueViolationError)) throw e;
+      }
     }
-  },
-  async save(db) {
-    await fs.mkdir(path.dirname(FILE_PATH), { recursive: true });
-    await fs.writeFile(FILE_PATH, JSON.stringify(db, null, 2));
-  },
-});
-
-function isMissingFileError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "ENOENT"
-  );
-}
-
-function normalizeDb(db: Db): Db {
-  db.documents ??= [];
-  db.versions ??= [];
-  db.runs ??= [];
-  db.decisions ??= [];
-  db.rubrics ??= [];
-  for (const version of db.versions as Array<DocVersion & { author?: string }>) {
-    version.author ??=
-      db.documents.find((document) => document.id === version.documentId)
-        ?.author ?? "Unknown";
-  }
-  return db;
-}
-
-const redisDriver = (): Driver => {
-  let clientPromise: Promise<{
-    get<T>(key: string): Promise<T | null>;
-    set(key: string, value: unknown): Promise<unknown>;
-  }> | null = null;
-  const client = () =>
-    (clientPromise ??= import("@upstash/redis").then(({ Redis }) =>
-      Redis.fromEnv(),
-    ));
-  return {
-    name: "redis",
-    async load() {
-      const db = await (await client()).get<Db>(REDIS_KEY);
-      return db ? normalizeDb(db) : null;
-    },
-    async save(db) {
-      await (await client()).set(REDIS_KEY, db);
-    },
-  };
-};
-
-const REDIS_KEY = "cleared:db";
-
-/*
- * Mutations are serialized within each server instance so duplicate clicks or
- * parallel requests cannot interleave a read-modify-write cycle in local/file
- * mode. Production still needs a transactional store before external use.
- */
-let mutationQueue: Promise<void> = Promise.resolve();
-
-function enqueueMutation<T>(work: () => Promise<T>): Promise<T> {
-  const next = mutationQueue.then(work, work);
-  mutationQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
-}
-
-function pickDriver(): Driver {
-  if (
-    process.env.UPSTASH_REDIS_REST_URL &&
-    process.env.UPSTASH_REDIS_REST_TOKEN
-  ) {
-    return redisDriver();
-  }
-  if (process.env.NODE_ENV === "test") return memoryDriver();
-  if (process.env.VERCEL) return memoryDriver();
-  return fileDriver();
-}
-
-let driverInstance: Driver | null = null;
-const driver = () => (driverInstance ??= pickDriver());
-
-export const storageKind = () => driver().name;
-
-/** Load the database, seeding rubric + demo data on first run. */
-export async function getDb(): Promise<Db> {
-  let db = await driver().load();
-  if (!db || db.rubrics.length === 0) {
-    db = db ?? emptyDb();
-    const { seedInto } = await import("./seed");
-    await seedInto(db, { demoData: process.env.SEED_DEMO_DATA !== "0" });
-    await driver().save(db);
-  }
-  return normalizeDb(db);
-}
-
-/** Read-modify-write helper. Single-writer semantics per instance. */
-export async function mutate<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
-  return enqueueMutation(async () => {
-    const db = await getDb();
-    const result = await fn(db);
-    await driver().save(db);
-    return result;
+    for (const doc of seedDb.documents) {
+      try {
+        await tx.insertDocument(doc);
+      } catch (e) {
+        if (!(e instanceof UniqueViolationError)) throw e;
+      }
+    }
+    for (const ver of seedDb.versions) {
+      try {
+        await tx.insertVersion(ver);
+      } catch (e) {
+        if (!(e instanceof UniqueViolationError)) throw e;
+      }
+    }
+    for (const run of seedDb.runs) {
+      try {
+        await tx.insertRun(run);
+      } catch (e) {
+        if (!(e instanceof UniqueViolationError)) throw e;
+      }
+    }
+    for (const dec of seedDb.decisions) {
+      try {
+        await tx.insertDecision(dec);
+      } catch (e) {
+        if (!(e instanceof UniqueViolationError)) throw e;
+      }
+    }
   });
 }
 
-/** Test-only: reset the in-memory database. */
+function ensureReady(): Promise<void> {
+  return (readyPromise ??= initStore());
+}
+
+/** Returns the storage kind of the active driver. */
+export function storageKind(): StorageKind {
+  return getDriver().kind;
+}
+
+/** Load a full snapshot of the database, seeding on first boot. */
+export async function getDb(): Promise<Db> {
+  await ensureReady();
+  return getDriver().snapshot();
+}
+
+// ---------------------------------------------------------------------------
+// Test-only reset
+// ---------------------------------------------------------------------------
+
+/**
+ * Replace the driver with a fresh in-memory instance, seed it, mark it ready,
+ * and return the initial snapshot. Keeps the same signature as before.
+ */
 export async function resetStoreForTests(seedDemoData = false): Promise<Db> {
-  const db = emptyDb();
+  const mem = createMemoryDriver();
+  await mem.init();
+
+  // Fires onDriverChange → resets readyPromise to null.
+  setDriverForTests(mem);
+
+  // Seed the fresh driver manually (we control demoData here).
+  const seedDb = emptyDb();
   const { seedInto } = await import("./seed");
-  await seedInto(db, { demoData: seedDemoData });
-  globalStore.__clearedDb = db;
-  driverInstance = memoryDriver();
-  mutationQueue = Promise.resolve();
-  return db;
+  await seedInto(seedDb, { demoData: seedDemoData });
+  await mem.transact(async (tx) => {
+    for (const rubric of seedDb.rubrics) await tx.insertRubric(rubric);
+    for (const doc of seedDb.documents) await tx.insertDocument(doc);
+    for (const ver of seedDb.versions) await tx.insertVersion(ver);
+    for (const run of seedDb.runs) await tx.insertRun(run);
+    for (const dec of seedDb.decisions) await tx.insertDecision(dec);
+  });
+
+  // Mark ready so getDb() skips initStore() for this driver.
+  readyPromise = Promise.resolve();
+
+  return mem.snapshot();
 }
 
 // ---------------------------------------------------------------------------
@@ -248,23 +214,38 @@ export interface SubmissionInput {
   reviewer: ReviewerKind;
 }
 
-export async function createSubmission(input: SubmissionInput) {
-  return mutate((db) => {
-    let document = input.documentId
-      ? db.documents.find((d) => d.id === input.documentId)
-      : undefined;
+async function doCreateSubmission(
+  input: SubmissionInput,
+): Promise<{ document: DocumentRecord; version: DocVersion; run: ReviewRun }> {
+  return getDriver().transact(async (tx) => {
     const now = new Date().toISOString();
-    if (!document) {
+
+    // Find or create the document.
+    let document: DocumentRecord;
+    if (input.documentId) {
+      const found = await tx.getDocument(input.documentId);
+      if (found) {
+        document = found;
+      } else {
+        document = {
+          id: newId("doc"),
+          title: input.title || "Untitled document",
+          author: input.author,
+          createdAt: now,
+        };
+        await tx.insertDocument(document);
+      }
+    } else {
       document = {
         id: newId("doc"),
         title: input.title || "Untitled document",
         author: input.author,
         createdAt: now,
       };
-      db.documents.push(document);
+      await tx.insertDocument(document);
     }
-    const number =
-      db.versions.filter((v) => v.documentId === document.id).length + 1;
+
+    const number = await tx.nextVersionNumber(document.id);
     const version: DocVersion = {
       id: newId("ver"),
       documentId: document.id,
@@ -273,22 +254,40 @@ export async function createSubmission(input: SubmissionInput) {
       content: input.content,
       createdAt: now,
     };
-    db.versions.push(version);
+    // May throw UniqueViolationError on (document_id, number) conflict.
+    await tx.insertVersion(version);
+
+    const rubric = await tx.latestPublishedRubric();
+    if (!rubric) throw new Error("no published rubric — store was not seeded");
+
     const run: ReviewRun = {
       id: newId("run"),
       documentId: document.id,
       versionId: version.id,
       status: "queued",
       reviewer: input.reviewer,
-      rubricVersion: publishedRubric(db).version,
+      rubricVersion: rubric.version,
       result: null,
       error: null,
       createdAt: now,
       finishedAt: null,
     };
-    db.runs.push(run);
+    await tx.insertRun(run);
+
     return { document, version, run };
   });
+}
+
+export async function createSubmission(input: SubmissionInput) {
+  try {
+    return await doCreateSubmission(input);
+  } catch (err) {
+    if (err instanceof UniqueViolationError) {
+      // Retry once on a (document_id, number) version conflict.
+      return doCreateSubmission(input);
+    }
+    throw err;
+  }
 }
 
 export type ClaimRunResult =
@@ -303,19 +302,39 @@ export type ClaimRunResult =
   | { status: "missing" }
   | { status: "corrupt" };
 
+// Sentinel thrown inside the transaction to trigger rollback and signal
+// that the claimed run's version/rubric could not be found.
+const CORRUPT = Symbol("corrupt");
+
 export async function claimRunForReview(runId: string): Promise<ClaimRunResult> {
-  return mutate((db) => {
-    const run = db.runs.find((r) => r.id === runId);
-    if (!run) return { status: "missing" };
-    if (run.status === "done") return { status: "done", run };
-    if (run.status === "reviewing") return { status: "reviewing", run };
-    const version = db.versions.find((v) => v.id === run.versionId);
-    const rubric = db.rubrics.find((r) => r.version === run.rubricVersion);
-    if (!version || !rubric) return { status: "corrupt" };
-    run.status = "reviewing";
-    run.error = null;
-    return { status: "claimed", run, version, rubric };
-  });
+  try {
+    return await getDriver().transact(async (tx): Promise<ClaimRunResult> => {
+      const claimed = await tx.claimRun(runId);
+
+      if (!claimed) {
+        // The run wasn't transitioned — find out why.
+        const run = await tx.getRun(runId);
+        if (!run) return { status: "missing" };
+        if (run.status === "done") return { status: "done", run };
+        if (run.status === "reviewing") return { status: "reviewing", run };
+        // Unexpected state — treat as corrupt.
+        return { status: "corrupt" };
+      }
+
+      // Load version and rubric in the same transaction.
+      const version = await tx.getVersion(claimed.versionId);
+      const rubric = await tx.getRubric(claimed.rubricVersion);
+      if (!version || !rubric) {
+        // Throw a sentinel so the transaction rolls back, reverting the claim.
+        throw CORRUPT;
+      }
+
+      return { status: "claimed", run: claimed, version, rubric };
+    });
+  } catch (err) {
+    if (err === CORRUPT) return { status: "corrupt" };
+    throw err;
+  }
 }
 
 export async function completeRun(
@@ -345,12 +364,7 @@ export async function updateRun(
   runId: string,
   patch: Partial<Pick<ReviewRun, "status" | "result" | "error" | "finishedAt">>,
 ): Promise<ReviewRun | null> {
-  return mutate((db) => {
-    const run = db.runs.find((r) => r.id === runId);
-    if (!run) return null;
-    Object.assign(run, patch);
-    return run;
-  });
+  return getDriver().transact((tx) => tx.updateRun(runId, patch));
 }
 
 export interface DecisionInput {
@@ -371,44 +385,70 @@ export type AddDecisionResult =
 export async function addDecision(
   input: DecisionInput,
 ): Promise<AddDecisionResult> {
-  return mutate((db) => {
-    const run = db.runs.find((r) => r.id === input.runId);
-    if (!run || run.status !== "done" || !run.result) {
-      return { status: "missing" };
-    }
-    if (run.result.verdict === "pass") {
-      return { status: "not_decidable" };
-    }
-    if (decisionForRun(db, run.id)) {
-      return { status: "duplicate" };
-    }
-    const findingCount = run.result.findings.length;
-    const indexes = new Set(input.overrides.map((override) => override.findingIndex));
-    const invalidIndexes =
-      indexes.size !== input.overrides.length ||
-      input.overrides.length !== findingCount ||
-      input.overrides.some(
-        (override) =>
-          override.findingIndex < 0 || override.findingIndex >= findingCount,
+  try {
+    return await getDriver().transact(async (tx): Promise<AddDecisionResult> => {
+      const run = await tx.getRun(input.runId);
+      if (!run || run.status !== "done" || !run.result) {
+        return { status: "missing" };
+      }
+      if (run.result.verdict === "pass") {
+        return { status: "not_decidable" };
+      }
+      const findingCount = run.result.findings.length;
+      const indexes = new Set(
+        input.overrides.map((override) => override.findingIndex),
       );
-    if (invalidIndexes) {
-      return {
-        status: "invalid_overrides",
-        message: "Every finding must have exactly one accept/dismiss override.",
+      const invalidIndexes =
+        indexes.size !== input.overrides.length ||
+        input.overrides.length !== findingCount ||
+        input.overrides.some(
+          (override) =>
+            override.findingIndex < 0 || override.findingIndex >= findingCount,
+        );
+      if (invalidIndexes) {
+        return {
+          status: "invalid_overrides",
+          message:
+            "Every finding must have exactly one accept/dismiss override.",
+        };
+      }
+      const decision: Decision = {
+        id: newId("dec"),
+        runId: input.runId,
+        documentId: run.documentId,
+        officer: input.officer,
+        action: input.action,
+        note: input.note,
+        overrides: input.overrides,
+        createdAt: new Date().toISOString(),
       };
-    }
-    const decision: Decision = {
-      id: newId("dec"),
-      runId: input.runId,
-      documentId: run.documentId,
-      officer: input.officer,
-      action: input.action,
-      note: input.note,
-      overrides: input.overrides,
+      // insertDecision throws UniqueViolationError on duplicate run_id.
+      await tx.insertDecision(decision);
+      return { status: "created", decision };
+    });
+  } catch (err) {
+    if (err instanceof UniqueViolationError) return { status: "duplicate" };
+    throw err;
+  }
+}
+
+async function doSaveRubricDraft(
+  draft: RubricDraft,
+  author: string,
+): Promise<RubricVersion> {
+  return getDriver().transact(async (tx) => {
+    const nextVersion = (await tx.maxRubricVersion()) + 1;
+    const rubric: RubricVersion = {
+      ...draft,
+      version: nextVersion,
+      author,
       createdAt: new Date().toISOString(),
+      publishedAt: null,
+      goldenGate: null,
     };
-    db.decisions.push(decision);
-    return { status: "created", decision };
+    // May throw UniqueViolationError if another draft was saved concurrently.
+    await tx.insertRubric(rubric);
+    return rubric;
   });
 }
 
@@ -416,43 +456,38 @@ export async function saveRubricDraft(
   draft: RubricDraft,
   author: string,
 ): Promise<RubricVersion> {
-  return mutate((db) => {
-    const version: RubricVersion = {
-      ...draft,
-      version: Math.max(0, ...db.rubrics.map((r) => r.version)) + 1,
-      author,
-      createdAt: new Date().toISOString(),
-      publishedAt: null,
-      goldenGate: null,
-    };
-    db.rubrics.push(version);
-    return version;
-  });
+  try {
+    return await doSaveRubricDraft(draft, author);
+  } catch (err) {
+    if (err instanceof UniqueViolationError) {
+      // Retry once on version PK conflict.
+      return doSaveRubricDraft(draft, author);
+    }
+    throw err;
+  }
 }
 
 export async function setGoldenGate(
   version: number,
   report: GoldenGateReport,
 ): Promise<RubricVersion | null> {
-  return mutate((db) => {
-    const rubric = db.rubrics.find((r) => r.version === version);
-    if (!rubric) return null;
-    rubric.goldenGate = report;
-    return rubric;
-  });
+  return getDriver().transact((tx) =>
+    tx.updateRubric(version, { goldenGate: report }),
+  );
 }
 
-export async function publishRubric(version: number): Promise<RubricVersion | null> {
-  return mutate((db) => {
-    const rubric = db.rubrics.find((r) => r.version === version);
+export async function publishRubric(
+  version: number,
+): Promise<RubricVersion | null> {
+  return getDriver().transact(async (tx) => {
+    const rubric = await tx.getRubric(version);
     if (!rubric || !rubric.goldenGate?.pass) return null;
-    rubric.publishedAt = new Date().toISOString();
-    return rubric;
+    return tx.updateRubric(version, { publishedAt: new Date().toISOString() });
   });
 }
 
 // ---------------------------------------------------------------------------
-// Queries
+// Queries — pure helpers that operate on a Db snapshot (unchanged).
 // ---------------------------------------------------------------------------
 
 export function latestRunForVersion(db: Db, versionId: string): ReviewRun | null {
