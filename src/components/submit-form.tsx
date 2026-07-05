@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { sampleDocument } from "@/lib/copy";
+import type { RubricCriterion } from "@/lib/rubric";
 import type { ReviewResult } from "@/schema";
 import { ResultView } from "./result-view";
 import {
@@ -18,9 +20,12 @@ type Phase = "idle" | "submitting" | "reviewing" | "done" | "error";
 export function SubmitForm({
   resubmit,
   reviewer,
+  criteria,
 }: {
   resubmit: { documentId: string; title: string; content: string } | null;
   reviewer: "model" | "heuristic";
+  /** Published rubric criteria, used to explain finding IDs in the result. */
+  criteria?: RubricCriterion[];
 }) {
   const [title, setTitle] = useState(resubmit?.title ?? "");
   const [content, setContent] = useState(resubmit?.content ?? "");
@@ -90,9 +95,34 @@ export function SubmitForm({
   const wordCount = content.trim().length
     ? content.trim().split(/\s+/).length
     : 0;
+  const showIntro = !resubmit && phase === "idle" && content.trim().length === 0;
+
+  function loadSample() {
+    setTitle(sampleDocument.title);
+    setContent(sampleDocument.content);
+  }
 
   return (
     <div className="space-y-6">
+      {showIntro && (
+        <Card className="grid gap-4 p-5 sm:grid-cols-3 sm:gap-6">
+          <HowItWorksStep
+            step={1}
+            title="Submit"
+            detail="Paste any customer-facing text — an email, a page, a letter."
+          />
+          <HowItWorksStep
+            step={2}
+            title="AI review"
+            detail="Two reviewers check it against your compliance rubric and quote every problem."
+          />
+          <HowItWorksStep
+            step={3}
+            title="Human decision"
+            detail="Anything flagged goes to a compliance officer; you fix and resubmit."
+          />
+        </Card>
+      )}
       <Card className="overflow-hidden">
         <div className="grid gap-4 border-b border-line bg-rail px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
@@ -145,9 +175,18 @@ export function SubmitForm({
             >
               {busy ? "Reviewing..." : "Submit for review"}
             </button>
+            {showIntro && (
+              <button
+                type="button"
+                onClick={loadSample}
+                className={buttonClass("secondary")}
+              >
+                Try a sample document
+              </button>
+            )}
             <span className="text-xs leading-5 text-muted">
               {reviewer === "heuristic"
-                ? "Set ANTHROPIC_API_KEY for model reviews."
+                ? "Set OPENAI_API_KEY for model reviews."
                 : "Model reviewers will check policy and data-handling risk."}
             </span>
           </div>
@@ -194,7 +233,7 @@ export function SubmitForm({
 
       {phase === "done" && result && (
         <div className="space-y-3">
-          <ResultView content={content} result={result} />
+          <ResultView content={content} result={result} criteria={criteria} />
           <div className="flex flex-wrap gap-3 text-sm">
             {documentId && (
               <Link
@@ -215,6 +254,31 @@ export function SubmitForm({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function HowItWorksStep({
+  step,
+  title,
+  detail,
+}: {
+  step: number;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div className="flex gap-3">
+      <span
+        aria-hidden
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold tabular-nums text-accent-strong"
+      >
+        {step}
+      </span>
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-0.5 text-xs leading-5 text-muted">{detail}</p>
+      </div>
     </div>
   );
 }

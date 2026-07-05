@@ -1,5 +1,6 @@
+import { verdictNextStep } from "@/lib/copy";
 import { segmentDocument } from "@/lib/highlight";
-import type { Severity } from "@/lib/rubric";
+import type { RubricCriterion, Severity } from "@/lib/rubric";
 import type { ReviewResult } from "@/schema";
 import {
   Card,
@@ -24,13 +25,19 @@ const severityOrder: Severity[] = ["critical", "major", "minor"];
 export function ResultView({
   content,
   result,
+  criteria,
 }: {
   content: string;
   result: ReviewResult;
+  /** Criteria of the rubric this run was judged with — used to explain IDs. */
+  criteria?: RubricCriterion[];
 }) {
   const segments = segmentDocument(
     content,
     result.findings.map((f) => f.quote),
+  );
+  const criterionDescriptions = new Map(
+    (criteria ?? []).map((criterion) => [criterion.id, criterion.description]),
   );
 
   const severityCounts = severityOrder
@@ -55,6 +62,9 @@ export function ResultView({
               </StatusBadge>
             </div>
             <p className="max-w-3xl text-sm leading-6">{result.summary}</p>
+            <p className="max-w-3xl text-xs leading-5 text-muted">
+              {verdictNextStep(result.verdict)}
+            </p>
           </div>
           {severityCounts.length > 0 && (
             <span className="flex shrink-0 flex-wrap items-center gap-3 pt-0.5">
@@ -145,6 +155,12 @@ export function ResultView({
                     </a>
                     <SeverityLabel severity={finding.severity} />
                   </div>
+                  {criterionDescriptions.has(finding.criterionId) && (
+                    <p className="mt-1.5 text-xs leading-5 text-muted">
+                      Rule {finding.criterionId}:{" "}
+                      {criterionDescriptions.get(finding.criterionId)}
+                    </p>
+                  )}
                   <p className="mt-3 border-l-2 border-line pl-3 font-serif text-sm italic leading-6 text-muted">
                     "{finding.quote}"
                   </p>

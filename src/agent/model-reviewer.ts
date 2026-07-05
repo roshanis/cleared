@@ -1,4 +1,4 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { severityOrder } from "@/lib/rubric";
@@ -27,7 +27,7 @@ export interface ModelReviewOptions {
   document: string;
   /** Reviewer prompt + rendered rubric slice for this reviewer's area. */
   instructions: string;
-  /** Provider model id, e.g. "claude-opus-4-8". */
+  /** OpenAI model id, e.g. "gpt-5.4-mini". */
   modelId: string;
 }
 
@@ -36,7 +36,7 @@ export async function modelReview(
   opts: ModelReviewOptions,
 ): Promise<ReviewerFinding[]> {
   const { object } = await generateObject({
-    model: anthropic(opts.modelId),
+    model: openai(opts.modelId),
     schema: reviewerOutputSchema,
     system: opts.instructions,
     prompt: [

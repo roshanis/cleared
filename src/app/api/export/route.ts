@@ -24,6 +24,7 @@ export async function GET() {
         document: document?.title ?? run.documentId,
         author: document?.author ?? "",
         version: version?.number ?? "",
+        version_author: version?.author ?? document?.author ?? "",
         submitted_at: run.createdAt,
         reviewer: run.reviewer,
         rubric_version: run.rubricVersion,

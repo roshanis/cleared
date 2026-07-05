@@ -292,8 +292,7 @@ export function RubricEditor({
           </ul>
           {!gate.pass && (
             <p className="mt-1 text-xs">
-              Publishing is still allowed — but only do it if these regressions
-              are intentional.
+              Publishing is blocked until the golden gate passes.
             </p>
           )}
         </div>
@@ -324,7 +323,12 @@ export function RubricEditor({
         </button>
         <button
           type="button"
-          disabled={busy !== null || draftVersion === null || gate === null}
+          disabled={
+            busy !== null ||
+            draftVersion === null ||
+            gate === null ||
+            !gate.pass
+          }
           onClick={() => run("publish")}
           className={buttonClass("primary")}
         >
@@ -332,7 +336,13 @@ export function RubricEditor({
         </button>
         <span className="text-xs text-muted">
           {draftVersion !== null
-            ? `Draft v${draftVersion} saved${gate ? ", gate run" : " — run the gate to enable publish"}.`
+            ? `Draft v${draftVersion} saved${
+                gate
+                  ? gate.pass
+                    ? ", gate passed"
+                    : ", gate failed"
+                  : " - run the gate to enable publish"
+              }.`
             : `Editing a copy of v${liveVersion}. Save to create a draft.`}
         </span>
       </div>

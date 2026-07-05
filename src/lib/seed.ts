@@ -58,6 +58,7 @@ export async function seedInto(
       id: newId("ver"),
       documentId: document.id,
       number: 1,
+      author: document.author,
       content: golden.input,
       createdAt,
     };

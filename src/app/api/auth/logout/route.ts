@@ -1,8 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { requireSameOrigin } from "@/lib/request-guard";
 import { SESSION_COOKIE } from "@/lib/session";
 
 export async function POST(req: Request) {
+  const sameOriginError = requireSameOrigin(req);
+  if (sameOriginError) return sameOriginError;
+
   const jar = await cookies();
   jar.delete(SESSION_COOKIE);
   return NextResponse.redirect(new URL("/login", req.url), 303);

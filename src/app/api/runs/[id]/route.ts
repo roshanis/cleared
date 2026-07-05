@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canAccessRun } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import { getDb } from "@/lib/store";
 
@@ -15,6 +16,9 @@ export async function GET(
   const run = db.runs.find((r) => r.id === id);
   if (!run) {
     return NextResponse.json({ error: "Run not found." }, { status: 404 });
+  }
+  if (!canAccessRun(session, db, run)) {
+    return NextResponse.json({ error: "Not your review run." }, { status: 403 });
   }
   return NextResponse.json({
     id: run.id,

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { LoginCards } from "@/components/login-cards";
-import { getSession, personas } from "@/lib/session";
+import { demoAuthEnabled, getSession, personas } from "@/lib/session";
 
 const valueProps = [
   {
@@ -24,6 +24,7 @@ export default async function LoginPage() {
   const session = await getSession();
   if (session) redirect("/");
   const needsAccessCode = Boolean(process.env.APP_ACCESS_CODE);
+  const canUseDemoAuth = demoAuthEnabled();
   return (
     <div className="mx-auto grid max-w-6xl items-start gap-8 py-6 lg:grid-cols-[1fr_0.9fr] lg:gap-14 lg:py-12">
       <section className="rounded-lg bg-accent-strong p-8 text-white shadow-raised sm:p-10">
@@ -58,20 +59,27 @@ export default async function LoginPage() {
         <p className="mt-1 text-sm leading-6 text-muted">
           Pick a persona to explore that customer&apos;s experience.
         </p>
-        <div className="mt-5">
-          <LoginCards
-            personas={personas.map(({ id, name, role, tagline }) => ({
-              id,
-              name,
-              role,
-              tagline,
-            }))}
-            needsAccessCode={needsAccessCode}
-          />
-        </div>
+        {canUseDemoAuth ? (
+          <div className="mt-5">
+            <LoginCards
+              personas={personas.map(({ id, name, role, tagline }) => ({
+                id,
+                name,
+                role,
+                tagline,
+              }))}
+              needsAccessCode={needsAccessCode}
+            />
+          </div>
+        ) : (
+          <div className="mt-5 rounded-lg border border-line bg-rail p-5 text-sm leading-6 text-muted">
+            Demo persona sign-in is disabled for this environment.
+          </div>
+        )}
         <p className="mt-6 text-xs leading-5 text-muted">
-          Demo authentication. Swap in your identity provider before real use —
-          the role model underneath stays the same.
+          Demo authentication is enabled by default only outside production.
+          Swap in your identity provider before real use; the role model
+          underneath stays the same.
         </p>
       </section>
     </div>

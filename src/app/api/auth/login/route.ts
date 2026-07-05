@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireSameOrigin } from "@/lib/request-guard";
 import { accessCodeOk, SESSION_COOKIE, sessionTokenFor } from "@/lib/session";
 
 const bodySchema = z.object({
@@ -9,6 +10,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const sameOriginError = requireSameOrigin(req);
+  if (sameOriginError) return sameOriginError;
+
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
@@ -16,9 +20,20 @@ export async function POST(req: Request) {
   if (!accessCodeOk(parsed.data.accessCode)) {
     return NextResponse.json({ error: "Wrong access code." }, { status: 403 });
   }
-  const token = sessionTokenFor(parsed.data.personaId);
+  let token: string | null;
+  try {
+    token = sessionTokenFor(parsed.data.personaId);
+  } catch {
+    return NextResponse.json(
+      { error: "Demo authentication is not configured." },
+      { status: 500 },
+    );
+  }
   if (!token) {
-    return NextResponse.json({ error: "Unknown persona." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Demo authentication is disabled." },
+      { status: 403 },
+    );
   }
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {

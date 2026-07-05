@@ -2,7 +2,7 @@ import { SubmitForm } from "@/components/submit-form";
 import { PageHeader } from "@/components/ui";
 import { activeReviewer } from "@/agent/run";
 import { requireSession } from "@/lib/session";
-import { getDb } from "@/lib/store";
+import { getDb, publishedRubric } from "@/lib/store";
 
 export default async function SubmitPage({
   searchParams,
@@ -11,11 +11,12 @@ export default async function SubmitPage({
 }) {
   const session = await requireSession();
   const { documentId } = await searchParams;
+  const db = await getDb();
+  const rubric = publishedRubric(db);
 
   let resubmit: { documentId: string; title: string; content: string } | null =
     null;
   if (documentId) {
-    const db = await getDb();
     const document = db.documents.find((d) => d.id === documentId);
     const canSee =
       document &&
@@ -42,7 +43,11 @@ export default async function SubmitPage({
             : "Paste the customer-facing document below. The review takes under a minute and every finding comes with an exact quote and a fix."
         }
       />
-      <SubmitForm resubmit={resubmit} reviewer={activeReviewer()} />
+      <SubmitForm
+        resubmit={resubmit}
+        reviewer={activeReviewer()}
+        criteria={rubric.criteria}
+      />
     </div>
   );
 }

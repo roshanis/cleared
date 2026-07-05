@@ -50,9 +50,24 @@ export const personas: readonly {
 export const SESSION_COOKIE = "cleared_session";
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 
-const secret = () => process.env.AUTH_SECRET ?? "cleared-dev-secret";
+const isProduction = () => process.env.NODE_ENV === "production";
+
+const secret = () => {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (isProduction()) {
+    throw new Error("AUTH_SECRET is required in production.");
+  }
+  return "cleared-dev-secret";
+};
+
+export function demoAuthEnabled(): boolean {
+  if (process.env.DEMO_AUTH === "1") return true;
+  if (process.env.DEMO_AUTH === "0") return false;
+  return !isProduction();
+}
 
 export function sessionTokenFor(personaId: string): string | null {
+  if (!demoAuthEnabled()) return null;
   const persona = personas.find((p) => p.id === personaId);
   if (!persona) return null;
   return signToken(
@@ -89,7 +104,8 @@ export async function requireRole(...roles: Role[]): Promise<Session> {
 }
 
 export function accessCodeOk(code: string | undefined): boolean {
+  if (!demoAuthEnabled()) return false;
   const required = process.env.APP_ACCESS_CODE;
-  if (!required) return true;
+  if (!required) return !isProduction();
   return code === required;
 }

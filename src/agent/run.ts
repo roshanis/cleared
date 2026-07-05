@@ -14,12 +14,11 @@ import { decideVerdict } from "./verdict";
 
 export type ReviewerKind = "model" | "heuristic";
 
-export const MODEL_ID = "anthropic/claude-opus-4-8";
-const providerModelId = MODEL_ID.replace(/^anthropic\//, "");
+export const MODEL_ID = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 
 /** Model reviewers when a key is configured, deterministic demo reviewer otherwise. */
 export function activeReviewer(): ReviewerKind {
-  return process.env.ANTHROPIC_API_KEY ? "model" : "heuristic";
+  return process.env.OPENAI_API_KEY ? "model" : "heuristic";
 }
 
 const promptFile = (name: string) =>
@@ -54,7 +53,7 @@ export async function runReview(
         modelReview({
           document,
           instructions: `${promptFile(prompt)}\n\n${renderRubricMarkdown(rubric, area)}`,
-          modelId: providerModelId,
+          modelId: MODEL_ID,
         }),
       ),
     );

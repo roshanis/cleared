@@ -15,6 +15,7 @@ export interface DocVersion {
   id: string;
   documentId: string;
   number: number;
+  author: string;
   content: string;
   createdAt: string;
 }
@@ -99,9 +100,12 @@ const fileDriver = (): Driver => ({
   name: "file",
   async load() {
     try {
-      return JSON.parse(await fs.readFile(FILE_PATH, "utf8")) as Db;
-    } catch {
-      return null;
+      return normalizeDb(JSON.parse(await fs.readFile(FILE_PATH, "utf8")) as Db);
+    } catch (error) {
+      if (isMissingFileError(error)) return null;
+      throw new Error(
+        `Stored database at ${FILE_PATH} could not be read. Refusing to reseed over existing data.`,
+      );
     }
   },
   async save(db) {
@@ -110,7 +114,28 @@ const fileDriver = (): Driver => ({
   },
 });
 
-const REDIS_KEY = "cleared:db";
+function isMissingFileError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "ENOENT"
+  );
+}
+
+function normalizeDb(db: Db): Db {
+  db.documents ??= [];
+  db.versions ??= [];
+  db.runs ??= [];
+  db.decisions ??= [];
+  db.rubrics ??= [];
+  for (const version of db.versions as Array<DocVersion & { author?: string }>) {
+    version.author ??=
+      db.documents.find((document) => document.id === version.documentId)
+        ?.author ?? "Unknown";
+  }
+  return db;
+}
 
 const redisDriver = (): Driver => {
   let clientPromise: Promise<{
@@ -124,13 +149,32 @@ const redisDriver = (): Driver => {
   return {
     name: "redis",
     async load() {
-      return (await client()).get<Db>(REDIS_KEY);
+      const db = await (await client()).get<Db>(REDIS_KEY);
+      return db ? normalizeDb(db) : null;
     },
     async save(db) {
       await (await client()).set(REDIS_KEY, db);
     },
   };
 };
+
+const REDIS_KEY = "cleared:db";
+
+/*
+ * Mutations are serialized within each server instance so duplicate clicks or
+ * parallel requests cannot interleave a read-modify-write cycle in local/file
+ * mode. Production still needs a transactional store before external use.
+ */
+let mutationQueue: Promise<void> = Promise.resolve();
+
+function enqueueMutation<T>(work: () => Promise<T>): Promise<T> {
+  const next = mutationQueue.then(work, work);
+  mutationQueue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
 
 function pickDriver(): Driver {
   if (
@@ -158,15 +202,17 @@ export async function getDb(): Promise<Db> {
     await seedInto(db, { demoData: process.env.SEED_DEMO_DATA !== "0" });
     await driver().save(db);
   }
-  return db;
+  return normalizeDb(db);
 }
 
 /** Read-modify-write helper. Single-writer semantics per instance. */
 export async function mutate<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
-  const db = await getDb();
-  const result = await fn(db);
-  await driver().save(db);
-  return result;
+  return enqueueMutation(async () => {
+    const db = await getDb();
+    const result = await fn(db);
+    await driver().save(db);
+    return result;
+  });
 }
 
 /** Test-only: reset the in-memory database. */
@@ -176,6 +222,7 @@ export async function resetStoreForTests(seedDemoData = false): Promise<Db> {
   await seedInto(db, { demoData: seedDemoData });
   globalStore.__clearedDb = db;
   driverInstance = memoryDriver();
+  mutationQueue = Promise.resolve();
   return db;
 }
 
@@ -222,6 +269,7 @@ export async function createSubmission(input: SubmissionInput) {
       id: newId("ver"),
       documentId: document.id,
       number,
+      author: input.author,
       content: input.content,
       createdAt: now,
     };
@@ -240,6 +288,56 @@ export async function createSubmission(input: SubmissionInput) {
     };
     db.runs.push(run);
     return { document, version, run };
+  });
+}
+
+export type ClaimRunResult =
+  | {
+      status: "claimed";
+      run: ReviewRun;
+      version: DocVersion;
+      rubric: RubricVersion;
+    }
+  | { status: "done"; run: ReviewRun }
+  | { status: "reviewing"; run: ReviewRun }
+  | { status: "missing" }
+  | { status: "corrupt" };
+
+export async function claimRunForReview(runId: string): Promise<ClaimRunResult> {
+  return mutate((db) => {
+    const run = db.runs.find((r) => r.id === runId);
+    if (!run) return { status: "missing" };
+    if (run.status === "done") return { status: "done", run };
+    if (run.status === "reviewing") return { status: "reviewing", run };
+    const version = db.versions.find((v) => v.id === run.versionId);
+    const rubric = db.rubrics.find((r) => r.version === run.rubricVersion);
+    if (!version || !rubric) return { status: "corrupt" };
+    run.status = "reviewing";
+    run.error = null;
+    return { status: "claimed", run, version, rubric };
+  });
+}
+
+export async function completeRun(
+  runId: string,
+  result: ReviewResult,
+): Promise<ReviewRun | null> {
+  return updateRun(runId, {
+    status: "done",
+    result,
+    error: null,
+    finishedAt: new Date().toISOString(),
+  });
+}
+
+export async function failRun(
+  runId: string,
+  message: string,
+): Promise<ReviewRun | null> {
+  return updateRun(runId, {
+    status: "error",
+    error: message,
+    finishedAt: new Date().toISOString(),
   });
 }
 
@@ -263,10 +361,42 @@ export interface DecisionInput {
   overrides: FindingOverride[];
 }
 
-export async function addDecision(input: DecisionInput): Promise<Decision | null> {
+export type AddDecisionResult =
+  | { status: "created"; decision: Decision }
+  | { status: "missing" }
+  | { status: "not_decidable" }
+  | { status: "duplicate" }
+  | { status: "invalid_overrides"; message: string };
+
+export async function addDecision(
+  input: DecisionInput,
+): Promise<AddDecisionResult> {
   return mutate((db) => {
     const run = db.runs.find((r) => r.id === input.runId);
-    if (!run) return null;
+    if (!run || run.status !== "done" || !run.result) {
+      return { status: "missing" };
+    }
+    if (run.result.verdict === "pass") {
+      return { status: "not_decidable" };
+    }
+    if (decisionForRun(db, run.id)) {
+      return { status: "duplicate" };
+    }
+    const findingCount = run.result.findings.length;
+    const indexes = new Set(input.overrides.map((override) => override.findingIndex));
+    const invalidIndexes =
+      indexes.size !== input.overrides.length ||
+      input.overrides.length !== findingCount ||
+      input.overrides.some(
+        (override) =>
+          override.findingIndex < 0 || override.findingIndex >= findingCount,
+      );
+    if (invalidIndexes) {
+      return {
+        status: "invalid_overrides",
+        message: "Every finding must have exactly one accept/dismiss override.",
+      };
+    }
     const decision: Decision = {
       id: newId("dec"),
       runId: input.runId,
@@ -278,7 +408,7 @@ export async function addDecision(input: DecisionInput): Promise<Decision | null
       createdAt: new Date().toISOString(),
     };
     db.decisions.push(decision);
-    return decision;
+    return { status: "created", decision };
   });
 }
 
@@ -315,7 +445,7 @@ export async function setGoldenGate(
 export async function publishRubric(version: number): Promise<RubricVersion | null> {
   return mutate((db) => {
     const rubric = db.rubrics.find((r) => r.version === version);
-    if (!rubric || !rubric.goldenGate) return null;
+    if (!rubric || !rubric.goldenGate?.pass) return null;
     rubric.publishedAt = new Date().toISOString();
     return rubric;
   });

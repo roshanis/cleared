@@ -17,7 +17,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-No configuration needed: without an `ANTHROPIC_API_KEY` the app runs in demo
+No configuration needed: without an `OPENAI_API_KEY` the app runs in demo
 mode (a deterministic heuristic reviewer — the UI says so), storage is a local
 JSON file (`.data/db.json`), and the store self-seeds with demo documents on
 first run.
@@ -33,9 +33,10 @@ Sign in as a persona to see each customer's experience:
 
 ## Model mode
 
-Set `ANTHROPIC_API_KEY` and reviews run through two model reviewer subagents
-(`claude-opus-4-8` via the Vercel AI SDK) — one for content criteria, one for
-data-handling risk. Their findings are merged, deduped, and scored **in code**
+Set `OPENAI_API_KEY` and reviews run through two model reviewer subagents
+(`gpt-5.4-mini` by default via the Vercel AI SDK; override with
+`OPENAI_MODEL`) — one for content criteria, one for data-handling risk. Their
+findings are merged, deduped, and scored **in code**
 (`src/agent/`): the rubric owns severities and verdict rules, so verdicts stay
 auditable regardless of model behavior. Low-confidence fail-level findings
 route to a human instead of failing outright.
@@ -72,15 +73,17 @@ or concurrency demands it; the store API is the seam.
 ## Auth
 
 Demo persona sign-in with signed httpOnly cookies (`src/lib/session.ts`,
-HMAC via `AUTH_SECRET`). Optionally gate the whole deployment with a shared
-`APP_ACCESS_CODE`. **Swap in a real identity provider before opening this to
-untrusted users** — the role model (`author` / `officer` / `admin`) and every
-`requireRole()` call site carry over unchanged.
+HMAC via `AUTH_SECRET`). Persona auth is enabled by default only outside
+production. To deploy the persona demo intentionally, set `DEMO_AUTH=1`,
+`AUTH_SECRET`, and `APP_ACCESS_CODE`. **Swap in a real identity provider before
+opening this to untrusted users** — the role model (`author` / `officer` /
+`admin`) and every `requireRole()` call site carry over unchanged.
 
 ## Environment variables
 
-See `.env.example`. Everything is optional; the app degrades honestly without
-each one.
+See `.env.example`. Local development has zero required env vars; production
+model reviews and demo auth fail closed unless their env vars are explicitly
+configured.
 
 ## Deploy
 
@@ -89,9 +92,10 @@ npm run deploy     # vercel deploy
 ```
 
 From a clean clone: `npm install`, set env vars in the Vercel dashboard
-(at minimum `AUTH_SECRET`; add `ANTHROPIC_API_KEY` for model reviews and the
-Upstash pair for durable storage), then deploy. The seed runs automatically on
-first access so the deployed app looks alive immediately.
+(add `OPENAI_API_KEY` for model reviews, the Upstash pair for durable storage,
+and `DEMO_AUTH=1` / `AUTH_SECRET` / `APP_ACCESS_CODE` only if you are
+intentionally deploying the persona demo), then deploy. The seed runs
+automatically on first access so the deployed app looks alive immediately.
 
 ## Layout
 

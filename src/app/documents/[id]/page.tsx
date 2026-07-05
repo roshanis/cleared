@@ -116,7 +116,14 @@ export default async function DocumentPage({
       )}
 
       {latest?.run?.result ? (
-        <ResultView content={latest.version.content} result={latest.run.result} />
+        <ResultView
+          content={latest.version.content}
+          result={latest.run.result}
+          criteria={
+            db.rubrics.find((r) => r.version === latest.run?.rubricVersion)
+              ?.criteria
+          }
+        />
       ) : (
         <Card className="p-6 text-sm text-muted">
           {latest?.run
@@ -175,6 +182,9 @@ export default async function DocumentPage({
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   {new Date(version.createdAt).toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  by {version.author}
                 </p>
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-2">

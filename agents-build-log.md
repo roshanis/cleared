@@ -237,3 +237,65 @@ references, then passed after `npm run build` regenerated the Next type files.
 ### Recommendations / Next steps:
 Push `main` to `https://github.com/roshanis/cleared.git` after committing the
 current non-ignored project files.
+
+## [AGENT: Claude] 2026-07-04 17:10 CDT
+### Action: UI redesign pass (impeccable design system) + two fixes found during verification
+### Files changed:
+- src/app/globals.css, src/components/ui.tsx (initial versions; Codex refined tokens/components after)
+- src/components/{nav,nav-links,login-cards,result-view,decision-panel}.tsx
+- src/app/{login,dashboard,documents,queue}/page.tsx
+- src/components/ui.test.ts (new), src/agent/run.test.ts (new)
+- src/lib/store.test.ts (stale assertion fix), src/agent/run.ts (one-line fix)
+### Diff summary:
+Applied pbakaus/impeccable product-register guidance per user request: removed
+side-stripe borders, uppercase-tracked eyebrows, and identical metric-card
+grids; added shared button/input vocabulary, active nav state, verdict badges
+with status dots, criterion chips, stat strip dashboard, split login layout,
+reduced-motion support, tokenized SVG colors. Codex extended the pass to the
+remaining files (submit-form, documents/[id], rubric) and the token layer —
+kept all of it.
+Fix 1: store.test.ts asserted addDecision's old direct-return shape; updated
+to the new `{status, decision}` contract (matches api/decisions consumer).
+Fix 2: run.ts MODEL_ID used `?? "gpt-5.4-mini"`, which passes through the
+empty string from .env's blank OPENAI_MODEL — the API was asked for model ''.
+Changed to `||` with a regression test.
+### Verification:
+47/47 tests pass; tsc clean; next build 19 routes. Production server walked
+via curl in heuristic demo mode (OPENAI_API_KEY pinned empty — no external
+calls): all persona pages 200; submit → fail verdict with C2/C4 exact quotes;
+document page renders findings/highlights/history; officer decision recorded
+and queue cleared; all new design tokens confirmed present in compiled CSS.
+Note: verification wrote two "UI verify" documents into local .data/db.json
+(left in place — deletion needs human approval per house rules).
+### Recommendations / Next steps:
+1. Model mode is still unexercised end-to-end (GOAL-HARDENING P0-1): the
+   real OPENAI_API_KEY in .env is live, so a real submit will now call
+   OpenAI with gpt-5.4-mini — operator should confirm model id + budget.
+2. Visual QA in a browser (screenshots at mobile/desktop breakpoints) is the
+   remaining polish step; curl can't judge aesthetics.
+
+## [AGENT: Claude] 2026-07-04 18:55 CDT
+### Action: Comprehension pass — make the product self-explanatory (/goal)
+### Files changed:
+- src/lib/copy.ts (new), src/lib/copy.test.ts (new)
+- src/components/result-view.tsx, src/components/submit-form.tsx
+- src/app/submit/page.tsx, src/app/documents/[id]/page.tsx
+### Diff summary:
+New src/lib/copy.ts: verdictNextStep() (plain-language "what happens next"
+per verdict) and sampleDocument (one-click demo content; its test runs it
+through the real heuristic pipeline so it is guaranteed to fail with
+exact-quote C2/C4 findings). ResultView takes optional rubric criteria and
+renders "Rule C2: <description>" under each finding plus the next-step line
+under the verdict; submit page passes the published rubric's criteria,
+document page passes the criteria of the rubric version the run was judged
+with. Submit form gains a 3-step "how it works" strip and a "Try a sample
+document" button (both only on a fresh, empty form).
+### Verification:
+50/50 tests; tsc clean; next build. Live server walk (heuristic mode, no
+external calls): submit page shows intro strip + sample button; sample
+submitted via API fails with C2/C4/C1; document page renders rule
+descriptions and the officer-review explainer (confirmed after stripping
+React SSR comment nodes).
+### Recommendations / Next steps:
+Officer-side comprehension (decision panel rule descriptions) left out to
+keep scope tight — ResultView above the panel now carries them.

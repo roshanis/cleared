@@ -58,14 +58,16 @@ describe("store", () => {
     expect(queue).toHaveLength(1);
     expect(queue[0].document.id).toBe(document.id);
 
-    const decision = await addDecision({
+    const result = await addDecision({
       runId: run.id,
       officer: "Devon Park",
       action: "reject",
       note: "Agreed with the agent.",
       overrides: [{ findingIndex: 0, action: "accept" }],
     });
-    expect(decision?.documentId).toBe(document.id);
+    expect(result.status).toBe("created");
+    if (result.status !== "created") throw new Error("unreachable");
+    expect(result.decision.documentId).toBe(document.id);
 
     db = await getDb();
     expect(reviewQueue(db)).toHaveLength(0);

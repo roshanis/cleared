@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/roshanvenugopal/Documents/github/eveagents status --short)",
+      "Bash(git -C /Users/roshanvenugopal/Documents/github/eveagents log --oneline -5)"
+    ]
+  }
+}

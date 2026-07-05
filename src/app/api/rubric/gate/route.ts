@@ -4,6 +4,7 @@ import { z } from "zod";
 import { activeReviewer, runReview } from "@/agent/run";
 import { grade, loadGoldenCases } from "../../../../../evals/grade";
 import type { GoldenGateReport } from "@/lib/rubric";
+import { requireSameOrigin } from "@/lib/request-guard";
 import { getSession } from "@/lib/session";
 import { getDb, setGoldenGate } from "@/lib/store";
 
@@ -17,6 +18,9 @@ const bodySchema = z.object({ version: z.number().int() });
  * production with unreviewed regressions.
  */
 export async function POST(req: Request) {
+  const sameOriginError = requireSameOrigin(req);
+  if (sameOriginError) return sameOriginError;
+
   const session = await getSession();
   if (session?.role !== "admin") {
     return NextResponse.json(

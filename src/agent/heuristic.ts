@@ -2,7 +2,7 @@ import type { RubricCriterion } from "@/lib/rubric";
 import type { ReviewerFinding } from "./merge";
 
 /**
- * Deterministic demo reviewer. Used when no ANTHROPIC_API_KEY is configured
+ * Deterministic demo reviewer. Used when no OPENAI_API_KEY is configured
  * (demo mode) and as the fixture for tests and the rubric publish gate, so
  * those never depend on network or model behavior. It implements the five
  * template criteria; custom criteria added in the rubric editor are only

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { activeReviewer } from "@/agent/run";
+import { requireSameOrigin } from "@/lib/request-guard";
 import { getSession } from "@/lib/session";
 import { createSubmission, getDb } from "@/lib/store";
 
@@ -11,6 +12,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const sameOriginError = requireSameOrigin(req);
+  if (sameOriginError) return sameOriginError;
+
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });

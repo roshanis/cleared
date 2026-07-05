@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireSameOrigin } from "@/lib/request-guard";
 import { getSession } from "@/lib/session";
-import { addDecision, decisionForRun, getDb } from "@/lib/store";
+import { addDecision } from "@/lib/store";
 
 const bodySchema = z.object({
   runId: z.string(),
@@ -16,6 +17,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const sameOriginError = requireSameOrigin(req);
+  if (sameOriginError) return sameOriginError;
+
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
@@ -34,27 +38,33 @@ export async function POST(req: Request) {
     );
   }
 
-  const db = await getDb();
-  const run = db.runs.find((r) => r.id === parsed.data.runId);
-  if (!run || run.status !== "done" || !run.result) {
-    return NextResponse.json(
-      { error: "That review has not finished." },
-      { status: 409 },
-    );
-  }
-  if (decisionForRun(db, run.id)) {
-    return NextResponse.json(
-      { error: "A decision was already recorded for this review." },
-      { status: 409 },
-    );
-  }
-
-  const decision = await addDecision({
+  const result = await addDecision({
     runId: parsed.data.runId,
     officer: session.name,
     action: parsed.data.action,
     note: parsed.data.note,
     overrides: parsed.data.overrides,
   });
-  return NextResponse.json({ decision });
+  if (result.status === "missing") {
+    return NextResponse.json(
+      { error: "That review has not finished." },
+      { status: 409 },
+    );
+  }
+  if (result.status === "not_decidable") {
+    return NextResponse.json(
+      { error: "Passing reviews do not require a human decision." },
+      { status: 409 },
+    );
+  }
+  if (result.status === "duplicate") {
+    return NextResponse.json(
+      { error: "A decision was already recorded for this review." },
+      { status: 409 },
+    );
+  }
+  if (result.status === "invalid_overrides") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
+  }
+  return NextResponse.json({ decision: result.decision });
 }

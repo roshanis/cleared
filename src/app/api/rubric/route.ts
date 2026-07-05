@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { rubricDraftSchema } from "@/lib/rubric";
+import { requireSameOrigin } from "@/lib/request-guard";
 import { getSession } from "@/lib/session";
 import { saveRubricDraft } from "@/lib/store";
 
 export async function POST(req: Request) {
+  const sameOriginError = requireSameOrigin(req);
+  if (sameOriginError) return sameOriginError;
+
   const session = await getSession();
   if (session?.role !== "admin") {
     return NextResponse.json(

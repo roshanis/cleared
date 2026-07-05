@@ -31,7 +31,7 @@
 ## P0-1. Exercise the real model path
 
 Everything green so far ran on the deterministic heuristic. The
-`generateObject` + `claude-opus-4-8` path has never executed — schema
+`generateObject` + OpenAI model path has never executed — schema
 mismatches, AI SDK version drift, and latency surprises are all hiding there.
 
 - Run `npm run eval` and a full submit→review flow with a real key. Fix
@@ -48,7 +48,7 @@ mismatches, AI SDK version drift, and latency surprises are all hiding there.
   — if you choose to require Pro — make the app detect and say so rather
   than timing out opaquely. Document the chosen behavior per plan tier.
 
-**Needs from operator:** `ANTHROPIC_API_KEY`; which Vercel plan to target.
+**Needs from operator:** `OPENAI_API_KEY`; which Vercel plan to target.
 
 **Done when:** golden set passes in model mode; a model-mode submit completes
 on the target plan's timeout budget; every provider failure mode has a test
@@ -164,7 +164,7 @@ a human explanation, not a broken form.
 ## Operator checklist (things an agent cannot do for you)
 
 1. `vercel deploy` from your account; set env vars (`AUTH_SECRET`, provider
-   keys, `ANTHROPIC_API_KEY`, database/Upstash credentials).
+   keys, `OPENAI_API_KEY`, database/Upstash credentials).
 2. Provision the durable store (Vercel Marketplace) and the OAuth app.
 3. Confirm plan tier (Hobby vs Pro) — it decides the P0-1 timeout strategy.
 4. Walk GOAL.md §7's definition-of-done boxes **on the deployed URL**.
