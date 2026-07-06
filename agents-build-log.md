@@ -410,3 +410,22 @@ needed; origin/main advanced to 6d4f7b8.
 Provision DATABASE_URL (pooled Postgres) and run the suite once to exercise
 the 3 skipped postgres tests. Set DEMO_AUTH=1, AUTH_SECRET, APP_ACCESS_CODE,
 and OPENAI_API_KEY before Vercel deploy.
+
+## [AGENT: Claude (sonnet subagent)] 2026-07-05 19:45 CDT
+### Action: Merged landing design elevation (redesign-ui-db 1cade0d) into main and pushed to origin
+### Files changed:
+- agents-build-log.md (this entry)
+### Diff summary:
+Fast-forward merge of redesign-ui-db (1cade0d) into main (was 452e894).
+Brought in the landing page full-viewport drenched hero, staged live review
+panel, and mirrored closer section — the final UI elevation commit on the
+branch (src/app/globals.css, src/app/login/page.tsx, src/app/page.tsx).
+No merge commit needed.
+### Verification:
+- npm test: 127 passed, 3 skipped (postgres-skip without DATABASE_URL) — matches expected count
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 20 routes; no lint/type errors
+### Recommendations / Next steps:
+Provision DATABASE_URL (pooled Postgres) and run the suite once to exercise
+the 3 skipped postgres tests. Set DEMO_AUTH=1, AUTH_SECRET, APP_ACCESS_CODE,
+and OPENAI_API_KEY before Vercel deploy.
