@@ -10,10 +10,24 @@ const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
 });
 
+const siteTitle = "Cleared — compliance review, before it ships";
+const siteDescription =
+  "Fast feedback for writers. Full authority for compliance. A complete trail for auditors.";
+
 export const metadata: Metadata = {
-  title: "Cleared — compliance review",
-  description:
-    "AI-assisted compliance review for customer-facing documents, with humans in the loop.",
+  title: siteTitle,
+  description: siteDescription,
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    siteName: "Cleared",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({
