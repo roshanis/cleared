@@ -391,3 +391,22 @@ Operator: merge+push via Codex, then in Vercel set DEMO_AUTH=1, AUTH_SECRET,
 APP_ACCESS_CODE (sign-in), DATABASE_URL pooled Postgres (durability),
 OPENAI_API_KEY (model reviews). Run suite once with DATABASE_URL to exercise
 the 3 skipped postgres tests.
+
+## [AGENT: Claude (sonnet subagent)] 2026-07-05 15:30 CDT
+### Action: Merged branch redesign-ui-db into main and pushed to origin
+### Files changed:
+- agents-build-log.md (this entry)
+### Diff summary:
+Fast-forward merge of redesign-ui-db (6d4f7b8) into main (was a01fd08).
+Brought in WS4 per-entity SQLite/Postgres storage layer, 28 driver contract
+tests, 9 concurrency tests, and all WS1-3 changes that were already on the
+branch (auditor role, per-role homes, landing redesign). No merge commit was
+needed; origin/main advanced to 6d4f7b8.
+### Verification:
+- npm test: 127 passed, 3 skipped (postgres-skip without DATABASE_URL) — matches expected count
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 20 routes generated
+### Recommendations / Next steps:
+Provision DATABASE_URL (pooled Postgres) and run the suite once to exercise
+the 3 skipped postgres tests. Set DEMO_AUTH=1, AUTH_SECRET, APP_ACCESS_CODE,
+and OPENAI_API_KEY before Vercel deploy.
