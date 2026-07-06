@@ -36,8 +36,10 @@ export default async function LoginPage({
         <p className="mb-5 inline-flex rounded-md border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
           Persona demo
         </p>
-        <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-          Choose the role. See the same review system from each seat.
+        <h1 className="font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+          Choose a seat.
+          <br />
+          <em className="text-white/80">See the whole system.</em>
         </h1>
         <p className="mt-4 max-w-md text-sm leading-6 text-white/75">
           Each persona has different access — author, officer, admin, and
