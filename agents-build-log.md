@@ -480,3 +480,33 @@ Model-mode paths for judge/fixer are wired but unexercised (operator: run
 one real submit with OPENAI_API_KEY). Latency now 3 sequential model calls
 worst case (reviewers ∥, judge, fixer opt-in) — measure before lowering
 maxDuration.
+
+## [AGENT: Claude (sonnet subagent)] 2026-07-06T15:10Z
+### Action: Merged GOAL-AGENTS work (jurisdictions, judge, fixer) from redesign-ui-db into main and pushed to origin
+### Files changed:
+- agents-build-log.md (this entry)
+- 43 files fast-forwarded from redesign-ui-db (edebd16): GOAL-AGENTS.md,
+  src/agent/{fixer,judge}.ts + tests, src/agent/jurisdiction.test.ts,
+  src/agent/heuristic.ts, src/agent/run.ts, src/agent/verdict.ts,
+  src/lib/{patch,rubric,store}.ts + tests, src/lib/store.first-boot.test.ts,
+  src/lib/db/{driver,sqlite,postgres}.ts, src/prompts/{fixer,judge,rubric}.md,
+  src/schema.ts, src/app/api/runs/[id]/fixes/route.ts,
+  src/components/{fix-draft-panel,result-view,rubric-editor,submit-form,decision-panel}.tsx,
+  src/app/documents/[id]/page.tsx, src/app/submit/page.tsx,
+  evals/golden/{004-uk-missing-capital-at-risk,005-multimarket-clean}/
+### Diff summary:
+Fast-forward merge of redesign-ui-db (edebd16) into main (was d0492b8).
+Brings in all three GOAL-AGENTS workstreams: WS-A (jurisdiction-aware rubric
+slicing, per-market verdicts, C6/C7 criteria, 2 new golden cases), WS-B
+(LLM judge with escalate-only gating, real quote verifier in demo mode),
+and WS-C (opt-in fix-it agent with deterministic quote location and
+sessionStorage-backed resubmit preview). Also includes the first-boot
+seed-on-mutation fix and its regression test.
+### Verification:
+- npm test: 165 passed, 3 skipped (postgres-skip without DATABASE_URL) — matches expected 168 total
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 21 routes; 1 non-blocking metadataBase warning (pre-existing)
+### Recommendations / Next steps:
+Exercise model-mode judge/fixer with a real OPENAI_API_KEY. Provision
+DATABASE_URL (pooled Postgres) to exercise the 3 skipped postgres tests.
+Measure latency under 3 sequential model calls before adjusting maxDuration.
