@@ -429,3 +429,23 @@ No merge commit needed.
 Provision DATABASE_URL (pooled Postgres) and run the suite once to exercise
 the 3 skipped postgres tests. Set DEMO_AUTH=1, AUTH_SECRET, APP_ACCESS_CODE,
 and OPENAI_API_KEY before Vercel deploy.
+
+## [AGENT: Claude (sonnet subagent)] 2026-07-05 19:51 CDT
+### Action: Merged og:image card (redesign-ui-db 02013dd) into main and pushed to origin
+### Files changed:
+- src/app/opengraph-image.tsx (new — ImageResponse-based OG card)
+- src/app/layout.tsx (twitter:card set to summary_large_image)
+- agents-build-log.md (this entry)
+### Diff summary:
+Fast-forward merge of redesign-ui-db (02013dd) into main (was ea72396).
+Adds the generated og:image endpoint via Next.js ImageResponse and updates
+layout metadata so Twitter/OG scrapers use summary_large_image. No merge
+commit needed (1-commit fast-forward).
+### Verification:
+- npm test: 127 passed, 3 skipped (postgres-skip without DATABASE_URL) — matches expected count
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 20 routes including /opengraph-image; no lint/type errors; 1 non-blocking metadataBase warning (pre-existing)
+### Recommendations / Next steps:
+Set metadataBase in src/app/layout.tsx metadata export to resolve the
+non-blocking OG URL warning before Vercel deploy. Provision DATABASE_URL
+to exercise the 3 skipped postgres tests.
