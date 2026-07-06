@@ -449,3 +449,34 @@ commit needed (1-commit fast-forward).
 Set metadataBase in src/app/layout.tsx metadata export to resolve the
 non-blocking OG URL warning before Vercel deploy. Provision DATABASE_URL
 to exercise the 3 skipped postgres tests.
+
+## [AGENT: Claude] 2026-07-06T15:00Z
+### Action: GOAL-AGENTS.md executed — jurisdiction review, LLM judge, fix-it agent
+### Files changed: (branch redesign-ui-db, commits 98d80a1, 7e74a06, e905146)
+### Diff summary:
+WS-A: criteria carry optional jurisdictions tags (US/UK/EU); rubric sliced
+per submission's target markets; code partitions findings into per-market
+verdicts (overall = worst) with zero extra model calls; C6/C7 demo criteria,
+market chips, CSV columns, schema-v2 runs migration, 2 new golden cases.
+Also fixed a first-boot bug: mutations on a fresh store now seed (all ops
+share a ready-gated transact; regression test).
+WS-B: judge agent post-merge with deterministic escalate-only gating —
+challenges demote findings to low confidence, disagreement always lands at
+needs_human_review, never fail→pass/pass→fail; demo judge is a real quote
+verifier; endorsed reviews adopt the judge rationale as summary.
+WS-C: opt-in fixer drafting one fix per finding (replace/insert), applied
+by deterministic quote location that refuses to guess; preview + load-into-
+resubmit via sessionStorage; nothing auto-submitted.
+### Verification:
+168 tests (165 pass + 3 pg-skip), tsc clean, build 21 routes, all 5 golden
+cases pass via npm run eval. Live demo-mode E2E: sample submit for US+UK
+fails with C2/C4/C1/C6 → judge endorses → 4 fixes drafted, 0 unlocated →
+resubmit passes both markets, judge agreed, diff chips show resolved.
+Officer blocked from fixes API (403). The WS-A subagent died on a session
+limit after writing its failing test suite; implementation completed
+directly against that contract.
+### Recommendations / Next steps:
+Model-mode paths for judge/fixer are wired but unexercised (operator: run
+one real submit with OPENAI_API_KEY). Latency now 3 sequential model calls
+worst case (reviewers ∥, judge, fixer opt-in) — measure before lowering
+maxDuration.
