@@ -21,6 +21,18 @@ export const jurisdictionVerdictSchema = z.object({
   verdict: z.enum(verdicts),
 });
 
+export const judgeChallengeSchema = z.object({
+  findingIndex: z.number().int().min(0),
+  reason: z.string(),
+});
+
+export const judgeReportSchema = z.object({
+  /** Whether the judge's recommended verdict matched the rule verdict. */
+  verdictAgreed: z.boolean(),
+  rationale: z.string(),
+  challenges: z.array(judgeChallengeSchema),
+});
+
 export const reviewResultSchema = z.object({
   verdict: z.enum(verdicts),
   findings: z.array(findingSchema),
@@ -29,7 +41,11 @@ export const reviewResultSchema = z.object({
     .describe("For the compliance officer: outcome first, then what needs their attention"),
   /** Per-market verdicts; absent on runs from before jurisdiction support. */
   jurisdictionVerdicts: z.array(jurisdictionVerdictSchema).optional(),
+  /** Judge review of the review; absent on runs from before the judge. */
+  judge: judgeReportSchema.optional(),
 });
+
+export type JudgeReport = z.infer<typeof judgeReportSchema>;
 
 export type JurisdictionVerdict = z.infer<typeof jurisdictionVerdictSchema>;
 

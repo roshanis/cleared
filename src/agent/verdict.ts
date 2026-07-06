@@ -1,5 +1,5 @@
 import type { ReviewResult } from "@/schema";
-import type { RubricDraft } from "@/lib/rubric";
+import type { RubricCriterion, RubricDraft } from "@/lib/rubric";
 import type { ReviewerFinding } from "./merge";
 
 /**
@@ -17,4 +17,65 @@ export function decideVerdict(
   if (failing.some((f) => (f.confidence ?? "high") === "high")) return "fail";
   if (findings.length > 0) return "needs_human_review";
   return "pass";
+}
+
+/**
+ * Assign each finding to the selected markets its criterion applies in.
+ * Global criteria (no jurisdictions tag) count for every selected market;
+ * findings for criteria outside the rubric are dropped.
+ */
+export function partitionFindingsByJurisdiction(
+  findings: ReviewerFinding[],
+  criteria: RubricCriterion[],
+  jurisdictions: string[],
+): Map<string, ReviewerFinding[]> {
+  const byId = new Map(criteria.map((c) => [c.id, c]));
+  const buckets = new Map<string, ReviewerFinding[]>(
+    jurisdictions.map((j) => [j, []]),
+  );
+  for (const finding of findings) {
+    const criterion = byId.get(finding.criterionId);
+    if (!criterion) continue;
+    for (const jurisdiction of jurisdictions) {
+      if (
+        !criterion.jurisdictions ||
+        criterion.jurisdictions.includes(jurisdiction)
+      ) {
+        buckets.get(jurisdiction)!.push(finding);
+      }
+    }
+  }
+  return buckets;
+}
+
+const verdictRank: Record<ReviewResult["verdict"], number> = {
+  fail: 0,
+  needs_human_review: 1,
+  pass: 2,
+};
+
+export function worstVerdict(
+  verdicts: ReviewResult["verdict"][],
+): ReviewResult["verdict"] {
+  return verdicts.reduce(
+    (worst, v) => (verdictRank[v] < verdictRank[worst] ? v : worst),
+    "pass" as ReviewResult["verdict"],
+  );
+}
+
+/** Per-market verdicts plus the overall (worst) verdict for a finding set. */
+export function verdictsByJurisdiction(
+  findings: ReviewerFinding[],
+  rubric: RubricDraft,
+  jurisdictions: string[],
+): { jurisdiction: string; verdict: ReviewResult["verdict"] }[] {
+  const buckets = partitionFindingsByJurisdiction(
+    findings,
+    rubric.criteria,
+    jurisdictions,
+  );
+  return jurisdictions.map((jurisdiction) => ({
+    jurisdiction,
+    verdict: decideVerdict(buckets.get(jurisdiction) ?? [], rubric),
+  }));
 }

@@ -39,6 +39,9 @@ export function ResultView({
   const criterionDescriptions = new Map(
     (criteria ?? []).map((criterion) => [criterion.id, criterion.description]),
   );
+  const challengedReasons = new Map(
+    (result.judge?.challenges ?? []).map((c) => [c.findingIndex, c.reason]),
+  );
 
   const severityCounts = severityOrder
     .map((severity) => ({
@@ -85,6 +88,27 @@ export function ResultView({
             <p className="max-w-3xl text-xs leading-5 text-muted">
               {verdictNextStep(result.verdict)}
             </p>
+            {result.judge && (
+              <p className="flex max-w-3xl flex-wrap items-center gap-2 text-xs leading-5">
+                <StatusBadge
+                  tone={
+                    result.judge.challenges.length === 0 &&
+                    result.judge.verdictAgreed
+                      ? "pass"
+                      : "warn"
+                  }
+                >
+                  Judge ·{" "}
+                  {result.judge.challenges.length === 0 &&
+                  result.judge.verdictAgreed
+                    ? "endorsed"
+                    : result.judge.challenges.length > 0
+                      ? `challenged ${result.judge.challenges.length}`
+                      : "disagreed"}
+                </StatusBadge>
+                <span className="text-muted">{result.judge.rationale}</span>
+              </p>
+            )}
           </div>
           {severityCounts.length > 0 && (
             <span className="flex shrink-0 flex-wrap items-center gap-3 pt-0.5">
@@ -173,7 +197,16 @@ export function ResultView({
                     >
                       <CriterionChip id={finding.criterionId} />
                     </a>
-                    <SeverityLabel severity={finding.severity} />
+                    <span className="flex items-center gap-2">
+                      {challengedReasons.has(i) && (
+                        <StatusBadge tone="warn">
+                          <span title={challengedReasons.get(i)}>
+                            Judge: possible false positive
+                          </span>
+                        </StatusBadge>
+                      )}
+                      <SeverityLabel severity={finding.severity} />
+                    </span>
                   </div>
                   {criterionDescriptions.has(finding.criterionId) && (
                     <p className="mt-1.5 text-xs leading-5 text-muted">

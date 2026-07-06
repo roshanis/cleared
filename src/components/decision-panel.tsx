@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Finding } from "@/schema";
+import type { Finding, JudgeReport } from "@/schema";
 import {
   Card,
   CriterionChip,
@@ -18,10 +18,15 @@ type OverrideAction = "accept" | "dismiss";
 export function DecisionPanel({
   runId,
   findings,
+  judge,
 }: {
   runId: string;
   findings: Finding[];
+  judge?: JudgeReport;
 }) {
+  const challenged = new Map(
+    (judge?.challenges ?? []).map((c) => [c.findingIndex, c.reason]),
+  );
   const router = useRouter();
   const [overrides, setOverrides] = useState<OverrideAction[]>(
     findings.map(() => "accept"),
@@ -87,6 +92,14 @@ export function DecisionPanel({
             >
               <div className="flex items-center gap-2">
                 <CriterionChip id={finding.criterionId} />
+              {challenged.has(i) && (
+                <span
+                  title={challenged.get(i)}
+                  className="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn"
+                >
+                  judge challenged
+                </span>
+              )}
                 <SeverityLabel severity={finding.severity} />
               </div>
               <p

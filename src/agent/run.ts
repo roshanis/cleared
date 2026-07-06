@@ -10,9 +10,16 @@ import {
   type RubricDraft,
 } from "@/lib/rubric";
 import { heuristicReview } from "./heuristic";
+import { applyJudgeGating, heuristicJudge, modelJudge } from "./judge";
 import { mergeFindings, type ReviewerFinding } from "./merge";
 import { modelReview } from "./model-reviewer";
-import { decideVerdict } from "./verdict";
+import {
+  partitionFindingsByJurisdiction,
+  verdictsByJurisdiction,
+  worstVerdict,
+} from "./verdict";
+
+export { partitionFindingsByJurisdiction };
 
 export type ReviewerKind = "model" | "heuristic";
 
@@ -66,68 +73,44 @@ export async function runReview(
 
   const findings = mergeFindings(perReviewer, sliced.criteria);
 
-  const buckets = partitionFindingsByJurisdiction(
-    findings,
-    sliced.criteria,
-    jurisdictions,
+  // The judge reviews the review; gating is deterministic and can only
+  // escalate toward human review (see src/agent/judge.ts).
+  const draftVerdict = worstVerdict(
+    verdictsByJurisdiction(findings, sliced, jurisdictions).map(
+      (v) => v.verdict,
+    ),
   );
-  const jurisdictionVerdicts = jurisdictions.map((jurisdiction) => ({
-    jurisdiction,
-    verdict: decideVerdict(buckets.get(jurisdiction) ?? [], sliced),
-  }));
-  const verdict = worstVerdict(jurisdictionVerdicts.map((v) => v.verdict));
+  const judgeOutput =
+    reviewer === "heuristic"
+      ? heuristicJudge(document, findings, sliced, jurisdictions)
+      : await modelJudge({
+          document,
+          findings,
+          rubric: sliced,
+          draftVerdict,
+          instructions: promptFile("judge"),
+          modelId: MODEL_ID,
+        });
+  const gated = applyJudgeGating({
+    findings,
+    judge: judgeOutput,
+    rubric: sliced,
+    jurisdictions,
+  });
 
   return reviewResultSchema.parse({
-    verdict,
-    findings: findings.map(({ confidence: _confidence, ...finding }) => finding),
-    summary: buildSummary(verdict, findings),
-    jurisdictionVerdicts,
+    verdict: gated.verdict,
+    findings: gated.findings.map(
+      ({ confidence: _confidence, ...finding }) => finding,
+    ),
+    summary:
+      gated.summaryOverride ?? buildSummary(gated.verdict, gated.findings),
+    jurisdictionVerdicts: gated.jurisdictionVerdicts,
+    judge: gated.judge,
   });
 }
 
-/**
- * Assign each finding to the selected markets its criterion applies in.
- * Global criteria (no jurisdictions tag) count for every selected market;
- * findings for criteria outside the rubric are dropped.
- */
-export function partitionFindingsByJurisdiction(
-  findings: ReviewerFinding[],
-  criteria: RubricCriterion[],
-  jurisdictions: string[],
-): Map<string, ReviewerFinding[]> {
-  const byId = new Map(criteria.map((c) => [c.id, c]));
-  const buckets = new Map<string, ReviewerFinding[]>(
-    jurisdictions.map((j) => [j, []]),
-  );
-  for (const finding of findings) {
-    const criterion = byId.get(finding.criterionId);
-    if (!criterion) continue;
-    for (const jurisdiction of jurisdictions) {
-      if (
-        !criterion.jurisdictions ||
-        criterion.jurisdictions.includes(jurisdiction)
-      ) {
-        buckets.get(jurisdiction)!.push(finding);
-      }
-    }
-  }
-  return buckets;
-}
 
-const verdictRank: Record<ReviewResult["verdict"], number> = {
-  fail: 0,
-  needs_human_review: 1,
-  pass: 2,
-};
-
-function worstVerdict(
-  verdicts: ReviewResult["verdict"][],
-): ReviewResult["verdict"] {
-  return verdicts.reduce(
-    (worst, v) => (verdictRank[v] < verdictRank[worst] ? v : worst),
-    "pass" as ReviewResult["verdict"],
-  );
-}
 
 function buildSummary(
   verdict: ReviewResult["verdict"],

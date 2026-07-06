@@ -157,6 +157,7 @@ export default async function DocumentPage({
         <DecisionPanel
           runId={latest.run.id}
           findings={latest.run.result.findings}
+          judge={latest.run.result.judge}
         />
       )}
 
