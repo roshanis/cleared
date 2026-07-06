@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { sampleDocument } from "@/lib/copy";
+import { FIX_DRAFT_STORAGE_KEY } from "./fix-draft-panel";
 import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
 import type { RubricCriterion } from "@/lib/rubric";
 import type { ReviewResult } from "@/schema";
@@ -23,11 +24,14 @@ export function SubmitForm({
   resubmit,
   reviewer,
   criteria,
+  fixDraftRequested = false,
 }: {
   resubmit: { documentId: string; title: string; content: string } | null;
   reviewer: "model" | "heuristic";
   /** Published rubric criteria, used to explain finding IDs in the result. */
   criteria?: RubricCriterion[];
+  /** True when arriving from a fix draft — prefill from sessionStorage. */
+  fixDraftRequested?: boolean;
 }) {
   const [title, setTitle] = useState(resubmit?.title ?? "");
   const [markets, setMarkets] = useState<string[]>(["US"]);
@@ -37,7 +41,25 @@ export function SubmitForm({
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [fixDraftLoaded, setFixDraftLoaded] = useState(false);
   const startRef = useRef(0);
+
+  useEffect(() => {
+    if (!fixDraftRequested) return;
+    const raw = sessionStorage.getItem(FIX_DRAFT_STORAGE_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(FIX_DRAFT_STORAGE_KEY);
+    try {
+      const draft = JSON.parse(raw) as { content?: string };
+      if (draft.content) {
+        setContent(draft.content);
+        setFixDraftLoaded(true);
+      }
+    } catch {
+      // Malformed draft — fall back to the regular resubmit prefill.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixDraftRequested]);
 
   useEffect(() => {
     if (phase !== "reviewing") return;
@@ -144,6 +166,11 @@ export function SubmitForm({
             <StatusBadge tone={reviewer === "heuristic" ? "warn" : "accent"}>
               {reviewer === "heuristic" ? "Demo reviewer" : "Model reviewers"}
             </StatusBadge>
+            {fixDraftLoaded && (
+              <StatusBadge tone="info">
+                Fix draft loaded — review before submitting
+              </StatusBadge>
+            )}
           </div>
         </div>
         <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">

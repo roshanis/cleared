@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DecisionPanel } from "@/components/decision-panel";
+import { FixDraftPanel } from "@/components/fix-draft-panel";
 import { ResultView } from "@/components/result-view";
 import {
   Card,
@@ -152,6 +153,14 @@ export default async function DocumentPage({
           </p>
         </Card>
       )}
+
+      {session.role !== "officer" &&
+        session.role !== "auditor" &&
+        latest?.run?.status === "done" &&
+        latest.run.result &&
+        latest.run.result.verdict !== "pass" && (
+          <FixDraftPanel runId={latest.run.id} />
+        )}
 
       {canDecide && latest.run?.result && (
         <DecisionPanel

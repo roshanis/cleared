@@ -7,10 +7,10 @@ import { getDb, publishedRubric } from "@/lib/store";
 export default async function SubmitPage({
   searchParams,
 }: {
-  searchParams: Promise<{ documentId?: string }>;
+  searchParams: Promise<{ documentId?: string; fixDraft?: string }>;
 }) {
   const session = await requireRole("author", "admin");
-  const { documentId } = await searchParams;
+  const { documentId, fixDraft } = await searchParams;
   const db = await getDb();
   const rubric = publishedRubric(db);
 
@@ -47,6 +47,7 @@ export default async function SubmitPage({
         resubmit={resubmit}
         reviewer={activeReviewer()}
         criteria={rubric.criteria}
+        fixDraftRequested={fixDraft === "1"}
       />
     </div>
   );
