@@ -9,7 +9,12 @@ import { grade, loadGoldenCases } from "./grade";
 describe("golden set through the review pipeline", () => {
   for (const goldenCase of loadGoldenCases()) {
     it(`grades ${goldenCase.id} as expected`, async () => {
-      const result = await runReview(goldenCase.input, defaultRubricDraft, "heuristic");
+      const result = await runReview(
+        goldenCase.input,
+        defaultRubricDraft,
+        "heuristic",
+        goldenCase.expected.jurisdictions,
+      );
       const report = grade(result, goldenCase.expected);
       expect(report, JSON.stringify({ result, report }, null, 2)).toMatchObject({
         pass: true,

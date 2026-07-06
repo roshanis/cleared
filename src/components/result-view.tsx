@@ -60,6 +60,26 @@ export function ResultView({
                 {result.findings.length} finding
                 {result.findings.length === 1 ? "" : "s"}
               </StatusBadge>
+              {(result.jurisdictionVerdicts?.length ?? 0) > 1 &&
+                result.jurisdictionVerdicts!.map(({ jurisdiction, verdict }) => (
+                  <StatusBadge
+                    key={jurisdiction}
+                    tone={
+                      verdict === "pass"
+                        ? "pass"
+                        : verdict === "fail"
+                          ? "fail"
+                          : "warn"
+                    }
+                  >
+                    {jurisdiction} ·{" "}
+                    {verdict === "needs_human_review"
+                      ? "Needs review"
+                      : verdict === "pass"
+                        ? "Pass"
+                        : "Fail"}
+                  </StatusBadge>
+                ))}
             </div>
             <p className="max-w-3xl text-sm leading-6">{result.summary}</p>
             <p className="max-w-3xl text-xs leading-5 text-muted">

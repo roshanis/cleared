@@ -12,11 +12,16 @@ export const severityRank: Record<Severity, number> = {
 export const criterionAreas = ["content", "risk"] as const;
 export type CriterionArea = (typeof criterionAreas)[number];
 
+export const SUPPORTED_JURISDICTIONS = ["US", "UK", "EU"] as const;
+export type Jurisdiction = (typeof SUPPORTED_JURISDICTIONS)[number];
+
 export const rubricCriterionSchema = z.object({
   id: z.string().min(1).max(8),
   severity: z.enum(severityOrder),
   area: z.enum(criterionAreas),
   description: z.string().min(1),
+  /** Markets this criterion applies to; absent = global (all markets). */
+  jurisdictions: z.array(z.string()).optional(),
 });
 
 export type RubricCriterion = z.infer<typeof rubricCriterionSchema>;
@@ -90,9 +95,43 @@ export const defaultRubricDraft: RubricDraft = {
       description:
         "Any statement about fees or costs refers the reader to the full fee schedule (or Form ADV). C5 applies only when fees are mentioned.",
     },
+    {
+      id: "C6",
+      severity: "major",
+      area: "content",
+      jurisdictions: ["UK"],
+      description:
+        'UK promotions for investment products must carry a capital-at-risk warning (e.g. "your capital is at risk"). A C6 finding means investment content lacks that warning.',
+    },
+    {
+      id: "C7",
+      severity: "minor",
+      area: "content",
+      jurisdictions: ["EU"],
+      description:
+        'EU: sustainability or "green" claims must be substantiated (certified, accredited, or referenced). Unqualified green/sustainable/eco-friendly claims are non-compliant.',
+    },
   ],
   failOn: ["critical", "major"],
 };
+
+/**
+ * Restrict a rubric to the criteria that apply in the selected markets.
+ * Criteria without a jurisdictions tag are global and always included.
+ */
+export function sliceRubric<T extends { criteria: RubricCriterion[] }>(
+  rubric: T,
+  jurisdictions: string[],
+): T {
+  return {
+    ...rubric,
+    criteria: rubric.criteria.filter(
+      (criterion) =>
+        !criterion.jurisdictions ||
+        criterion.jurisdictions.some((j) => jurisdictions.includes(j)),
+    ),
+  };
+}
 
 /** Render the structured rubric to markdown for prompt injection. */
 export function renderRubricMarkdown(

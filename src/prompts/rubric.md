@@ -14,6 +14,11 @@
 | C3 | major    | The document makes no comparative claim naming a competitor unless the claim cites substantiation (a dated study or published benchmark). |
 | C4 | critical | The document does not request or expose sensitive personal data (SSN, full account numbers, passwords) through an unsecured channel such as email reply. |
 | C5 | minor    | Any statement about fees or costs refers the reader to the full fee schedule (or Form ADV). C5 applies only when fees are mentioned. |
+| C6 | major    | (UK only) Promotions for investment products must carry a capital-at-risk warning (e.g. "your capital is at risk"). |
+| C7 | minor    | (EU only) Sustainability or "green" claims must be substantiated (certified, accredited, or referenced). |
+
+Criteria marked with a jurisdiction apply only when the submission targets
+that market; untagged criteria are global.
 
 ## Verdict rules
 

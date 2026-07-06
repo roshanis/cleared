@@ -119,6 +119,45 @@ export function heuristicReview(
     }
   }
 
+  if (has("C6")) {
+    const investmentContent = /\binvest\w*|\bfunds?\b|\breturns?\b|\bportfolio\b/i.test(
+      document,
+    );
+    const hasCapitalWarning = /\bcapital\s+(is\s+)?at\s+risk\b/i.test(document);
+    if (investmentContent && !hasCapitalWarning) {
+      findings.push({
+        criterionId: "C6",
+        severity: sev("C6"),
+        quote: firstLine(document),
+        explanation:
+          'UK promotion of investment content lacks a capital-at-risk warning (e.g. "your capital is at risk").',
+        recommendation:
+          'Add the standard UK warning, e.g. "Your capital is at risk. The value of investments can go down as well as up."',
+        confidence: "high",
+      });
+    }
+  }
+
+  if (has("C7")) {
+    const greenClaim = /\b(green|sustainable|eco-friendly)\b/i.exec(document);
+    if (greenClaim) {
+      const sentence = sentenceAt(document, greenClaim.index);
+      const substantiated =
+        /\b(certified|accredit\w+|according\s+to|source:)\b/i.test(sentence);
+      if (!substantiated) {
+        findings.push({
+          criterionId: "C7",
+          severity: sev("C7"),
+          quote: sentence,
+          explanation: `Unsubstantiated sustainability claim ("${greenClaim[0]}") — EU rules require green claims to be certified or referenced.`,
+          recommendation:
+            "Cite the certification or source for the claim, or remove the sustainability language.",
+          confidence: "high",
+        });
+      }
+    }
+  }
+
   return findings;
 }
 

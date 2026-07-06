@@ -14,13 +14,24 @@ export const findingSchema = z.object({
   recommendation: z.string().describe("Concrete fix the author can apply"),
 });
 
+export const verdicts = ["pass", "fail", "needs_human_review"] as const;
+
+export const jurisdictionVerdictSchema = z.object({
+  jurisdiction: z.string(),
+  verdict: z.enum(verdicts),
+});
+
 export const reviewResultSchema = z.object({
-  verdict: z.enum(["pass", "fail", "needs_human_review"]),
+  verdict: z.enum(verdicts),
   findings: z.array(findingSchema),
   summary: z
     .string()
     .describe("For the compliance officer: outcome first, then what needs their attention"),
+  /** Per-market verdicts; absent on runs from before jurisdiction support. */
+  jurisdictionVerdicts: z.array(jurisdictionVerdictSchema).optional(),
 });
+
+export type JurisdictionVerdict = z.infer<typeof jurisdictionVerdictSchema>;
 
 export type Finding = z.infer<typeof findingSchema>;
 export type ReviewResult = z.infer<typeof reviewResultSchema>;

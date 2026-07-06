@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   const goldens = loadGoldenCases(path.join(process.cwd(), "evals", "golden"));
   const cases = [];
   for (const golden of goldens) {
-    const result = await runReview(golden.input, rubric, reviewer);
+    const result = await runReview(golden.input, rubric, reviewer, golden.expected.jurisdictions);
     const report = grade(result, golden.expected);
     cases.push({
       id: golden.id,

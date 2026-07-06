@@ -63,7 +63,7 @@ export async function seedInto(
       createdAt,
     };
     db.versions.push(version);
-    const result = await runReview(golden.input, rubric, "heuristic");
+    const result = await runReview(golden.input, rubric, "heuristic", golden.expected.jurisdictions);
     const run = {
       id: newId("run"),
       documentId: document.id,

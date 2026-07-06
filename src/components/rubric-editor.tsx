@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
 import type {
   CriterionArea,
   GoldenGateReport,
@@ -199,6 +200,40 @@ export function RubricEditor({
               >
                 Remove
               </button>
+              <fieldset className="flex flex-wrap items-center gap-3 text-xs text-muted lg:col-span-full">
+                <legend className="sr-only">
+                  Markets for {criterion.id}
+                </legend>
+                <span className="font-medium">Markets:</span>
+                {SUPPORTED_JURISDICTIONS.map((market) => {
+                  const active =
+                    criterion.jurisdictions?.includes(market) ?? false;
+                  return (
+                    <label
+                      key={market}
+                      className="flex items-center gap-1.5 text-ink"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={(e) => {
+                          const current = criterion.jurisdictions ?? [];
+                          const next = e.target.checked
+                            ? [...current, market]
+                            : current.filter((m) => m !== market);
+                          updateCriterion(i, {
+                            jurisdictions: next.length > 0 ? next : undefined,
+                          });
+                        }}
+                      />
+                      {market}
+                    </label>
+                  );
+                })}
+                {!criterion.jurisdictions?.length && (
+                  <span>none checked = applies everywhere</span>
+                )}
+              </fieldset>
             </div>
           ))}
         </div>

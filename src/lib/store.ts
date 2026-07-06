@@ -8,7 +8,7 @@ import {
 } from "./db/index";
 import { createMemoryDriver } from "./db/memory";
 import { UniqueViolationError } from "./db/driver";
-import type { StorageKind } from "./db/driver";
+import type { StorageKind, Tx } from "./db/driver";
 
 // ---------------------------------------------------------------------------
 // Domain types — kept verbatim so no import site changes.
@@ -43,6 +43,8 @@ export interface ReviewRun {
   error: string | null;
   createdAt: string;
   finishedAt: string | null;
+  /** Target markets for this review; absent on pre-jurisdiction runs. */
+  jurisdictions?: string[];
 }
 
 export interface FindingOverride {
@@ -148,6 +150,12 @@ function ensureReady(): Promise<void> {
   return (readyPromise ??= initStore());
 }
 
+/** Transaction entry point for all ops: seeds on first boot, then runs fn. */
+async function transact<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
+  await ensureReady();
+  return getDriver().transact(fn);
+}
+
 /** Returns the storage kind of the active driver. */
 export function storageKind(): StorageKind {
   return getDriver().kind;
@@ -212,12 +220,13 @@ export interface SubmissionInput {
   author: string;
   documentId?: string;
   reviewer: ReviewerKind;
+  jurisdictions?: string[];
 }
 
 async function doCreateSubmission(
   input: SubmissionInput,
 ): Promise<{ document: DocumentRecord; version: DocVersion; run: ReviewRun }> {
-  return getDriver().transact(async (tx) => {
+  return transact(async (tx) => {
     const now = new Date().toISOString();
 
     // Find or create the document.
@@ -271,6 +280,7 @@ async function doCreateSubmission(
       error: null,
       createdAt: now,
       finishedAt: null,
+      jurisdictions: input.jurisdictions,
     };
     await tx.insertRun(run);
 
@@ -308,7 +318,7 @@ const CORRUPT = Symbol("corrupt");
 
 export async function claimRunForReview(runId: string): Promise<ClaimRunResult> {
   try {
-    return await getDriver().transact(async (tx): Promise<ClaimRunResult> => {
+    return await transact(async (tx): Promise<ClaimRunResult> => {
       const claimed = await tx.claimRun(runId);
 
       if (!claimed) {
@@ -364,7 +374,7 @@ export async function updateRun(
   runId: string,
   patch: Partial<Pick<ReviewRun, "status" | "result" | "error" | "finishedAt">>,
 ): Promise<ReviewRun | null> {
-  return getDriver().transact((tx) => tx.updateRun(runId, patch));
+  return transact((tx) => tx.updateRun(runId, patch));
 }
 
 export interface DecisionInput {
@@ -386,7 +396,7 @@ export async function addDecision(
   input: DecisionInput,
 ): Promise<AddDecisionResult> {
   try {
-    return await getDriver().transact(async (tx): Promise<AddDecisionResult> => {
+    return await transact(async (tx): Promise<AddDecisionResult> => {
       const run = await tx.getRun(input.runId);
       if (!run || run.status !== "done" || !run.result) {
         return { status: "missing" };
@@ -436,7 +446,7 @@ async function doSaveRubricDraft(
   draft: RubricDraft,
   author: string,
 ): Promise<RubricVersion> {
-  return getDriver().transact(async (tx) => {
+  return transact(async (tx) => {
     const nextVersion = (await tx.maxRubricVersion()) + 1;
     const rubric: RubricVersion = {
       ...draft,
@@ -471,7 +481,7 @@ export async function setGoldenGate(
   version: number,
   report: GoldenGateReport,
 ): Promise<RubricVersion | null> {
-  return getDriver().transact((tx) =>
+  return transact((tx) =>
     tx.updateRubric(version, { goldenGate: report }),
   );
 }
@@ -479,7 +489,7 @@ export async function setGoldenGate(
 export async function publishRubric(
   version: number,
 ): Promise<RubricVersion | null> {
-  return getDriver().transact(async (tx) => {
+  return transact(async (tx) => {
     const rubric = await tx.getRubric(version);
     if (!rubric || !rubric.goldenGate?.pass) return null;
     return tx.updateRubric(version, { publishedAt: new Date().toISOString() });

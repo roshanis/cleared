@@ -114,7 +114,8 @@ const SCHEMA_DDL = `
     result         TEXT,
     error          TEXT,
     created_at     TEXT NOT NULL,
-    finished_at    TEXT
+    finished_at    TEXT,
+    jurisdictions  TEXT
   );
 
   CREATE TABLE IF NOT EXISTS decisions (
@@ -132,8 +133,12 @@ const SCHEMA_DDL = `
   CREATE INDEX IF NOT EXISTS idx_runs_version_created
     ON runs(rubric_version, created_at);
 
-  INSERT INTO meta(key, value) VALUES ('schema_version', '1')
+  INSERT INTO meta(key, value) VALUES ('schema_version', '2')
     ON CONFLICT (key) DO NOTHING;
+
+  -- v1 -> v2 guarded migration: add runs.jurisdictions to older databases.
+  ALTER TABLE runs ADD COLUMN IF NOT EXISTS jurisdictions TEXT;
+  UPDATE meta SET value = '2' WHERE key = 'schema_version' AND value = '1';
 `;
 
 // ---------------------------------------------------------------------------
@@ -247,7 +252,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
       const r = runToRow(run);
       try {
         await queryRun(
-          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
           [
             r.id,
             r.document_id,
@@ -259,6 +264,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
             r.error,
             r.created_at,
             r.finished_at,
+            r.jurisdictions,
           ],
         );
       } catch (err) {

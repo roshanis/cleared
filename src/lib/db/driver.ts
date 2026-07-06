@@ -149,6 +149,7 @@ export const rowToRun = (row: SqlRow): ReviewRun => ({
   error: nullableText(row.error),
   createdAt: text(row.created_at),
   finishedAt: nullableText(row.finished_at),
+  jurisdictions: nullableJson<string[]>(row.jurisdictions) ?? undefined,
 });
 
 export const runToRow = (run: ReviewRun) => ({
@@ -162,6 +163,8 @@ export const runToRow = (run: ReviewRun) => ({
   error: run.error,
   created_at: run.createdAt,
   finished_at: run.finishedAt,
+  jurisdictions:
+    run.jurisdictions === undefined ? null : JSON.stringify(run.jurisdictions),
 });
 
 export const rowToDecision = (row: SqlRow): Decision => ({

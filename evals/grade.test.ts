@@ -23,7 +23,12 @@ const expected = (
   verdict: ExpectedReview["verdict"],
   requiredCriteria: string[],
   allowExtraFindings = false,
-): ExpectedReview => ({ verdict, requiredCriteria, allowExtraFindings });
+): ExpectedReview => ({
+  verdict,
+  requiredCriteria,
+  allowExtraFindings,
+  jurisdictions: ["US"],
+});
 
 describe("grade", () => {
   it("passes when verdict and criteria match exactly", () => {

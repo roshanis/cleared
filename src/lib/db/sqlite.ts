@@ -86,7 +86,8 @@ const SCHEMA_DDL = `
     result         TEXT,
     error          TEXT,
     created_at     TEXT NOT NULL,
-    finished_at    TEXT
+    finished_at    TEXT,
+    jurisdictions  TEXT
   );
 
   CREATE TABLE IF NOT EXISTS decisions (
@@ -103,8 +104,19 @@ const SCHEMA_DDL = `
   CREATE INDEX IF NOT EXISTS idx_runs_version_created
     ON runs(rubric_version, created_at);
 
-  INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '1');
+  INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');
 `;
+
+/** v1 -> v2: pre-jurisdiction databases lack runs.jurisdictions. */
+function migrate(instance: InstanceType<typeof import("node:sqlite").DatabaseSync>) {
+  const row = instance
+    .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
+    .get() as { value?: string } | undefined;
+  if (row?.value === "1") {
+    instance.exec("ALTER TABLE runs ADD COLUMN jurisdictions TEXT");
+    instance.exec("UPDATE meta SET value = '2' WHERE key = 'schema_version'");
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Unique-constraint detection
@@ -225,7 +237,7 @@ function makeTx(db: DatabaseSync): Tx {
       const r = runToRow(run);
       try {
         stmt(
-          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).run(
           r.id,
           r.document_id,
@@ -237,6 +249,7 @@ function makeTx(db: DatabaseSync): Tx {
           r.error,
           r.created_at,
           r.finished_at,
+          r.jurisdictions,
         );
       } catch (err) {
         mapUniqueOrThrow(err);
@@ -390,8 +403,9 @@ export function createSqliteDriver(
     instance.exec("PRAGMA busy_timeout=5000");
     instance.exec("PRAGMA foreign_keys=ON");
 
-    // Bootstrap schema (idempotent).
+    // Bootstrap schema (idempotent), then apply guarded migrations.
     instance.exec(SCHEMA_DDL);
+    migrate(instance);
 
     db = instance;
     handles.set(filePath, instance);

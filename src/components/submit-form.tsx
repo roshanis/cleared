@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { sampleDocument } from "@/lib/copy";
+import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
 import type { RubricCriterion } from "@/lib/rubric";
 import type { ReviewResult } from "@/schema";
 import { ResultView } from "./result-view";
@@ -29,6 +30,7 @@ export function SubmitForm({
   criteria?: RubricCriterion[];
 }) {
   const [title, setTitle] = useState(resubmit?.title ?? "");
+  const [markets, setMarkets] = useState<string[]>(["US"]);
   const [content, setContent] = useState(resubmit?.content ?? "");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export function SubmitForm({
           title,
           content,
           documentId: resubmit?.documentId,
+          jurisdictions: markets,
         }),
       });
       const submission = (await submissionRes.json()) as {
@@ -154,6 +157,42 @@ export function SubmitForm({
               className={inputClass}
             />
           </label>
+
+          <fieldset>
+            <legend className={fieldLabelClass}>Target markets</legend>
+            <div className="flex flex-wrap gap-2">
+              {SUPPORTED_JURISDICTIONS.map((market) => {
+                const active = markets.includes(market);
+                return (
+                  <button
+                    key={market}
+                    type="button"
+                    disabled={busy}
+                    aria-pressed={active}
+                    onClick={() =>
+                      setMarkets((prev) => {
+                        const next = active
+                          ? prev.filter((m) => m !== market)
+                          : [...prev, market];
+                        return next.length === 0 ? prev : next;
+                      })
+                    }
+                    className={`inline-flex min-h-8 items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors duration-150 ${
+                      active
+                        ? "border-accent bg-accent-soft text-accent-strong"
+                        : "border-line-strong bg-surface text-muted hover:border-accent hover:text-ink"
+                    }`}
+                  >
+                    {market}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-xs leading-5 text-muted">
+              The rubric applies market-specific rules per selection — you get
+              a verdict for each market.
+            </p>
+          </fieldset>
 
           <label className="block">
             <span className={fieldLabelClass}>Document</span>

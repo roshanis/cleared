@@ -10,7 +10,12 @@ console.log(`reviewer: ${reviewer}\n`);
 
 let failures = 0;
 for (const goldenCase of loadGoldenCases()) {
-  const result = await runReview(goldenCase.input, defaultRubricDraft, reviewer);
+  const result = await runReview(
+    goldenCase.input,
+    defaultRubricDraft,
+    reviewer,
+    goldenCase.expected.jurisdictions,
+  );
   const report = grade(result, goldenCase.expected);
   const status = report.pass ? "PASS" : "FAIL";
   console.log(

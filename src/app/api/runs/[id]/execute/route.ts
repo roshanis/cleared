@@ -56,6 +56,7 @@ export async function POST(
       claimed.version.content,
       claimed.rubric,
       claimed.run.reviewer,
+      claimed.run.jurisdictions ?? ["US"],
     );
     await completeRun(id, result);
     return NextResponse.json({

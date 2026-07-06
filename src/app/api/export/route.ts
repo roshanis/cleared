@@ -29,6 +29,11 @@ export async function GET() {
         submitted_at: run.createdAt,
         reviewer: run.reviewer,
         rubric_version: run.rubricVersion,
+        jurisdictions: run.jurisdictions?.join(" ") ?? "US",
+        jurisdiction_verdicts:
+          run.result?.jurisdictionVerdicts
+            ?.map((v) => `${v.jurisdiction}:${v.verdict}`)
+            .join(" ") ?? "",
         status: run.status,
         agent_verdict: run.result?.verdict ?? "",
         findings: run.result?.findings.length ?? "",

@@ -4,7 +4,9 @@ import { reviewResultSchema, type ReviewResult } from "@/schema";
 import {
   renderRubricMarkdown,
   severityOrder,
+  sliceRubric,
   type CriterionArea,
+  type RubricCriterion,
   type RubricDraft,
 } from "@/lib/rubric";
 import { heuristicReview } from "./heuristic";
@@ -38,13 +40,16 @@ export async function runReview(
   document: string,
   rubric: RubricDraft,
   reviewer: ReviewerKind = activeReviewer(),
+  jurisdictions: string[] = ["US"],
 ): Promise<ReviewResult> {
+  const sliced = sliceRubric(rubric, jurisdictions);
+
   let perReviewer: ReviewerFinding[][];
   if (reviewer === "heuristic") {
     perReviewer = reviewerAreas.map(({ area }) =>
       heuristicReview(
         document,
-        rubric.criteria.filter((c) => c.area === area),
+        sliced.criteria.filter((c) => c.area === area),
       ),
     );
   } else {
@@ -52,20 +57,76 @@ export async function runReview(
       reviewerAreas.map(({ area, prompt }) =>
         modelReview({
           document,
-          instructions: `${promptFile(prompt)}\n\n${renderRubricMarkdown(rubric, area)}`,
+          instructions: `${promptFile(prompt)}\n\n${renderRubricMarkdown(sliced, area)}`,
           modelId: MODEL_ID,
         }),
       ),
     );
   }
 
-  const findings = mergeFindings(perReviewer, rubric.criteria);
-  const verdict = decideVerdict(findings, rubric);
+  const findings = mergeFindings(perReviewer, sliced.criteria);
+
+  const buckets = partitionFindingsByJurisdiction(
+    findings,
+    sliced.criteria,
+    jurisdictions,
+  );
+  const jurisdictionVerdicts = jurisdictions.map((jurisdiction) => ({
+    jurisdiction,
+    verdict: decideVerdict(buckets.get(jurisdiction) ?? [], sliced),
+  }));
+  const verdict = worstVerdict(jurisdictionVerdicts.map((v) => v.verdict));
+
   return reviewResultSchema.parse({
     verdict,
     findings: findings.map(({ confidence: _confidence, ...finding }) => finding),
     summary: buildSummary(verdict, findings),
+    jurisdictionVerdicts,
   });
+}
+
+/**
+ * Assign each finding to the selected markets its criterion applies in.
+ * Global criteria (no jurisdictions tag) count for every selected market;
+ * findings for criteria outside the rubric are dropped.
+ */
+export function partitionFindingsByJurisdiction(
+  findings: ReviewerFinding[],
+  criteria: RubricCriterion[],
+  jurisdictions: string[],
+): Map<string, ReviewerFinding[]> {
+  const byId = new Map(criteria.map((c) => [c.id, c]));
+  const buckets = new Map<string, ReviewerFinding[]>(
+    jurisdictions.map((j) => [j, []]),
+  );
+  for (const finding of findings) {
+    const criterion = byId.get(finding.criterionId);
+    if (!criterion) continue;
+    for (const jurisdiction of jurisdictions) {
+      if (
+        !criterion.jurisdictions ||
+        criterion.jurisdictions.includes(jurisdiction)
+      ) {
+        buckets.get(jurisdiction)!.push(finding);
+      }
+    }
+  }
+  return buckets;
+}
+
+const verdictRank: Record<ReviewResult["verdict"], number> = {
+  fail: 0,
+  needs_human_review: 1,
+  pass: 2,
+};
+
+function worstVerdict(
+  verdicts: ReviewResult["verdict"][],
+): ReviewResult["verdict"] {
+  return verdicts.reduce(
+    (worst, v) => (verdictRank[v] < verdictRank[worst] ? v : worst),
+    "pass" as ReviewResult["verdict"],
+  );
 }
 
 function buildSummary(

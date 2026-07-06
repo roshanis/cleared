@@ -7,6 +7,8 @@ export const expectedReviewSchema = z.object({
   verdict: z.enum(["pass", "fail", "needs_human_review"]),
   requiredCriteria: z.array(z.string()),
   allowExtraFindings: z.boolean().optional().default(false),
+  /** Markets to review against; defaults to a US-only run. */
+  jurisdictions: z.array(z.string()).optional().default(["US"]),
 });
 
 export type ExpectedReview = z.infer<typeof expectedReviewSchema>;

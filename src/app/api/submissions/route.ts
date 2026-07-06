@@ -4,12 +4,18 @@ import { activeReviewer } from "@/agent/run";
 import { requireSameOrigin } from "@/lib/request-guard";
 import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
+import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
 import { createSubmission, getDb } from "@/lib/store";
 
 const bodySchema = z.object({
   title: z.string().max(200).optional().default(""),
   content: z.string().min(1, "Document is empty").max(50_000),
   documentId: z.string().optional(),
+  jurisdictions: z
+    .array(z.enum(SUPPORTED_JURISDICTIONS))
+    .min(1)
+    .optional()
+    .default(["US"]),
 });
 
 export async function POST(req: Request) {
@@ -33,7 +39,7 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const { title, content, documentId } = parsed.data;
+  const { title, content, documentId, jurisdictions } = parsed.data;
 
   if (documentId) {
     const db = await getDb();
@@ -57,6 +63,7 @@ export async function POST(req: Request) {
     author: session.name,
     documentId,
     reviewer: activeReviewer(),
+    jurisdictions: [...new Set(jurisdictions)],
   });
 
   return NextResponse.json({
