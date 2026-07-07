@@ -69,7 +69,7 @@ export function FixDraftPanel({ runId }: { runId: string }) {
             type="button"
             onClick={draftFixes}
             disabled={busy}
-            className={buttonClass("secondary")}
+            className={buttonClass("primary")}
           >
             {busy ? "Drafting…" : "Draft fixes"}
           </button>

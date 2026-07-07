@@ -84,7 +84,7 @@ export function ResultView({
                   </StatusBadge>
                 ))}
             </div>
-            <p className="max-w-3xl text-sm leading-6">{result.summary}</p>
+            <p className="max-w-3xl text-[15px] leading-7">{result.summary}</p>
             <p className="max-w-3xl text-xs leading-5 text-muted">
               {verdictNextStep(result.verdict)}
             </p>
@@ -188,7 +188,11 @@ export function ResultView({
           ) : (
             <div className="overflow-hidden rounded-lg border border-line bg-surface">
               {result.findings.map((finding, i) => (
-                <article key={i} className="border-b border-line p-4 last:border-b-0">
+                <article
+                  key={i}
+                  className="animate-rise border-b border-line p-4 last:border-b-0"
+                  style={{ "--rise-delay": `${120 + i * 90}ms` } as React.CSSProperties}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <a
                       href={`#quote-${i}`}
@@ -214,7 +218,7 @@ export function ResultView({
                       {criterionDescriptions.get(finding.criterionId)}
                     </p>
                   )}
-                  <p className="mt-3 border-l-2 border-line pl-3 font-serif text-sm italic leading-6 text-muted">
+                  <p className="mt-3 border-l-2 border-line pl-3 font-serif text-[15px] italic leading-7 text-muted">
                     "{finding.quote}"
                   </p>
                   <p className="mt-3 text-sm leading-6">

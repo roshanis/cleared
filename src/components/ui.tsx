@@ -88,9 +88,9 @@ export function VerdictBadge({ verdict }: { verdict: ReviewResult["verdict"] }) 
   const style = verdictStyles[verdict];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${style.className}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-inset ${style.className}`}
     >
-      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+      <span aria-hidden className={`h-2 w-2 rounded-full ${style.dot}`} />
       {style.label}
     </span>
   );

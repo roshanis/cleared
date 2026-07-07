@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { sampleDocument } from "@/lib/copy";
-import { FIX_DRAFT_STORAGE_KEY } from "./fix-draft-panel";
+import { FIX_DRAFT_STORAGE_KEY, FixDraftPanel } from "./fix-draft-panel";
+import { REVIEW_STAGES, stageIndexAt, theaterDone } from "./review-theater";
 import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
 import type { RubricCriterion } from "@/lib/rubric";
 import type { ReviewResult } from "@/schema";
@@ -39,10 +40,19 @@ export function SubmitForm({
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
   const [result, setResult] = useState<ReviewResult | null>(null);
-  const [elapsed, setElapsed] = useState(0);
+  const [pendingResult, setPendingResult] = useState<ReviewResult | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [fixDraftLoaded, setFixDraftLoaded] = useState(false);
   const startRef = useRef(0);
+
+  useEffect(() => {
+    setReducedMotion(
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
+  }, []);
 
   useEffect(() => {
     if (!fixDraftRequested) return;
@@ -64,11 +74,21 @@ export function SubmitForm({
   useEffect(() => {
     if (phase !== "reviewing") return;
     const timer = setInterval(
-      () => setElapsed(Math.round((Date.now() - startRef.current) / 1000)),
-      500,
+      () => setElapsedMs(Date.now() - startRef.current),
+      200,
     );
     return () => clearInterval(timer);
   }, [phase]);
+
+  // Reveal the verdict only once the choreography has played out — in model
+  // mode the stages ride the real call latency instead.
+  useEffect(() => {
+    if (phase !== "reviewing" || !pendingResult) return;
+    if (!theaterDone(elapsedMs, reducedMotion)) return;
+    setResult(pendingResult);
+    setPendingResult(null);
+    setPhase("done");
+  }, [phase, pendingResult, elapsedMs, reducedMotion]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,8 +115,9 @@ export function SubmitForm({
         throw new Error(submission.error ?? "Submission failed.");
       }
       setDocumentId(submission.documentId ?? null);
+      setRunId(submission.runId);
       startRef.current = Date.now();
-      setElapsed(0);
+      setElapsedMs(0);
       setPhase("reviewing");
 
       const executeRes = await fetch(`/api/runs/${submission.runId}/execute`, {
@@ -109,8 +130,7 @@ export function SubmitForm({
       if (!executeRes.ok || !executed.result) {
         throw new Error(executed.error ?? "The review failed — try again.");
       }
-      setResult(executed.result);
-      setPhase("done");
+      setPendingResult(executed.result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setPhase("error");
@@ -264,25 +284,30 @@ export function SubmitForm({
         <Card className="space-y-4 border-accent/25 bg-accent-soft/45 p-5" aria-live="polite">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Review in progress</h2>
-            <span className="text-xs tabular-nums text-muted">{elapsed}s</span>
+            <span className="text-xs tabular-nums text-muted">
+              {Math.round(elapsedMs / 1000)}s
+            </span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <ProgressStep done label="Document submitted" />
-            <ProgressStep
-              done={phase === "reviewing"}
-              active={phase === "submitting"}
-              label="Review run created"
-            />
-            <ProgressStep
-              done={false}
-              active={phase === "reviewing"}
-              label="Reviewers reading"
-            />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {REVIEW_STAGES.map((label, i) => {
+              const stage =
+                phase === "submitting"
+                  ? 0
+                  : Math.max(1, stageIndexAt(elapsedMs, reducedMotion));
+              return (
+                <ProgressStep
+                  key={label}
+                  done={i < stage}
+                  active={i === stage}
+                  label={label}
+                />
+              );
+            })}
           </div>
           <p className="pt-1 text-xs text-muted">
             Two reviewers check policy claims and data-handling risk in
-            parallel, then findings are merged and the verdict is
-            applied from the rubric.
+            parallel; a judge verifies every quoted finding before the
+            verdict is applied from the rubric.
           </p>
         </Card>
       )}
@@ -299,8 +324,11 @@ export function SubmitForm({
       )}
 
       {phase === "done" && result && (
-        <div className="space-y-3">
+        <div className="animate-rise space-y-3">
           <ResultView content={content} result={result} criteria={criteria} />
+          {result.verdict !== "pass" && runId && (
+            <FixDraftPanel runId={runId} />
+          )}
           <div className="flex flex-wrap gap-3 text-sm">
             {documentId && (
               <Link

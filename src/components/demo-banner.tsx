@@ -49,7 +49,7 @@ export function DemoBanner({
 
   return (
     <div className="border-b border-line bg-rail">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2 text-xs leading-5 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2 text-[13px] leading-5 sm:px-6">
         <span className="flex items-center gap-1.5 font-medium text-ink">
           <span
             aria-hidden
@@ -75,7 +75,7 @@ export function DemoBanner({
               onClick={() => switchTo(persona.id)}
               disabled={pending !== null}
               title={`${persona.name} · ${persona.role}`}
-              className="inline-flex min-h-6 items-center gap-1 rounded-md border border-line bg-surface px-2 py-0.5 font-medium text-muted transition-colors duration-150 hover:border-accent hover:text-accent-strong disabled:pointer-events-none disabled:opacity-60"
+              className="inline-flex min-h-7 items-center gap-1 rounded-md border border-line bg-surface px-2.5 py-0.5 font-medium text-muted transition-colors duration-150 hover:border-accent hover:text-accent-strong disabled:pointer-events-none disabled:opacity-60"
             >
               {pending === persona.id ? "…" : persona.name.split(" ")[0]}
             </button>

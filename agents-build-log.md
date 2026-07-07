@@ -540,3 +540,29 @@ a self-resetting public demo, redeploy, walk all four seats in a private window.
 ### Files changed: merge only — no new edits beyond this log entry
 ### Diff summary: GOAL-DEMO shipped to main — DEMO_PUBLIC gate (no-code persona sign-in, forced heuristic reviewer), /api/auth/switch + demo strip with per-role hints, docs. Verified on main: npm test 175 passed / 3 skipped; tsc clean; build 22 routes.
 ### Recommendations / Next steps: Operator sets DEMO_PUBLIC=1 on Vercel (keep DEMO_AUTH=1, AUTH_SECRET; leave DATABASE_URL unset for a self-resetting public demo) and redeploys.
+
+## [AGENT: Claude] 2026-07-07T05:45Z
+### Action: GOAL-SHOWTIME executed on branch showtime — demo script, big-screen type, review theater
+### Files changed: GOAL-SHOWTIME.md (spec), DEMO-SCRIPT.md (new), src/components/review-theater.ts (new), src/components/review-theater.test.ts (new), src/components/submit-form.tsx, src/components/fix-draft-panel.tsx, src/components/result-view.tsx, src/components/ui.tsx, src/components/demo-banner.tsx
+### Diff summary:
+- WS-3 review theater: submit → verdict wait staged as the real pipeline (Document
+  submitted → Policy reviewer → Risk reviewer → Judge verifying quotes), ~2.6s pacing in
+  heuristic mode, stages ride real latency in model mode, reduced-motion skips the
+  choreography (pure helpers TDD'd, 5 tests). Verdict lands with animate-rise; findings
+  stagger in. FixDraftPanel now renders inline on a failed submit (runId threaded through)
+  and "Draft fixes" is a primary button — the climax control.
+- WS-2 big-screen type: VerdictBadge text-xs→text-sm, finding quotes and summary
+  text-sm→15px/leading-7, demo strip 13px with min-h-7 switch buttons (nav wordmark
+  text-2xl shipped separately on main).
+- WS-1 DEMO-SCRIPT.md: three-act five-minute presenter runbook with exact control labels
+  (verified against the components), prep checklist (warm instance, private window, never
+  share deployment URLs), cold-start recovery line, US+UK "one more thing", Q&A answers.
+- Verification: suite 180 passed / 3 skipped, tsc clean, build green. Rehearsal E2E 24/24
+  against a production server: every scripted beat incl. sample fail with the read-aloud
+  quote, Draft fixes → 0 unlocated → resubmit PASS, fixed doc US+UK → US pass/UK fail,
+  Devon reject-with-note, Priya save-draft → golden gate pass, Sam audit log + CSV.
+  (Script corrected during rehearsal: gate requires "Save as draft" first — now narrated
+  as "Publish is disabled until the gate passes".)
+### Recommendations / Next steps:
+Merge showtime to main, deploy to production, walk the script on cleared-five.vercel.app.
+Presenter should rehearse out loud twice.
