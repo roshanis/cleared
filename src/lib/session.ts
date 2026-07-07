@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { publicDemoEnabled } from "./demo";
 import { signToken, verifyToken } from "./token";
 
 export type Role = "author" | "officer" | "admin" | "auditor";
@@ -118,7 +119,23 @@ export async function requireRole(...roles: Role[]): Promise<Session> {
 
 export function accessCodeOk(code: string | undefined): boolean {
   if (!demoAuthEnabled()) return false;
+  if (publicDemoEnabled()) return true;
   const required = process.env.APP_ACCESS_CODE;
   if (!required) return !isProduction();
   return code === required;
+}
+
+/**
+ * Demo persona switch: the token and role home for a visitor who is already
+ * signed in. Null when the persona is unknown or demo auth is off — the
+ * switch route never mints a session the login gate would not have granted.
+ */
+export function switchTarget(
+  personaId: string,
+): { token: string; home: string } | null {
+  const persona = personas.find((p) => p.id === personaId);
+  if (!persona) return null;
+  const token = sessionTokenFor(personaId);
+  if (!token) return null;
+  return { token, home: homeByRole[persona.role] };
 }

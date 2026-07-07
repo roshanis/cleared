@@ -19,4 +19,19 @@ describe("model configuration", () => {
     const { activeReviewer } = await import("./run");
     expect(activeReviewer()).toBe("heuristic");
   });
+
+  it("uses the model reviewer when an API key is configured", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.resetModules();
+    const { activeReviewer } = await import("./run");
+    expect(activeReviewer()).toBe("model");
+  });
+
+  it("forces the heuristic reviewer in a public demo, even with an API key", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("DEMO_PUBLIC", "1");
+    vi.resetModules();
+    const { activeReviewer } = await import("./run");
+    expect(activeReviewer()).toBe("heuristic");
+  });
 });

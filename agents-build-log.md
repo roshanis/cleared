@@ -510,3 +510,27 @@ seed-on-mutation fix and its regression test.
 Exercise model-mode judge/fixer with a real OPENAI_API_KEY. Provision
 DATABASE_URL (pooled Postgres) to exercise the 3 skipped postgres tests.
 Measure latency under 3 sequential model calls before adjusting maxDuration.
+
+## [AGENT: Claude] 2026-07-07T00:30Z
+### Action: GOAL-DEMO executed on branch demo-public — public demo gate, persona switcher, guided demo
+### Files changed: GOAL-DEMO.md (spec), src/lib/demo.ts (new), src/lib/session.ts, src/lib/session.access.test.ts (new), src/agent/run.ts, src/agent/run.test.ts, src/app/login/page.tsx, src/app/api/auth/switch/route.ts (new), src/components/demo-strip.tsx (new), src/components/demo-banner.tsx (new), src/app/layout.tsx, .env.example, README.md
+### Diff summary:
+- WS-1: DEMO_PUBLIC=1 opt-in — accessCodeOk() skips the code (public + demo auth only;
+  DEMO_AUTH=0 still wins); activeReviewer() forced to heuristic under public demo so
+  visitors cannot spend the operator's API budget; login page hides the code field and
+  shows a shared-demo note. publicDemoEnabled() lives in dependency-free src/lib/demo.ts.
+- WS-2: POST /api/auth/switch (same-origin, requires an existing session — never mints
+  one, 401 without) built on new pure helper switchTarget(); DemoStrip/DemoBanner render
+  a quiet utility bar under the nav: current seat + one-click switch to the other three.
+- WS-3: per-role "try this" hint in the strip; .env.example + README public-demo recipe
+  (ephemeral storage recommended for public links).
+- TDD: 10 new tests red-first (accessCodeOk matrix, switchTarget, forced heuristic).
+- Verification: 175 passed / 3 postgres-skipped, tsc clean, build 22 routes. Live E2E
+  26/26 across three production servers: (A) public demo — no-code login, strip, submit
+  → heuristic despite dummy key → fail → 4-seat hop → decision → audit + CSV, switch
+  without session 401; (B) APP_ACCESS_CODE without DEMO_PUBLIC still 403s (fail-closed
+  regression); (C) DEMO_AUTH=0 + DEMO_PUBLIC=1 → 403.
+### Recommendations / Next steps:
+Merge demo-public to main when approved. Operator: on Vercel set DEMO_PUBLIC=1 (keep
+DEMO_AUTH=1, AUTH_SECRET; APP_ACCESS_CODE may stay or go), leave DATABASE_URL unset for
+a self-resetting public demo, redeploy, walk all four seats in a private window.

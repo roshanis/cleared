@@ -83,6 +83,21 @@ production. To deploy the persona demo intentionally, set `DEMO_AUTH=1`,
 opening this to untrusted users** — the role model (`author` / `officer` /
 `admin` / `auditor`) and every `requireRole()` call site carry over unchanged.
 
+### Public demo
+
+To share the link openly — anyone can pick a persona, no access code — add
+`DEMO_PUBLIC=1` (keeping `DEMO_AUTH=1` and `AUTH_SECRET`; `APP_ACCESS_CODE`
+is ignored while public). Signed-in visitors get a demo strip under the nav:
+it names the current seat, offers one-click switching to the other three
+personas, and suggests the one thing worth trying in each. Two guardrails
+apply while `DEMO_PUBLIC=1`:
+
+- Reviews always run the free deterministic heuristic pipeline, even if
+  `OPENAI_API_KEY` is set — visitors cannot spend your API budget.
+- Visitors can write data, so leave `DATABASE_URL` unset on Vercel: the
+  per-instance in-memory store reseeds itself and strangers' data
+  self-destructs. A shared Postgres behind a public demo is not recommended.
+
 ## Environment variables
 
 See `.env.example`. Local development has zero required env vars; production
@@ -98,7 +113,8 @@ npm run deploy     # vercel deploy
 From a clean clone: `npm install`, set env vars in the Vercel dashboard
 (add `OPENAI_API_KEY` for model reviews, `DATABASE_URL` for durable Postgres
 storage, and `DEMO_AUTH=1` / `AUTH_SECRET` / `APP_ACCESS_CODE` only if you are
-intentionally deploying the persona demo), then deploy. The seed runs
+intentionally deploying the persona demo — or `DEMO_PUBLIC=1` instead of the
+access code for an open demo link), then deploy. The seed runs
 automatically on first access so the deployed app looks alive immediately.
 
 The execute and rubric-gate routes declare `maxDuration = 300` for model-mode

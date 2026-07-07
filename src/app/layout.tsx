@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
+import { DemoStrip } from "@/components/demo-strip";
 import { Nav } from "@/components/nav";
 import "./globals.css";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-paper font-sans text-ink antialiased">
         <Nav />
+        <DemoStrip />
         <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
       </body>
     </html>

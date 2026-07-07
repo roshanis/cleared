@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { LoginCards } from "@/components/login-cards";
+import { publicDemoEnabled } from "@/lib/demo";
 import { demoAuthEnabled, getSession, personas } from "@/lib/session";
 
 const valueProps = [
@@ -28,7 +29,8 @@ export default async function LoginPage({
   const { as: highlightPersona } = await searchParams;
   const session = await getSession();
   if (session) redirect("/");
-  const needsAccessCode = Boolean(process.env.APP_ACCESS_CODE);
+  const isPublicDemo = publicDemoEnabled();
+  const needsAccessCode = Boolean(process.env.APP_ACCESS_CODE) && !isPublicDemo;
   const canUseDemoAuth = demoAuthEnabled();
   return (
     <div className="mx-auto grid max-w-6xl items-start gap-8 py-6 lg:grid-cols-[1fr_0.9fr] lg:gap-14 lg:py-12">
@@ -86,9 +88,9 @@ export default async function LoginPage({
           </div>
         )}
         <p className="mt-6 text-xs leading-5 text-muted">
-          Demo authentication is enabled by default only outside production.
-          Swap in your identity provider before real use; the role model
-          underneath stays the same.
+          {isPublicDemo
+            ? "This is a shared public demo — anything you submit is visible to other visitors and may reset at any time."
+            : "Demo authentication is enabled by default only outside production. Swap in your identity provider before real use; the role model underneath stays the same."}
         </p>
       </section>
     </div>
