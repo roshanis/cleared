@@ -115,11 +115,38 @@ export function SeverityLabel({ severity }: { severity: Severity }) {
 }
 
 /** Small mono chip for criterion IDs (C1, C2…) — used in tables and findings. */
-export function CriterionChip({ id }: { id: string }) {
+export function CriterionChip({
+  id,
+  description,
+  expanded,
+  controlsId,
+  onToggle,
+}: {
+  id: string;
+  description?: string;
+  expanded?: boolean;
+  controlsId?: string;
+  onToggle?: () => void;
+}) {
+  const className =
+    "inline-flex rounded bg-accent-soft px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-4 text-accent-strong";
+
+  if (!description || !onToggle) {
+    return <span className={className}>{id}</span>;
+  }
+
   return (
-    <span className="inline-flex rounded bg-accent-soft px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-4 text-accent-strong">
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-controls={controlsId}
+      aria-label={`${expanded ? "Hide" : "Show"} rule ${id}`}
+      title={`${expanded ? "Hide" : "Show"} rule ${id}`}
+      onClick={onToggle}
+      className={`${className} cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+    >
       {id}
-    </span>
+    </button>
   );
 }
 

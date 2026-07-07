@@ -59,7 +59,7 @@ export default async function LandingPage() {
             className="animate-rise max-w-4xl font-serif text-5xl leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.75rem]"
             style={{ "--rise-delay": "0ms" } as React.CSSProperties}
           >
-            Every claim checked,
+            Cleared. Every claim checked,
             <br />
             <em className="text-white/80">before it ships.</em>
           </h1>

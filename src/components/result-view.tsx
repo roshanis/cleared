@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { verdictNextStep } from "@/lib/copy";
 import { segmentDocument } from "@/lib/highlight";
 import type { RubricCriterion, Severity } from "@/lib/rubric";
@@ -32,6 +35,9 @@ export function ResultView({
   /** Criteria of the rubric this run was judged with — used to explain IDs. */
   criteria?: RubricCriterion[];
 }) {
+  const [expandedRules, setExpandedRules] = useState<Set<number>>(
+    () => new Set(),
+  );
   const segments = segmentDocument(
     content,
     result.findings.map((f) => f.quote),
@@ -187,51 +193,74 @@ export function ResultView({
             </Card>
           ) : (
             <div className="overflow-hidden rounded-lg border border-line bg-surface">
-              {result.findings.map((finding, i) => (
-                <article
-                  key={i}
-                  className="animate-rise border-b border-line p-4 last:border-b-0"
-                  style={{ "--rise-delay": `${120 + i * 90}ms` } as React.CSSProperties}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <a
-                      href={`#quote-${i}`}
-                      className="hover:opacity-80"
-                      title="Jump to the highlighted passage"
-                    >
-                      <CriterionChip id={finding.criterionId} />
-                    </a>
-                    <span className="flex items-center gap-2">
-                      {challengedReasons.has(i) && (
-                        <StatusBadge tone="warn">
-                          <span title={challengedReasons.get(i)}>
-                            Judge: possible false positive
-                          </span>
-                        </StatusBadge>
-                      )}
-                      <SeverityLabel severity={finding.severity} />
-                    </span>
-                  </div>
-                  {criterionDescriptions.has(finding.criterionId) && (
-                    <p className="mt-1.5 text-xs leading-5 text-muted">
-                      Rule {finding.criterionId}:{" "}
-                      {criterionDescriptions.get(finding.criterionId)}
+              {result.findings.map((finding, i) => {
+                const description = criterionDescriptions.get(finding.criterionId);
+                const expanded = expandedRules.has(i);
+                const ruleId = `finding-rule-${i}-${finding.criterionId}`;
+
+                return (
+                  <article
+                    key={i}
+                    className="animate-rise border-b border-line p-4 last:border-b-0"
+                    style={
+                      { "--rise-delay": `${120 + i * 90}ms` } as React.CSSProperties
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <CriterionChip
+                        id={finding.criterionId}
+                        description={description}
+                        expanded={expanded}
+                        controlsId={description ? ruleId : undefined}
+                        onToggle={
+                          description
+                            ? () =>
+                                setExpandedRules((current) => {
+                                  const next = new Set(current);
+                                  if (next.has(i)) {
+                                    next.delete(i);
+                                  } else {
+                                    next.add(i);
+                                  }
+                                  return next;
+                                })
+                            : undefined
+                        }
+                      />
+                      <span className="flex items-center gap-2">
+                        {challengedReasons.has(i) && (
+                          <StatusBadge tone="warn">
+                            <span title={challengedReasons.get(i)}>
+                              Judge: possible false positive
+                            </span>
+                          </StatusBadge>
+                        )}
+                        <SeverityLabel severity={finding.severity} />
+                      </span>
+                    </div>
+                    {description && expanded && (
+                      <p
+                        id={ruleId}
+                        className="mt-1.5 text-xs leading-5 text-muted"
+                      >
+                        Rule {finding.criterionId}: {description}
+                      </p>
+                    )}
+                    <p className="mt-3 border-l-2 border-line pl-3 font-serif text-[15px] italic leading-7 text-muted">
+                      "{finding.quote}"
                     </p>
-                  )}
-                  <p className="mt-3 border-l-2 border-line pl-3 font-serif text-[15px] italic leading-7 text-muted">
-                    "{finding.quote}"
-                  </p>
-                  <p className="mt-3 text-sm leading-6">
-                    {finding.explanation}
-                  </p>
-                  <p className="mt-2 rounded-md bg-rail px-3 py-2 text-sm leading-6">
-                    <span className="font-semibold text-accent-strong">
-                      Fix:{" "}
-                    </span>
-                    {finding.recommendation}
-                  </p>
-                </article>
-              ))}
+                    <p className="mt-3 text-sm leading-6">
+                      {finding.explanation}
+                    </p>
+                    <p className="mt-2 rounded-md bg-rail px-3 py-2 text-sm leading-6">
+                      <span className="font-semibold text-accent-strong">
+                        Fix:{" "}
+                      </span>
+                      {finding.recommendation}
+                    </p>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

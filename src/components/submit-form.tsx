@@ -11,7 +11,9 @@ import type { ReviewResult } from "@/schema";
 import { ResultView } from "./result-view";
 import {
   Card,
+  CriterionChip,
   HowItWorksStep,
+  SeverityLabel,
   StatusBadge,
   buttonClass,
   fieldLabelClass,
@@ -169,6 +171,7 @@ export function SubmitForm({
           />
         </Card>
       )}
+      {criteria && criteria.length > 0 && <CriteriaDisclosure criteria={criteria} />}
       <Card className="overflow-hidden">
         <div className="grid gap-4 border-b border-line bg-rail px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
@@ -350,6 +353,34 @@ export function SubmitForm({
         </div>
       )}
     </div>
+  );
+}
+
+function CriteriaDisclosure({ criteria }: { criteria: RubricCriterion[] }) {
+  return (
+    <details className="rounded-lg border border-line bg-surface shadow-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold tracking-tight marker:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        What we check
+      </summary>
+      <div className="border-t border-line px-5 py-4">
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {criteria.map((criterion) => (
+            <li
+              key={criterion.id}
+              className="grid gap-2 rounded-md border border-line bg-rail p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CriterionChip id={criterion.id} />
+                <SeverityLabel severity={criterion.severity} />
+              </div>
+              <p className="text-xs leading-5 text-muted">
+                {criterion.description}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </details>
   );
 }
 
