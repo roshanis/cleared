@@ -141,3 +141,28 @@ Final end-to-end (production build, simulating the Vercel public demo:
 **Needs from operator after merge:** on Vercel set `DEMO_PUBLIC=1` (keep
 `DEMO_AUTH=1`, `AUTH_SECRET`; `APP_ACCESS_CODE` may stay or go), redeploy,
 then click the public link in a private window and walk all four seats.
+
+---
+
+## Execution status — 2026-07-07, awaiting review
+
+Executed in full on branch `demo-public` (spec `1626bc6`, implementation
+`3c2ad83`); not yet merged to main or pushed.
+
+- **WS-1** done: `DEMO_PUBLIC=1` gate in `src/lib/demo.ts` +
+  `accessCodeOk()`; heuristic reviewer forced in `activeReviewer()`; login
+  page hides the code field with a shared-demo note. 10 new tests, red
+  first.
+- **WS-2** done: `POST /api/auth/switch` over the pure `switchTarget()`
+  helper; `DemoStrip`/`DemoBanner` utility bar under the nav.
+- **WS-3** done: per-role hints in the strip; `.env.example` + README
+  public-demo recipe. Seed verified rich enough as-is — not rebuilt.
+- **Verification:** suite 175 passed / 3 postgres-skipped, `tsc` clean,
+  22-route build. Live E2E 26/26 across three production servers: public
+  walk (no-code login → submit → heuristic despite a dummy key → fail →
+  four-seat hop → decision → audit + CSV; switch without a session → 401),
+  access-code fail-closed regression, and `DEMO_AUTH=0` + `DEMO_PUBLIC=1`
+  stays locked.
+
+**Open for the operator:** review + merge `demo-public`, then set
+`DEMO_PUBLIC=1` on Vercel and redeploy.
