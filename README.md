@@ -94,9 +94,13 @@ apply while `DEMO_PUBLIC=1`:
 
 - Reviews always run the free deterministic heuristic pipeline, even if
   `OPENAI_API_KEY` is set — visitors cannot spend your API budget.
-- Visitors can write data, so leave `DATABASE_URL` unset on Vercel: the
-  per-instance in-memory store reseeds itself and strangers' data
-  self-destructs. A shared Postgres behind a public demo is not recommended.
+- **Vercel needs a real database.** Each API route deploys as its own
+  serverless function with its own memory, so the in-memory fallback cannot
+  carry a submission from `/api/submissions` to the execute route — the
+  submit → review loop 404s. Attach Postgres (Vercel Storage tab → Neon;
+  injects `DATABASE_URL`) and the whole loop works across functions. The
+  in-memory mode remains correct for tests and single-process local runs
+  only, and the dashboard warns when the app is running on it.
 
 ## Environment variables
 

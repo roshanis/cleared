@@ -572,3 +572,51 @@ Presenter should rehearse out loud twice.
 ### Files changed: merge only — no new edits beyond this log entry
 ### Diff summary: GOAL-SHOWTIME shipped to main — DEMO-SCRIPT.md runbook, review theater (staged pipeline reveal, inline Draft fixes as primary), big-screen typography. Verified on main: npm test 180 passed / 3 skipped; tsc clean; build green.
 ### Recommendations / Next steps: Deploy to production (vercel --prod) and walk DEMO-SCRIPT.md on cleared-five.vercel.app.
+
+## [AGENT: Claude] 2026-07-07T15:23Z
+### Action: Wrote ROADMAP.md (go-live plan at 100/1,000/10,000 users) and GOAL-LIVE.md (executable spec for Phase 1)
+### Files changed: ROADMAP.md (new), GOAL-LIVE.md (new)
+### Diff summary:
+- ROADMAP.md: three phases across cost, utilization, security, user management,
+  teams, clients. Phase 1 (100 users): deployment-per-client, real IdP, users
+  table, rate limits, backups — ~$100-250/mo. Phase 2 (1,000): multi-tenancy in
+  the driver layer, teams, SSO/MFA, SOC 2 Type I, job queue with per-org budgets.
+  Phase 3 (10,000): Type II, residency/BYO-key, durable-execution pipeline, fair
+  scheduling. Key finding: model spend stays trivial at mini-tier (~$2-6 per 1K
+  reviews); identity, tenancy, and trust artifacts gate each phase.
+- GOAL-LIVE.md: Phase-1 spec in the GOAL-* convention. WS-1 executes open
+  GOAL-HARDENING items by reference (P0-1, P0-3, P1-6 promoted to blocker,
+  P1-4/5); WS-2 users-as-records (entity, invite-only, admin management,
+  deactivation kills sessions, id-keyed attribution); WS-3 production refuses
+  demo flags without explicit override + input caps; WS-4 ops runbooks
+  (restore rehearsal, client-onboarding checklist, /api/health); WS-5
+  utilization metrics on the admin dashboard.
+### Recommendations / Next steps: Operator reviews ROADMAP.md assumptions
+(model pricing, SOC 2 quotes), provisions OAuth app + OPENAI_API_KEY + Neon
+PITR, then hands GOAL-LIVE.md to a fresh agent session. Docs-only change: no
+tests affected.
+
+## [AGENT: Claude] 2026-07-07T06:20Z
+### Action: Live verification found and fixed the Vercel storage gap; Neon Postgres attached; full demo arc verified on production
+### Files changed: README.md, .env.example (docs correction only — no code)
+### Diff summary:
+- Live smoke after the showtime deploy exposed an architectural gap: on Vercel each API
+  route is a separate serverless function with isolated memory, so memory-mode
+  submissions 404 at /api/runs/[id]/execute — the submit → review loop could never work
+  on the deployed public demo. Local E2Es (one process) had masked it.
+- Fix: Neon Postgres attached via the Vercel marketplace (resource neon-bistre-plank,
+  DATABASE_URL/POSTGRES_URL injected for Production + Preview as sensitive values —
+  not pullable locally by design). Production redeployed.
+- Verified live on cleared-five.vercel.app: sample submit → fail with findings → Draft
+  fixes (0 unlocated) → resubmit → PASS; fixed doc US+UK → US pass / UK fail; Devon
+  reject-with-note; Sam audit log + CSV export. Every DEMO-SCRIPT.md beat works on prod.
+- README/.env.example corrected: the earlier "leave DATABASE_URL unset, ephemeral is
+  the feature" guidance was wrong on Vercel and is replaced with the function-isolation
+  explanation.
+### Recommendations / Next steps:
+The 3 postgres-gated unit tests still skip locally (sensitive connection string not
+pullable); the driver is proven live end-to-end. To run them, copy the connection
+string from the Neon dashboard into a local DATABASE_URL for one test run. Note:
+Preview and Production currently share the one Neon database — model-mode test
+submissions from the preview bench will appear in public demo data (Neon branching
+can split them later if it matters).
