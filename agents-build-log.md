@@ -566,3 +566,9 @@ a self-resetting public demo, redeploy, walk all four seats in a private window.
 ### Recommendations / Next steps:
 Merge showtime to main, deploy to production, walk the script on cleared-five.vercel.app.
 Presenter should rehearse out loud twice.
+
+## [AGENT: Claude] 2026-07-07T10:34:43Z
+### Action: Verified fast-forward merge of showtime (43c7b70) into main
+### Files changed: merge only — no new edits beyond this log entry
+### Diff summary: GOAL-SHOWTIME shipped to main — DEMO-SCRIPT.md runbook, review theater (staged pipeline reveal, inline Draft fixes as primary), big-screen typography. Verified on main: npm test 180 passed / 3 skipped; tsc clean; build green.
+### Recommendations / Next steps: Deploy to production (vercel --prod) and walk DEMO-SCRIPT.md on cleared-five.vercel.app.
