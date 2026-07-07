@@ -44,6 +44,8 @@ export interface Tx {
   latestPublishedRubric(): Promise<RubricVersion | null>;
   maxRubricVersion(): Promise<number>;
   getDecisionByRunId(runId: string): Promise<Decision | null>;
+  /** Clear every app-owned entity table inside the current transaction. */
+  clearAll(): Promise<void>;
   insertDocument(document: DocumentRecord): Promise<void>;
   /** Throws UniqueViolationError on a duplicate (document_id, number). */
   insertVersion(version: DocVersion): Promise<void>;

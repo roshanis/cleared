@@ -620,3 +620,61 @@ string from the Neon dashboard into a local DATABASE_URL for one test run. Note:
 Preview and Production currently share the one Neon database — model-mode test
 submissions from the preview bench will appear in public demo data (Neon branching
 can split them later if it matters).
+
+## [AGENT: Codex] 2026-07-07T15:49Z
+### Action: Branded the hero, enriched demo seed data, and made rubric criteria explorable
+### Files changed:
+- src/app/page.tsx
+- src/lib/seed.ts
+- src/lib/seed.test.ts
+- src/components/ui.tsx
+- src/components/result-view.tsx
+- src/components/submit-form.tsx
+- agents-build-log.md
+### Diff summary:
+WS-A prepended "Cleared." to the landing hero line without changing the hero
+structure. WS-B expanded the first-load demo seed to 9 Maya-authored
+documents reviewed by the heuristic pipeline, with 4 Devon decisions across
+approve/reject actions and 2 non-pass runs left undecided for the queue. WS-C
+made finding criterion chips toggle rule descriptions with accessible button
+state, while passive chips elsewhere remain spans, and added a collapsed
+"What we check" criteria browser to the submit form.
+### Verification:
+- Targeted red/green seed test: initially failed on 1 decision, then passed
+- npm test: 181 passed, 3 skipped (184 total)
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 21 routes; metadataBase warning remains pre-existing
+### Recommendations / Next steps:
+No commit made. Existing untracked ROADMAP.md and GOAL-LIVE.md were left
+untouched. Postgres-gated tests still skip locally without DATABASE_URL.
+
+## [AGENT: Codex] 2026-07-07T15:56Z
+### Action: Added admin-only demo reset for persistent demo storage
+### Files changed:
+- src/app/api/admin/reset/route.ts
+- src/app/dashboard/page.tsx
+- src/components/reset-demo-data-button.tsx
+- src/lib/db/driver.ts
+- src/lib/db/memory.ts
+- src/lib/db/postgres.ts
+- src/lib/db/sqlite.ts
+- src/lib/store.ts
+- src/lib/store.test.ts
+- agents-build-log.md
+### Diff summary:
+Added `POST /api/admin/reset` with same-origin, session, admin-role, and
+demo-auth guards before a destructive reset is reachable. Added a driver
+transaction primitive to clear all app-owned tables for memory, SQLite, and
+Postgres, then reseed through the existing seed path. Added an unobtrusive
+admin dashboard reset control with inline two-step confirmation and refresh on
+success. Covered the store reset path with a memory-driver test that dirties
+seed data and verifies the pristine seeded document/decision counts and rubric
+version 1 restoration.
+### Verification:
+- Targeted TDD: `npm test -- src/lib/store.test.ts` failed first, then passed
+- npm test: 182 passed, 3 skipped (185 total)
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 22 routes; metadataBase warning remains pre-existing
+### Recommendations / Next steps:
+No commit made. Existing untracked ROADMAP.md and GOAL-LIVE.md were left
+untouched. Postgres-gated tests still skip locally without DATABASE_URL.

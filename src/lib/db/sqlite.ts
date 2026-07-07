@@ -204,6 +204,14 @@ function makeTx(db: DatabaseSync): Tx {
       return row ? rowToDecision(row as SqlRow) : null;
     },
 
+    async clearAll() {
+      stmt("DELETE FROM decisions").run();
+      stmt("DELETE FROM runs").run();
+      stmt("DELETE FROM versions").run();
+      stmt("DELETE FROM documents").run();
+      stmt("DELETE FROM rubrics").run();
+    },
+
     async insertDocument(document) {
       const r = documentToRow(document);
       try {

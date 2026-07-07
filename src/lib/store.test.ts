@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   addDecision,
   createSubmission,
+  emptyDb,
   getDb,
   publishRubric,
   publishedRubric,
+  resetDemoData,
   resetStoreForTests,
   reviewQueue,
   saveRubricDraft,
@@ -12,6 +14,7 @@ import {
   updateRun,
 } from "./store";
 import { defaultRubricDraft } from "./rubric";
+import { seedInto } from "./seed";
 import type { ReviewResult } from "@/schema";
 
 const failResult: ReviewResult = {
@@ -113,5 +116,39 @@ describe("store", () => {
 
     const db = await getDb();
     expect(publishedRubric(db).version).toBe(2);
+  });
+
+  it("resets dirty demo data back to the pristine seed inventory", async () => {
+    const seedInventory = emptyDb();
+    await seedInto(seedInventory, { demoData: true });
+
+    await resetStoreForTests(true);
+    const extra = await createSubmission({
+      title: "One-off draft",
+      content: "Ad hoc content",
+      author: "Maya Chen",
+      reviewer: "heuristic",
+    });
+    await saveRubricDraft(
+      { ...defaultRubricDraft, failOn: ["critical"] },
+      "Priya Nair",
+    );
+
+    let db = await getDb();
+    expect(db.documents).toHaveLength(seedInventory.documents.length + 1);
+    expect(db.rubrics.map((r) => r.version)).toEqual([1, 2]);
+
+    const seeded = await resetDemoData();
+
+    db = await getDb();
+    expect(seeded).toEqual({
+      documents: seedInventory.documents.length,
+      decisions: seedInventory.decisions.length,
+    });
+    expect(db.documents).toHaveLength(seedInventory.documents.length);
+    expect(db.documents.some((doc) => doc.id === extra.document.id)).toBe(false);
+    expect(db.decisions).toHaveLength(seedInventory.decisions.length);
+    expect(db.rubrics.map((r) => r.version)).toEqual([1]);
+    expect(publishedRubric(db).version).toBe(1);
   });
 });

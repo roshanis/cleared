@@ -63,6 +63,16 @@ export function createMemoryDriver(): StoreDriver {
       return clone(state.decisions.find((d) => d.runId === runId) ?? null);
     },
 
+    async clearAll(): Promise<void> {
+      state = {
+        documents: [],
+        versions: [],
+        runs: [],
+        decisions: [],
+        rubrics: [],
+      };
+    },
+
     async insertDocument(document: DocumentRecord): Promise<void> {
       if (state.documents.some((d) => d.id === document.id)) {
         throw new UniqueViolationError(`documents.id = ${document.id}`);

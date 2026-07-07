@@ -107,43 +107,44 @@ async function initStore(): Promise<void> {
   await seedInto(seedDb, { demoData: process.env.SEED_DEMO_DATA !== "0" });
 
   // Bulk-insert in one transaction; swallow UniqueViolationError as a seed race.
-  await driver.transact(async (tx) => {
-    for (const rubric of seedDb.rubrics) {
-      try {
-        await tx.insertRubric(rubric);
-      } catch (e) {
-        if (!(e instanceof UniqueViolationError)) throw e;
-      }
+  await driver.transact((tx) => insertSeed(tx, seedDb, { ignoreUnique: true }));
+}
+
+async function buildSeedDb(demoData: boolean): Promise<Db> {
+  const seedDb = emptyDb();
+  const { seedInto } = await import("./seed");
+  await seedInto(seedDb, { demoData });
+  return seedDb;
+}
+
+async function insertSeed(
+  tx: Tx,
+  seedDb: Db,
+  opts: { ignoreUnique?: boolean } = {},
+): Promise<void> {
+  const run = async (insert: () => Promise<void>) => {
+    try {
+      await insert();
+    } catch (e) {
+      if (!opts.ignoreUnique || !(e instanceof UniqueViolationError)) throw e;
     }
-    for (const doc of seedDb.documents) {
-      try {
-        await tx.insertDocument(doc);
-      } catch (e) {
-        if (!(e instanceof UniqueViolationError)) throw e;
-      }
-    }
-    for (const ver of seedDb.versions) {
-      try {
-        await tx.insertVersion(ver);
-      } catch (e) {
-        if (!(e instanceof UniqueViolationError)) throw e;
-      }
-    }
-    for (const run of seedDb.runs) {
-      try {
-        await tx.insertRun(run);
-      } catch (e) {
-        if (!(e instanceof UniqueViolationError)) throw e;
-      }
-    }
-    for (const dec of seedDb.decisions) {
-      try {
-        await tx.insertDecision(dec);
-      } catch (e) {
-        if (!(e instanceof UniqueViolationError)) throw e;
-      }
-    }
-  });
+  };
+
+  for (const rubric of seedDb.rubrics) {
+    await run(() => tx.insertRubric(rubric));
+  }
+  for (const doc of seedDb.documents) {
+    await run(() => tx.insertDocument(doc));
+  }
+  for (const ver of seedDb.versions) {
+    await run(() => tx.insertVersion(ver));
+  }
+  for (const reviewRun of seedDb.runs) {
+    await run(() => tx.insertRun(reviewRun));
+  }
+  for (const dec of seedDb.decisions) {
+    await run(() => tx.insertDecision(dec));
+  }
 }
 
 function ensureReady(): Promise<void> {
@@ -183,21 +184,33 @@ export async function resetStoreForTests(seedDemoData = false): Promise<Db> {
   setDriverForTests(mem);
 
   // Seed the fresh driver manually (we control demoData here).
-  const seedDb = emptyDb();
-  const { seedInto } = await import("./seed");
-  await seedInto(seedDb, { demoData: seedDemoData });
-  await mem.transact(async (tx) => {
-    for (const rubric of seedDb.rubrics) await tx.insertRubric(rubric);
-    for (const doc of seedDb.documents) await tx.insertDocument(doc);
-    for (const ver of seedDb.versions) await tx.insertVersion(ver);
-    for (const run of seedDb.runs) await tx.insertRun(run);
-    for (const dec of seedDb.decisions) await tx.insertDecision(dec);
-  });
+  const seedDb = await buildSeedDb(seedDemoData);
+  await mem.transact((tx) => insertSeed(tx, seedDb));
 
   // Mark ready so getDb() skips initStore() for this driver.
   readyPromise = Promise.resolve();
 
   return mem.snapshot();
+}
+
+export interface ResetDemoDataResult {
+  documents: number;
+  decisions: number;
+}
+
+export async function resetDemoData(): Promise<ResetDemoDataResult> {
+  await ensureReady();
+  const seedDb = await buildSeedDb(true);
+
+  await getDriver().transact(async (tx) => {
+    await tx.clearAll();
+    await insertSeed(tx, seedDb);
+  });
+
+  return {
+    documents: seedDb.documents.length,
+    decisions: seedDb.decisions.length,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -8,8 +8,9 @@ import {
   buttonClass,
   relativeTime,
 } from "@/components/ui";
+import { ResetDemoDataButton } from "@/components/reset-demo-data-button";
 import { computeMetrics } from "@/lib/metrics";
-import { requireRole } from "@/lib/session";
+import { demoAuthEnabled, requireRole } from "@/lib/session";
 import { getDb, publishedRubric, storageKind } from "@/lib/store";
 
 export default async function DashboardPage() {
@@ -22,6 +23,7 @@ export default async function DashboardPage() {
   // Rubric health — only computed for admin, but data loaded regardless to avoid
   // branching the getDb() call. Render the card only for admins.
   const isAdmin = session.role === "admin";
+  const canResetDemoData = isAdmin && demoAuthEnabled();
   const liveRubric = (() => {
     try {
       return publishedRubric(db);
@@ -182,6 +184,16 @@ export default async function DashboardPage() {
             </span>
           </div>
         </Card>
+      )}
+
+      {canResetDemoData && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-rail px-4 py-3">
+          <p className="text-xs leading-5 text-muted">
+            Restore the shared demo workspace to its seeded documents, decisions,
+            and rubric.
+          </p>
+          <ResetDemoDataButton />
+        </div>
       )}
 
       {storageKind() === "memory" && (

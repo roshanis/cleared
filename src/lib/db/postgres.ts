@@ -224,6 +224,10 @@ function makeTx(client: import("pg").PoolClient): Tx {
       return row ? rowToDecision(row) : null;
     },
 
+    async clearAll() {
+      await queryRun("TRUNCATE decisions, runs, versions, documents, rubrics CASCADE");
+    },
+
     async insertDocument(document) {
       const r = documentToRow(document);
       try {
