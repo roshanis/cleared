@@ -534,3 +534,9 @@ Measure latency under 3 sequential model calls before adjusting maxDuration.
 Merge demo-public to main when approved. Operator: on Vercel set DEMO_PUBLIC=1 (keep
 DEMO_AUTH=1, AUTH_SECRET; APP_ACCESS_CODE may stay or go), leave DATABASE_URL unset for
 a self-resetting public demo, redeploy, walk all four seats in a private window.
+
+## [AGENT: Claude] 2026-07-07T00:56Z
+### Action: Verified fast-forward merge of demo-public (aa07074) into main
+### Files changed: merge only — no new edits beyond this log entry
+### Diff summary: GOAL-DEMO shipped to main — DEMO_PUBLIC gate (no-code persona sign-in, forced heuristic reviewer), /api/auth/switch + demo strip with per-role hints, docs. Verified on main: npm test 175 passed / 3 skipped; tsc clean; build 22 routes.
+### Recommendations / Next steps: Operator sets DEMO_PUBLIC=1 on Vercel (keep DEMO_AUTH=1, AUTH_SECRET; leave DATABASE_URL unset for a self-resetting public demo) and redeploys.
