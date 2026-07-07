@@ -34,7 +34,7 @@ export async function Nav() {
       <div className="mx-auto flex min-h-14 w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:flex-nowrap sm:px-6">
         <Link
           href="/"
-          className="shrink-0 text-lg font-semibold tracking-tight text-accent-strong"
+          className="shrink-0 text-2xl font-semibold tracking-tight text-accent-strong"
         >
           Cleared<span className="text-accent">.</span>
         </Link>
