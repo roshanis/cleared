@@ -59,7 +59,7 @@ export default async function LandingPage() {
             className="animate-rise max-w-4xl font-serif text-5xl leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.75rem]"
             style={{ "--rise-delay": "0ms" } as React.CSSProperties}
           >
-            Compliance review,
+            Every claim checked,
             <br />
             <em className="text-white/80">before it ships.</em>
           </h1>
@@ -67,8 +67,8 @@ export default async function LandingPage() {
             className="animate-rise mt-8 max-w-xl text-lg leading-8 text-white/75"
             style={{ "--rise-delay": "120ms" } as React.CSSProperties}
           >
-            An AI reviewer that quotes exact violations and proposes the fix.
-            Your team keeps the final word — and the audit trail proves it.
+            Get a verdict in seconds, with exact quotes, drafted fixes, and a
+            judge that verifies the evidence. Your team keeps the final word.
           </p>
           <div
             className="animate-rise mt-10 flex flex-wrap gap-3"
