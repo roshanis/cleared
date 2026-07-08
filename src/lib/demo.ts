@@ -7,3 +7,7 @@
 export function publicDemoEnabled(): boolean {
   return process.env.DEMO_PUBLIC === "1";
 }
+
+export function publicModelEnabled(): boolean {
+  return process.env.DEMO_PUBLIC_MODEL === "1";
+}

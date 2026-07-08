@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { activeReviewer } from "@/agent/run";
+import { activeReviewer, type ReviewerKind } from "@/agent/run";
+import { publicDemoEnabled } from "@/lib/demo";
+import { demoModelDailyCap, underDailyModelCap } from "@/lib/model-budget";
 import { requireSameOrigin } from "@/lib/request-guard";
 import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
@@ -57,12 +59,26 @@ export async function POST(req: Request) {
     content.match(/^Subject:\s*(.+)$/m)?.[1]?.trim() ||
     "Untitled document";
 
+  let reviewer: ReviewerKind = activeReviewer();
+  if (reviewer === "model" && publicDemoEnabled()) {
+    const db = await getDb();
+    if (
+      !underDailyModelCap(
+        db.runs,
+        new Date().toISOString(),
+        demoModelDailyCap(),
+      )
+    ) {
+      reviewer = "heuristic";
+    }
+  }
+
   const { document, version, run } = await createSubmission({
     title: derivedTitle,
     content,
     author: session.name,
     documentId,
-    reviewer: activeReviewer(),
+    reviewer,
     jurisdictions: [...new Set(jurisdictions)],
   });
 

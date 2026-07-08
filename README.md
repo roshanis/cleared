@@ -141,8 +141,9 @@ it names the current seat, offers one-click switching to the other three
 personas, and suggests the one thing worth trying in each. Two guardrails
 apply while `DEMO_PUBLIC=1`:
 
-- Reviews always run the free deterministic heuristic pipeline, even if
-  `OPENAI_API_KEY` is set — visitors cannot spend your API budget.
+- Reviews run the free deterministic heuristic pipeline by default, even if
+  `OPENAI_API_KEY` is set — visitors cannot spend your API budget unless you
+  explicitly opt in to public model reviews.
 - **Vercel needs a real database.** Each API route deploys as its own
   serverless function with its own memory, so the in-memory fallback cannot
   carry a submission from `/api/submissions` to the execute route — the
@@ -150,6 +151,16 @@ apply while `DEMO_PUBLIC=1`:
   injects `DATABASE_URL`) and the whole loop works across functions. The
   in-memory mode remains correct for tests and single-process local runs
   only, and the dashboard warns when the app is running on it.
+
+#### Live model reviews on the public demo
+
+To let anonymous visitors run live model reviews, set `DEMO_PUBLIC_MODEL=1`
+alongside `DEMO_PUBLIC=1` and `OPENAI_API_KEY`. The app enforces
+`DEMO_MODEL_DAILY_CAP` per UTC day, defaulting to 200 submissions; after the
+cap is reached, new public-demo submissions fall back to the deterministic
+reviewer and the response still reports which reviewer ran. Keep an OpenAI-side
+budget cap enabled too — this application cap is a product guardrail, not a
+billing control.
 
 ## Environment variables
 

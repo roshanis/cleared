@@ -43,6 +43,9 @@ export function SubmitForm({
   const [error, setError] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
+  const [submissionReviewer, setSubmissionReviewer] = useState<
+    "model" | "heuristic" | null
+  >(null);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [pendingResult, setPendingResult] = useState<ReviewResult | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -97,6 +100,7 @@ export function SubmitForm({
     setPhase("submitting");
     setError(null);
     setResult(null);
+    setSubmissionReviewer(null);
     try {
       const submissionRes = await fetch("/api/submissions", {
         method: "POST",
@@ -112,12 +116,14 @@ export function SubmitForm({
         error?: string;
         runId?: string;
         documentId?: string;
+        reviewer?: "model" | "heuristic";
       };
       if (!submissionRes.ok || !submission.runId) {
         throw new Error(submission.error ?? "Submission failed.");
       }
       setDocumentId(submission.documentId ?? null);
       setRunId(submission.runId);
+      setSubmissionReviewer(submission.reviewer ?? null);
       startRef.current = Date.now();
       setElapsedMs(0);
       setPhase("reviewing");
@@ -144,6 +150,8 @@ export function SubmitForm({
     ? content.trim().split(/\s+/).length
     : 0;
   const showIntro = !resubmit && phase === "idle" && content.trim().length === 0;
+  const budgetDowngraded =
+    reviewer === "model" && submissionReviewer === "heuristic";
 
   function loadSample() {
     setTitle(sampleDocument.title);
@@ -312,6 +320,7 @@ export function SubmitForm({
             parallel; a judge verifies every quoted finding before the
             verdict is applied from the rubric.
           </p>
+          {budgetDowngraded && <BudgetDowngradeNote />}
         </Card>
       )}
 
@@ -328,6 +337,7 @@ export function SubmitForm({
 
       {phase === "done" && result && (
         <div className="animate-rise space-y-3">
+          {budgetDowngraded && <BudgetDowngradeNote />}
           <ResultView content={content} result={result} criteria={criteria} />
           {result.verdict !== "pass" && runId && (
             <FixDraftPanel runId={runId} />
@@ -353,6 +363,15 @@ export function SubmitForm({
         </div>
       )}
     </div>
+  );
+}
+
+function BudgetDowngradeNote() {
+  return (
+    <p className="text-xs leading-5 text-muted">
+      Today's live-review budget is used up — this review ran on the
+      deterministic reviewer.
+    </p>
   );
 }
 

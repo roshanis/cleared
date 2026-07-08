@@ -34,4 +34,40 @@ describe("model configuration", () => {
     const { activeReviewer } = await import("./run");
     expect(activeReviewer()).toBe("heuristic");
   });
+
+  it("keeps public demos on the heuristic reviewer unless live models are enabled", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("DEMO_PUBLIC", "1");
+    vi.stubEnv("DEMO_PUBLIC_MODEL", "");
+    vi.resetModules();
+    const { activeReviewer } = await import("./run");
+    expect(activeReviewer()).toBe("heuristic");
+  });
+
+  it("uses the model reviewer in public demos when live models and an API key are configured", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("DEMO_PUBLIC", "1");
+    vi.stubEnv("DEMO_PUBLIC_MODEL", "1");
+    vi.resetModules();
+    const { activeReviewer } = await import("./run");
+    expect(activeReviewer()).toBe("model");
+  });
+
+  it("falls back to the heuristic reviewer in public live-model demos without an API key", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("DEMO_PUBLIC", "1");
+    vi.stubEnv("DEMO_PUBLIC_MODEL", "1");
+    vi.resetModules();
+    const { activeReviewer } = await import("./run");
+    expect(activeReviewer()).toBe("heuristic");
+  });
+
+  it("uses the model reviewer outside public demos when an API key is configured", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("DEMO_PUBLIC", "");
+    vi.stubEnv("DEMO_PUBLIC_MODEL", "1");
+    vi.resetModules();
+    const { activeReviewer } = await import("./run");
+    expect(activeReviewer()).toBe("model");
+  });
 });

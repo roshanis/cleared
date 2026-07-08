@@ -648,6 +648,40 @@ state, while passive chips elsewhere remain spans, and added a collapsed
 No commit made. Existing untracked ROADMAP.md and GOAL-LIVE.md were left
 untouched. Postgres-gated tests still skip locally without DATABASE_URL.
 
+## [AGENT: Codex] 2026-07-08T01:18Z
+### Action: Enabled capped live model reviews for the public demo
+### Files changed:
+- src/lib/demo.ts
+- src/agent/run.ts
+- src/agent/run.test.ts
+- src/lib/model-budget.ts
+- src/lib/model-budget.test.ts
+- src/app/api/submissions/route.ts
+- src/app/api/submissions/route.test.ts
+- src/components/submit-form.tsx
+- .env.example
+- README.md
+- agents-build-log.md
+### Diff summary:
+Added `DEMO_PUBLIC_MODEL=1` as the explicit public-demo model opt-in while
+keeping the default public demo on the deterministic reviewer. Added a UTC-day
+public model budget helper with defensive `DEMO_MODEL_DAILY_CAP` parsing and
+wired `/api/submissions` to downgrade only capped public-demo submissions to
+the heuristic reviewer. Added the post-submission UI note when the page
+advertised model reviewers but the stored run used the deterministic reviewer.
+Documented the public spend risk, daily cap, and OpenAI-side budget cap
+recommendation.
+### Verification:
+- Red-first targeted tests failed for the new public model path / missing cap
+  helper / under-cap route behavior, then passed after implementation.
+- npm test: 192 passed, 3 skipped (195 total)
+- npx tsc --noEmit: clean (no output)
+- npm run build: compiled successfully, 22 routes; metadataBase warning remains pre-existing
+### Recommendations / Next steps:
+No commit made. Existing untracked ROADMAP.md and GOAL-LIVE.md were left
+untouched. Public demo live models should still be paired with an OpenAI-side
+budget cap before enabling `DEMO_PUBLIC_MODEL=1` in production.
+
 ## [AGENT: Codex] 2026-07-07T15:56Z
 ### Action: Added admin-only demo reset for persistent demo storage
 ### Files changed:

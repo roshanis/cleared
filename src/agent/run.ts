@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { reviewResultSchema, type ReviewResult } from "@/schema";
-import { publicDemoEnabled } from "@/lib/demo";
+import { publicDemoEnabled, publicModelEnabled } from "@/lib/demo";
 import {
   renderRubricMarkdown,
   severityOrder,
@@ -28,11 +28,11 @@ export const MODEL_ID = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 
 /**
  * Model reviewers when a key is configured, deterministic demo reviewer
- * otherwise. A public demo always reviews heuristically — visitors must not
- * be able to spend the operator's API budget.
+ * otherwise. A public demo only spends model budget behind the explicit
+ * DEMO_PUBLIC_MODEL opt-in; otherwise visitors stay on the heuristic path.
  */
 export function activeReviewer(): ReviewerKind {
-  if (publicDemoEnabled()) return "heuristic";
+  if (publicDemoEnabled() && !publicModelEnabled()) return "heuristic";
   return process.env.OPENAI_API_KEY ? "model" : "heuristic";
 }
 
