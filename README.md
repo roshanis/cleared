@@ -41,6 +41,55 @@ findings are merged, deduped, and scored **in code**
 auditable regardless of model behavior. Low-confidence fail-level findings
 route to a human instead of failing outright.
 
+## How the agents work (the plain-language version)
+
+Think of a newspaper editor's desk. When an author submits a document, it
+passes down a line of specialists:
+
+1. **Two reviewers read it at the same time.** The *policy reviewer* looks
+   for things like guaranteed-returns claims and missing disclaimers; the
+   *risk reviewer* looks for things like asking customers for account
+   numbers. Each reads the document against the rubric — the versioned rule
+   list an admin maintains — and writes findings. Every finding must include
+   the **exact quote**, the rule it breaks, and a suggested fix. No vibes,
+   no scores: point at the sentence or it doesn't count.
+2. **A judge checks the reviewers' homework.** After findings are merged and
+   deduped, the judge agent asks "is this real?" — e.g. does the quote
+   actually appear in the document, or did a reviewer hallucinate it? The
+   trick: **the judge can only make things stricter, never looser.** It can
+   flag a possible false positive or route the document to human review, but
+   it can never flip a fail into a pass — that power doesn't exist in the
+   code.
+3. **A robot — plain deterministic code, not AI — makes the verdict.** This
+   is the house rule the whole app is built on: **agents propose, code
+   disposes.** Agents only produce structured findings; unit-tested
+   TypeScript (`src/agent/verdict.ts`) applies the rubric's rules ("a major
+   violation = fail, minors = needs review"), computed per market
+   (US/UK/EU). The same findings always produce the same verdict — that's
+   what makes it auditable.
+4. **A fixer, only when asked.** If the document fails and the author clicks
+   **Draft fixes**, a fourth agent drafts a compliant rewrite per quoted
+   violation. Code does the careful part: it locates each quote and swaps in
+   the replacement, and says "apply manually" when it can't find a passage
+   rather than guessing. Nothing is auto-submitted — the author reviews the
+   patched draft and resubmits it.
+5. **A human always has the last word.** Anything failed or uncertain lands
+   in the officer's queue. He can accept or dismiss any finding but can't
+   decide without a note — and his decision, not the agents', is what goes
+   in the audit trail.
+
+In the website: "Submit for review" calls `/api/submissions` (saves the
+document) then `/api/runs/{id}/execute`, which runs the whole chain in
+`src/agent/run.ts` and persists the result. The staged progress you see
+("Policy reviewer reading… Judge verifying quotes…") is the real pipeline
+order, paced so you can read it.
+
+In demo mode every agent is replaced by a deterministic stand-in (regex
+reviewers, a quote-verifying judge, templated fixes) so it costs nothing and
+gives identical results every run. Set an API key and the same pipeline
+swaps in real model calls — same stages, same merge, same judge rules, same
+robot verdict.
+
 ## The regression loop (the part that matters)
 
 - `evals/golden/` — golden documents with expected outcomes
