@@ -42,6 +42,7 @@ export function RubricEditor({
   const [failOn, setFailOn] = useState<Severity[]>([...initial.failOn]);
   const [draftVersion, setDraftVersion] = useState<number | null>(null);
   const [gate, setGate] = useState<GoldenGateReport | null>(null);
+  const [acknowledgeUnexercised, setAcknowledgeUnexercised] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +50,7 @@ export function RubricEditor({
   function touch() {
     setDraftVersion(null);
     setGate(null);
+    setAcknowledgeUnexercised(false);
   }
 
   function updateCriterion(index: number, patch: Partial<RubricCriterion>) {
@@ -90,8 +92,12 @@ export function RubricEditor({
           { version: draftVersion },
         );
         setGate(report);
+        setAcknowledgeUnexercised(false);
       } else if (step === "publish" && draftVersion !== null) {
-        await post("/api/rubric/publish", { version: draftVersion });
+        await post("/api/rubric/publish", {
+          version: draftVersion,
+          acknowledgeUnexercisedCriteria: acknowledgeUnexercised,
+        });
         setDraftVersion(null);
         setGate(null);
         router.refresh();
@@ -320,11 +326,33 @@ export function RubricEditor({
                       ` missing: ${c.missingCriteria.join(",")}`}
                     {c.extraCriteria.length > 0 &&
                       ` extra: ${c.extraCriteria.join(",")}`}
+                    {c.knownLimit && ` known limit: ${c.note ?? "model-only"}`}
                   </span>
                 </span>
               </li>
             ))}
           </ul>
+          {(gate.unexercisedCriteria?.length ?? 0) > 0 && (
+            <div className="mt-3 rounded-md border border-warn/40 bg-surface px-3 py-2 text-xs leading-5">
+              <p className="font-semibold text-warn">
+                {gate.unexercisedCriteria!.length} criteria not exercised by
+                the demo reviewer: {gate.unexercisedCriteria!.join(", ")}
+              </p>
+              <label className="mt-2 flex items-start gap-2 text-muted">
+                <input
+                  type="checkbox"
+                  checked={acknowledgeUnexercised}
+                  onChange={(event) =>
+                    setAcknowledgeUnexercised(event.target.checked)
+                  }
+                />
+                <span>
+                  I understand these criteria require a live model review and
+                  were not covered by this demo-mode gate.
+                </span>
+              </label>
+            </div>
+          )}
           {!gate.pass && (
             <p className="mt-1 text-xs">
               Publishing is blocked until the golden gate passes.
@@ -362,7 +390,9 @@ export function RubricEditor({
             busy !== null ||
             draftVersion === null ||
             gate === null ||
-            !gate.pass
+            !gate.pass ||
+            ((gate.unexercisedCriteria?.length ?? 0) > 0 &&
+              !acknowledgeUnexercised)
           }
           onClick={() => run("publish")}
           className={buttonClass("primary")}

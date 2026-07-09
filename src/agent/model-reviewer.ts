@@ -42,6 +42,20 @@ export interface ModelReviewOptions {
   modelId: string;
 }
 
+/**
+ * Resolve reviewer self-contradictions deterministically: a finding whose
+ * criterion the reviewer itself listed as compliant is noise, not evidence —
+ * the compliantCriteria outlet exists precisely so "checked, fine" notes
+ * never masquerade as violations. The judge remains the backstop for false
+ * positives that survive this.
+ */
+export function reconcileReviewerOutput<T extends { criterionId: string }>(
+  findings: T[],
+  compliantCriteria: string[],
+): T[] {
+  return findings.filter((f) => !compliantCriteria.includes(f.criterionId));
+}
+
 /** One reviewer subagent call via the Vercel AI SDK. */
 export async function modelReview(
   opts: ModelReviewOptions,
@@ -62,5 +76,5 @@ export async function modelReview(
       "</document>",
     ].join("\n"),
   });
-  return object.findings;
+  return reconcileReviewerOutput(object.findings, object.compliantCriteria);
 }

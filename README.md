@@ -134,6 +134,18 @@ robot verdict.
 Grow `evals/golden/` with sanitized real documents — that's what makes prompt,
 rubric, and model changes safe.
 
+Golden `expected.json` files can also mark eval metadata:
+
+- `modelOnly: true` means the case is an explicit deterministic-reviewer known
+  limit. Heuristic CI and demo-mode gates report it separately instead of
+  failing it; model-mode evals still run it.
+- `seedDemo: false` keeps adversarial or cluttering eval cases out of the
+  seeded demo queue while preserving them in CI and rubric gates.
+
+Demo-mode rubric gates also report criteria the deterministic reviewer does
+not implement. Publishing a passing demo-mode gate with such custom criteria
+requires an explicit acknowledgment in the rubric editor.
+
 ## Storage
 
 Per-entity driver layer (`src/lib/store.ts` → `src/lib/db/`):

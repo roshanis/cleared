@@ -31,6 +31,23 @@ describe("heuristicReview", () => {
     ).not.toContain("C2");
   });
 
+  it("flags C2 on paraphrased guarantee language and unicode hyphen tricks", () => {
+    expect(ids(`Returns you can count on every quarter. ${disclaimer}`)).toContain(
+      "C2",
+    );
+    expect(ids(`This income sleeve is risk‑free for retirees. ${disclaimer}`)).toContain(
+      "C2",
+    );
+  });
+
+  it("does not flag C2 for explicit no-guarantee and no-risk-free statements", () => {
+    expect(
+      ids(
+        `No investment is risk-free, and we do not guarantee returns. ${disclaimer}`,
+      ),
+    ).not.toContain("C2");
+  });
+
   it("flags C3 on unsubstantiated competitor comparisons only", () => {
     expect(ids(`We outperformed Vanguard last year. ${disclaimer}`)).toContain("C3");
     expect(
@@ -43,6 +60,9 @@ describe("heuristicReview", () => {
   it("flags C4 when the doc asks for account data by reply, not when it warns against it", () => {
     expect(
       ids(`Reply to this email with your account number. ${disclaimer}`),
+    ).toContain("C4");
+    expect(
+      ids(`For verification, reply in this chat with your password. ${disclaimer}`),
     ).toContain("C4");
     expect(
       ids(`Please don't reply to this email with account details. ${disclaimer}`),

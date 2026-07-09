@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { verdictNextStep } from "@/lib/copy";
-import { segmentDocument } from "@/lib/highlight";
+import { locatedQuoteIndexes, segmentDocument } from "@/lib/highlight";
 import type { RubricCriterion, Severity } from "@/lib/rubric";
 import type { ReviewResult } from "@/schema";
 import {
@@ -39,6 +39,10 @@ export function ResultView({
     () => new Set(),
   );
   const segments = segmentDocument(
+    content,
+    result.findings.map((f) => f.quote),
+  );
+  const locatedQuotes = locatedQuoteIndexes(
     content,
     result.findings.map((f) => f.quote),
   );
@@ -249,6 +253,11 @@ export function ResultView({
                     <p className="mt-3 border-l-2 border-line pl-3 font-serif text-[15px] italic leading-7 text-muted">
                       "{finding.quote}"
                     </p>
+                    {!locatedQuotes[i] && (
+                      <p className="mt-2 text-xs font-medium text-warn">
+                        quote not located in document
+                      </p>
+                    )}
                     <p className="mt-3 text-sm leading-6">
                       {finding.explanation}
                     </p>

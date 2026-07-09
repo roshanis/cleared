@@ -182,11 +182,13 @@ export async function seedInto(
   const rubric = publishedRubric(db);
   const goldens = loadGoldenCases(path.join(process.cwd(), "evals", "golden"));
   const cases: DemoCase[] = [
-    ...goldens.map((golden) => ({
-      id: golden.id,
-      input: golden.input,
-      jurisdictions: golden.expected.jurisdictions,
-    })),
+    ...goldens
+      .filter((golden) => golden.expected.seedDemo)
+      .map((golden) => ({
+        id: golden.id,
+        input: golden.input,
+        jurisdictions: golden.expected.jurisdictions,
+      })),
     ...demoCases,
   ].sort((a, b) => (ageByCase[b.id] ?? 0) - (ageByCase[a.id] ?? 0));
 

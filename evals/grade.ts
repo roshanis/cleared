@@ -7,6 +7,10 @@ export const expectedReviewSchema = z.object({
   verdict: z.enum(["pass", "fail", "needs_human_review"]),
   requiredCriteria: z.array(z.string()),
   allowExtraFindings: z.boolean().optional().default(false),
+  /** True when the deterministic reviewer is expected not to prove this case. */
+  modelOnly: z.boolean().optional().default(false),
+  /** False keeps adversarial evals out of the seeded demo queue. */
+  seedDemo: z.boolean().optional().default(true),
   /** Markets to review against; defaults to a US-only run. */
   jurisdictions: z.array(z.string()).optional().default(["US"]),
 });

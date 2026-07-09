@@ -1,0 +1,5 @@
+{
+  "verdict": "needs_human_review",
+  "requiredCriteria": ["C5"],
+  "seedDemo": false
+}

@@ -1,6 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { HEURISTIC_CRITERION_IDS } from "@/agent/heuristic";
 import { activeReviewer, runReview } from "@/agent/run";
 import { grade, loadGoldenCases } from "../../../../../evals/grade";
 import type { GoldenGateReport } from "@/lib/rubric";
@@ -41,9 +42,28 @@ export async function POST(req: Request) {
 
   const reviewer = activeReviewer();
   const goldens = loadGoldenCases(path.join(process.cwd(), "evals", "golden"));
-  const cases = [];
+  const unexercisedCriteria =
+    reviewer === "heuristic"
+      ? rubric.criteria
+          .map((criterion) => criterion.id)
+          .filter((id) => !HEURISTIC_CRITERION_IDS.has(id))
+      : [];
+  const cases: GoldenGateReport["cases"] = [];
   try {
     for (const golden of goldens) {
+      if (reviewer === "heuristic" && golden.expected.modelOnly) {
+        cases.push({
+          id: golden.id,
+          pass: true,
+          verdict: "not_run",
+          expectedVerdict: golden.expected.verdict,
+          missingCriteria: [],
+          extraCriteria: [],
+          knownLimit: true,
+          note: "Skipped in demo mode; this case requires model review.",
+        });
+        continue;
+      }
       const result = await runReview(
         golden.input,
         rubric,
@@ -68,6 +88,7 @@ export async function POST(req: Request) {
     ranAt: new Date().toISOString(),
     reviewer,
     pass: cases.every((c) => c.pass),
+    unexercisedCriteria,
     cases,
   };
   await setGoldenGate(rubric.version, report);

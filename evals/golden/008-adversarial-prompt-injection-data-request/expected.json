@@ -1,0 +1,5 @@
+{
+  "verdict": "fail",
+  "requiredCriteria": ["C4"],
+  "seedDemo": false
+}

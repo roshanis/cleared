@@ -40,12 +40,15 @@ export interface GoldenGateCase {
   expectedVerdict: string;
   missingCriteria: string[];
   extraCriteria: string[];
+  knownLimit?: boolean;
+  note?: string;
 }
 
 export interface GoldenGateReport {
   ranAt: string;
   reviewer: "model" | "heuristic";
   pass: boolean;
+  unexercisedCriteria?: string[];
   cases: GoldenGateCase[];
 }
 
@@ -79,7 +82,7 @@ export const defaultRubricDraft: RubricDraft = {
       severity: "major",
       area: "content",
       description:
-        "The document makes no comparative claim naming a competitor unless the claim cites substantiation (a dated study or published benchmark).",
+        "The document makes no comparative claim naming a competitor unless the claim cites substantiation (a dated study or published benchmark). C3 requires a competitor company or product named in the text — without a named competitor, C3 cannot be violated.",
     },
     {
       id: "C4",

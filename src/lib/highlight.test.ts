@@ -33,4 +33,23 @@ describe("segmentDocument", () => {
     expect(segments.some((s) => s.findingIndexes.includes(1))).toBe(true);
     expect(segments.some((s) => s.findingIndexes.includes(0))).toBe(false);
   });
+
+  it("highlights curly quote, ellipsis, first-word case, and trailing punctuation drift", () => {
+    const content = 'Returns you can count on... "risk-free" income.';
+    const segments = segmentDocument(content, [
+      "returns you can count on",
+      "“risk-free” income",
+    ]);
+    expect(segments.map((s) => s.text).join("")).toBe(content);
+    expect(segments.some((s) => s.findingIndexes.includes(0))).toBe(true);
+    expect(segments.some((s) => s.findingIndexes.includes(1))).toBe(true);
+  });
+
+  it("does not highlight a near-miss quote when drift is too large", () => {
+    const segments = segmentDocument(doc, [
+      "The fund guarantees profits forever.",
+    ]);
+    expect(segments.map((s) => s.text).join("")).toBe(doc);
+    expect(segments.some((s) => s.findingIndexes.includes(0))).toBe(false);
+  });
 });

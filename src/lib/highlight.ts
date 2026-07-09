@@ -1,3 +1,5 @@
+import { locateQuote } from "./quote-location";
+
 export interface Segment {
   text: string;
   /** Indexes into the findings array whose quotes cover this segment. */
@@ -12,12 +14,9 @@ export interface Segment {
 export function segmentDocument(content: string, quotes: string[]): Segment[] {
   const ranges: { start: number; end: number; idx: number }[] = [];
   quotes.forEach((quote, idx) => {
-    const q = quote.trim();
-    if (!q) return;
-    let at = content.indexOf(q);
-    if (at === -1) at = content.toLowerCase().indexOf(q.toLowerCase());
-    if (at === -1) return;
-    ranges.push({ start: at, end: at + q.length, idx });
+    const located = locateQuote(content, quote);
+    if (!located) return;
+    ranges.push({ start: located.start, end: located.end, idx });
   });
 
   const points = new Set<number>([0, content.length]);
@@ -40,4 +39,8 @@ export function segmentDocument(content: string, quotes: string[]): Segment[] {
     });
   }
   return segments;
+}
+
+export function locatedQuoteIndexes(content: string, quotes: string[]): boolean[] {
+  return quotes.map((quote) => locateQuote(content, quote) !== null);
 }

@@ -63,4 +63,46 @@ describe("applyFixes", () => {
     ]);
     expect(unlocated).toHaveLength(1);
   });
+
+  it("replaces quotes with curly quote and ellipsis drift", () => {
+    const content = 'The draft called it "risk-free"... income.';
+    const { patched, applied, unlocated } = applyFixes(content, [
+      replaceFix("called it “risk-free” income", "described the income target."),
+    ]);
+    expect(applied).toHaveLength(1);
+    expect(unlocated).toHaveLength(0);
+    expect(patched).toBe("The draft described the income target.");
+  });
+
+  it("replaces quotes with first-word case and trailing punctuation drift", () => {
+    const content = "Returns you can count on every quarter.";
+    const { patched, applied } = applyFixes(content, [
+      replaceFix("returns you can count on every quarter", "Returns may vary."),
+    ]);
+    expect(applied).toHaveLength(1);
+    expect(patched).toBe("Returns may vary.");
+  });
+
+  it("replaces a single-token light paraphrase only when confidence is high", () => {
+    const content =
+      "The strategy offers returns you can count on every quarter for retirees.";
+    const { patched, applied, unlocated } = applyFixes(content, [
+      replaceFix(
+        "returns you can rely on every quarter",
+        "returns that can vary each quarter",
+      ),
+    ]);
+    expect(applied).toHaveLength(1);
+    expect(unlocated).toHaveLength(0);
+    expect(patched).toContain("returns that can vary each quarter");
+  });
+
+  it("never guesses when a paraphrase changes too much", () => {
+    const { patched, applied, unlocated } = applyFixes(doc, [
+      replaceFix("We promise profits that last forever", "x"),
+    ]);
+    expect(patched).toBe(doc);
+    expect(applied).toHaveLength(0);
+    expect(unlocated).toHaveLength(1);
+  });
 });

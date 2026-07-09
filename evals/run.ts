@@ -10,6 +10,12 @@ console.log(`reviewer: ${reviewer}\n`);
 
 let failures = 0;
 for (const goldenCase of loadGoldenCases()) {
+  if (reviewer === "heuristic" && goldenCase.expected.modelOnly) {
+    console.log(
+      `SKIP  ${goldenCase.id}  heuristic-known-limit (modelOnly expected case)`,
+    );
+    continue;
+  }
   const result = await runReview(
     goldenCase.input,
     defaultRubricDraft,

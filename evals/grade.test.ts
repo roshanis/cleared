@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { grade, loadGoldenCases, type ExpectedReview } from "./grade";
+import {
+  expectedReviewSchema,
+  grade,
+  loadGoldenCases,
+  type ExpectedReview,
+} from "./grade";
 import type { ReviewResult } from "../src/schema";
 
 const finding = (criterionId: string): ReviewResult["findings"][number] => ({
@@ -23,12 +28,13 @@ const expected = (
   verdict: ExpectedReview["verdict"],
   requiredCriteria: string[],
   allowExtraFindings = false,
-): ExpectedReview => ({
-  verdict,
-  requiredCriteria,
-  allowExtraFindings,
-  jurisdictions: ["US"],
-});
+): ExpectedReview =>
+  expectedReviewSchema.parse({
+    verdict,
+    requiredCriteria,
+    allowExtraFindings,
+    jurisdictions: ["US"],
+  });
 
 describe("grade", () => {
   it("passes when verdict and criteria match exactly", () => {
@@ -66,10 +72,20 @@ describe("grade", () => {
 describe("golden set", () => {
   it("loads and validates every golden case", () => {
     const cases = loadGoldenCases();
-    expect(cases.length).toBeGreaterThanOrEqual(3);
+    expect(cases.length).toBeGreaterThanOrEqual(9);
     for (const c of cases) {
       expect(c.input.length, c.id).toBeGreaterThan(0);
     }
+  });
+
+  it("loads per-mode and seed metadata with conservative defaults", () => {
+    const clean = expected("pass", []);
+    expect(clean.modelOnly).toBe(false);
+    expect(clean.seedDemo).toBe(true);
+
+    const cases = loadGoldenCases();
+    expect(cases.some((c) => c.expected.modelOnly)).toBe(true);
+    expect(cases.some((c) => c.expected.seedDemo === false)).toBe(true);
   });
 
   it("grades a perfect answer as passing for every golden case", () => {

@@ -8,6 +8,16 @@ import type { ReviewerFinding } from "./merge";
  * template criteria; custom criteria added in the rubric editor are only
  * reviewed by the model reviewer.
  */
+export const HEURISTIC_CRITERION_IDS = new Set([
+  "C1",
+  "C2",
+  "C3",
+  "C4",
+  "C5",
+  "C6",
+  "C7",
+]);
+
 export function heuristicReview(
   document: string,
   criteria: RubricCriterion[],
@@ -44,12 +54,24 @@ export function heuristicReview(
   }
 
   if (has("C2")) {
-    const match = /guarant\w*|risk[-\s]free|can'?t\s+lose/i.exec(document);
-    if (match && !/past\s+performance/i.test(sentenceAt(document, match.index))) {
+    const guaranteePattern =
+      /guarant\w*|risk[\s\-\u2010-\u2015]*free|can['’]?t\s+lose|returns?\s+you\s+can\s+count\s+on/i;
+    const match = guaranteePattern.exec(document);
+    const sentence = match ? sentenceAt(document, match.index) : "";
+    const normalizedSentence = sentence
+      .replace(/[\u2010-\u2015]/g, "-")
+      .replace(/[’]/g, "'")
+      .toLowerCase();
+    const negated =
+      /\bno\s+investment\s+is\s+risk[-\s]*free\b/.test(normalizedSentence) ||
+      /\bnot\s+risk[-\s]*free\b/.test(normalizedSentence) ||
+      /\bdo(?:es)?\s+not\s+guarantee\b/.test(normalizedSentence) ||
+      /\bno\s+guarantee\b/.test(normalizedSentence);
+    if (match && !negated && !/past\s+performance/i.test(sentence)) {
       findings.push({
         criterionId: "C2",
         severity: sev("C2"),
-        quote: sentenceAt(document, match.index),
+        quote: sentence,
         explanation: `Promises performance ("${match[0]}") — guarantees of returns are prohibited.`,
         recommendation:
           "Remove the guarantee language; describe historical performance factually with the required disclaimer.",
@@ -82,7 +104,7 @@ export function heuristicReview(
 
   if (has("C4")) {
     const request =
-      /reply\s+(to\s+this\s+(email|message)\s+)?with\s+your\b[^.]{0,80}?\b(account\s+number|ssn|social\s+security|password)/i.exec(
+      /reply\s+(?:(?:to|in)\s+this\s+(email|message|chat)\s+)?with\s+your\b[^.]{0,120}?\b(account\s+number|ssn|social\s+security|password)/i.exec(
         document,
       );
     const exposed = /\b\d{3}-\d{2}-\d{4}\b/.exec(document);

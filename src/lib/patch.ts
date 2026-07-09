@@ -1,9 +1,10 @@
 /**
  * Deterministic application of fix drafts. The fixer agents propose text;
  * this code decides where it lands — and refuses to guess: a quote that
- * cannot be located (exactly, or with whitespace re-wrapped) is reported,
- * never fuzzily replaced.
+ * cannot be located with high confidence is reported, never guessed into
+ * the wrong passage.
  */
+import { locateQuote } from "./quote-location";
 
 export interface Fix {
   findingIndex: number;
@@ -26,20 +27,9 @@ export interface PatchResult {
   unlocated: UnlocatedFix[];
 }
 
-const escapeRegExp = (text: string) =>
-  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** Locate a quote exactly, else tolerate re-wrapped whitespace. */
 function locate(content: string, quote: string): { start: number; end: number } | null {
-  const exact = content.indexOf(quote);
-  if (exact !== -1) return { start: exact, end: exact + quote.length };
-
-  const words = quote.trim().split(/\s+/);
-  if (words.length === 0 || words[0] === "") return null;
-  const pattern = new RegExp(words.map(escapeRegExp).join("\\s+"));
-  const match = pattern.exec(content);
-  if (!match) return null;
-  return { start: match.index, end: match.index + match[0].length };
+  const located = locateQuote(content, quote);
+  return located ? { start: located.start, end: located.end } : null;
 }
 
 export function applyFixes(content: string, fixes: Fix[]): PatchResult {
