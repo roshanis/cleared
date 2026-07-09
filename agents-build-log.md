@@ -1098,3 +1098,9 @@ checklist item 4). Rehearse one restore per docs/operations.md (operator item 5)
 before first client touches the deployment (operator item 6). The README records measured model-mode
 latency (4–5s per review, gpt-5.4); if measured values change after deployment, update README §
 Model-mode latency.
+
+## [AGENT: Claude] 2026-07-09T05:19:32Z
+### Action: Verified fast-forward merge of goal-live (9c59181) into main
+### Files changed: merge only — no new edits beyond this log entry
+### Diff summary: GOAL-LIVE shipped to main — P0-1 model path (11/11 golden on gpt-5.4), P0-3 Auth.js OAuth, P1-6 rate/cost controls, WS-3 production guards, P1-4/P1-5 adversarial goldens + quote location, WS-2 users as records, WS-4 ops docs + /api/health, WS-5 utilization metrics. Verified on main: npm test 300 passed / 3 skipped; tsc clean; build green.
+### Recommendations / Next steps: Operator checklist in GOAL-LIVE.md (OAuth credentials, Neon PITR + restore rehearsal, ADMIN_EMAIL, onboarding walk, /security-review).
