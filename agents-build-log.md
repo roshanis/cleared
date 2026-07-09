@@ -772,3 +772,56 @@ in a separate approved config edit.
   gpt-5.4-mini documented as demo-grade (run-to-run variance). README records numbers.
 - Deterministic suite unaffected: 205 passed / 3 skipped, tsc clean, build green.
 ### Recommendations / Next steps: Round B (P0-3 auth). Client deployments should set OPENAI_MODEL=gpt-5.4.
+
+## [AGENT: Codex] 2026-07-09T03:54Z / 2026-07-09T04:01Z
+### Action: Round B WS-1 item 2 — Auth.js Google OAuth wired with demo-auth coexistence
+### Files changed:
+- auth.ts
+- src/app/api/auth/[...nextauth]/route.ts
+- src/app/api/auth/logout/route.ts
+- src/app/login/page.tsx
+- src/lib/oauth.ts
+- src/lib/oauth.test.ts
+- src/lib/session.ts
+- package.json
+- package-lock.json
+- README.md
+- .env.example
+- agents-build-log.md
+### Diff summary:
+Added a deterministic OAuth helper seam for P0-3: Google OAuth configured-state
+detection, production `AUTH_SECRET` fail-closed assertion, `ADMIN_EMAIL` first
+admin gate, stable OAuth user IDs (`oauth:google:<providerAccountId>`),
+session generation (`gen`) groundwork, and login auth-state decisions. Expanded
+the shared `Session` shape so demo persona cookies normalize to the same
+fields OAuth sessions will use (`userId`, `email`, `authMethod`, `gen`) while
+preserving existing demo-cookie behavior and zero-config persona auth.
+Attempted `npm install next-auth@beta` after human GO, but the sandbox could
+not resolve `registry.npmjs.org` (`getaddrinfo ENOTFOUND`), and no cached
+`next-auth` package was available locally. After the operator installed
+`next-auth@5.0.0-beta.31`, completed the package-backed wiring: root `auth.ts`
+with Google-only provider when `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` are set,
+JWT session strategy, Auth.js route handler, `ADMIN_EMAIL` sign-in gate,
+Auth.js session callback emitting the unified shape, lazy Auth.js fallthrough
+inside `getSession()`, Google sign-in affordance only when configured,
+clear OAuth rejection/configuration messages, and logout clearing both the demo
+cookie and Auth.js session. README and `.env.example` now document the Google
+OAuth app setup, redirect URIs, and required env vars.
+### Verification:
+- Red-first targeted test initially failed on missing `src/lib/oauth.ts`.
+- `npm test -- src/lib/oauth.test.ts src/lib/session.access.test.ts`: 17 passed.
+- `npm test`: 214 passed / 3 skipped.
+- `npm run typecheck`: clean.
+- `npm run build`: passed; existing metadataBase warning remains.
+- Continuation after package install:
+  `npm test -- src/lib/oauth.test.ts src/lib/session.access.test.ts`: 22 passed.
+- `npm test`: 219 passed / 3 skipped.
+- `npm run typecheck`: clean.
+- `npm run build`: passed; existing metadataBase warning remains and
+  `/api/auth/[...nextauth]` is included in the route table.
+### Recommendations / Next steps:
+Operator still needs to create the Google OAuth Web Application client, add
+the local/production callback URLs, and set `AUTH_SECRET`,
+`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, and `ADMIN_EMAIL` per deployment.
+WS-2 remains responsible for invitation flow, user records, role changes, and
+deactivation-backed session invalidation.

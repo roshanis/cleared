@@ -1,14 +1,23 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { publicDemoEnabled } from "./demo";
+import {
+  isGoogleOAuthConfigured,
+  normalizeDemoSession,
+  sessionFromAuthJsSession,
+} from "./oauth";
 import { signToken, verifyToken } from "./token";
 
 export type Role = "author" | "officer" | "admin" | "auditor";
 
 export interface Session {
   personaId: string;
+  userId: string;
   name: string;
+  email: string | null;
   role: Role;
+  authMethod: "demo" | "oauth";
+  gen: number;
 }
 
 /**
@@ -89,6 +98,7 @@ export function sessionTokenFor(personaId: string): string | null {
       personaId: persona.id,
       name: persona.name,
       role: persona.role,
+      gen: 0,
       exp: Date.now() + WEEK_MS,
     },
     secret(),
@@ -98,11 +108,26 @@ export function sessionTokenFor(personaId: string): string | null {
 export async function getSession(): Promise<Session | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const payload = verifyToken<Session & { exp: number }>(token, secret());
+  if (!token) {
+    return getAuthJsSession();
+  }
+  const payload = verifyToken<{
+    personaId: string;
+    name: string;
+    role: Role;
+    gen?: number;
+    exp: number;
+  }>(token, secret());
   if (!payload || payload.exp < Date.now()) return null;
   const { personaId, name, role } = payload;
-  return { personaId, name, role };
+  return normalizeDemoSession({ personaId, name, role, gen: payload.gen });
+}
+
+async function getAuthJsSession(): Promise<Session | null> {
+  if (!isGoogleOAuthConfigured()) return null;
+  const { auth } = await import("../../auth");
+  const authSession = await auth();
+  return sessionFromAuthJsSession(authSession);
 }
 
 export async function requireSession(): Promise<Session> {

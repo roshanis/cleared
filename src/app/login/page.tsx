@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { LoginCards } from "@/components/login-cards";
+import { buttonClass } from "@/components/ui";
 import { publicDemoEnabled } from "@/lib/demo";
+import {
+  isGoogleOAuthConfigured,
+  loginAuthOptions,
+  oauthLoginErrorMessage,
+} from "@/lib/oauth";
 import { demoAuthEnabled, getSession, personas } from "@/lib/session";
 
 const valueProps = [
@@ -21,17 +27,28 @@ const valueProps = [
   },
 ];
 
+async function signInWithGoogle() {
+  "use server";
+  const { signIn } = await import("../../../auth");
+  await signIn("google", { redirectTo: "/" });
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ as?: string }>;
+  searchParams: Promise<{ as?: string; error?: string; oauth?: string }>;
 }) {
-  const { as: highlightPersona } = await searchParams;
+  const { as: highlightPersona, error, oauth } = await searchParams;
   const session = await getSession();
   if (session) redirect("/");
   const isPublicDemo = publicDemoEnabled();
   const needsAccessCode = Boolean(process.env.APP_ACCESS_CODE) && !isPublicDemo;
   const canUseDemoAuth = demoAuthEnabled();
+  const authState = loginAuthOptions({
+    demoAuthEnabled: canUseDemoAuth,
+    oauthConfigured: isGoogleOAuthConfigured(),
+  });
+  const oauthMessage = oauthLoginErrorMessage(oauth ?? error);
   return (
     <div className="mx-auto grid max-w-6xl items-start gap-8 py-6 lg:grid-cols-[1fr_0.9fr] lg:gap-14 lg:py-12">
       <section className="rounded-lg bg-accent-strong p-8 text-white shadow-raised sm:p-10">
@@ -68,7 +85,25 @@ export default async function LoginPage({
         <p className="mt-1 text-sm leading-6 text-muted">
           Pick a persona to explore that customer&apos;s experience.
         </p>
-        {canUseDemoAuth ? (
+        {oauthMessage && (
+          <div
+            role="alert"
+            className="mt-5 rounded-lg border border-fail/25 bg-fail-soft p-4 text-sm leading-6 text-fail"
+          >
+            {oauthMessage}
+          </div>
+        )}
+        {authState.showGoogle && (
+          <form action={signInWithGoogle} className="mt-5">
+            <button type="submit" className={buttonClass("secondary")}>
+              Sign in with Google
+            </button>
+          </form>
+        )}
+        {authState.showGoogle && authState.showDemoPersonas && (
+          <div className="my-5 border-t border-line" />
+        )}
+        {authState.showDemoPersonas ? (
           <div className="mt-5">
             <LoginCards
               personas={personas.map(({ id, name, role, tagline, sees }) => ({
@@ -84,7 +119,9 @@ export default async function LoginPage({
           </div>
         ) : (
           <div className="mt-5 rounded-lg border border-line bg-rail p-5 text-sm leading-6 text-muted">
-            Demo persona sign-in is disabled for this environment.
+            {authState.state === "oauth_not_configured"
+              ? authState.message
+              : "Demo persona sign-in is disabled for this environment."}
           </div>
         )}
         <p className="mt-6 text-xs leading-5 text-muted">

@@ -158,9 +158,30 @@ constraints as the conflict arbiter.
 Demo persona sign-in with signed httpOnly cookies (`src/lib/session.ts`,
 HMAC via `AUTH_SECRET`). Persona auth is enabled by default only outside
 production. To deploy the persona demo intentionally, set `DEMO_AUTH=1`,
-`AUTH_SECRET`, and `APP_ACCESS_CODE`. **Swap in a real identity provider before
-opening this to untrusted users** — the role model (`author` / `officer` /
-`admin` / `auditor`) and every `requireRole()` call site carry over unchanged.
+`AUTH_SECRET`, and `APP_ACCESS_CODE`.
+
+Production user sign-in uses Auth.js with Google OAuth. OAuth is configured
+only when both `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are present; otherwise
+the login page keeps the demo persona path when demo auth is enabled, or shows
+an honest "OAuth not configured" state. Until WS-2 adds invitations and user
+records, OAuth sign-in is fail-closed: set `ADMIN_EMAIL` to seed the first
+admin, and every other Google email is rejected with a clear sign-in message.
+OAuth and demo sessions normalize through `getSession()` to the same
+`Session` shape used by `requireRole()`.
+
+Google OAuth setup:
+
+1. In Google Cloud Console, create or select a project, then configure the
+   OAuth consent screen for the deployment owner.
+2. Go to APIs & Services → Credentials → Create credentials → OAuth client ID.
+3. Choose Web application.
+4. Add authorized redirect URIs:
+   - Local dev: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://<your-domain>/api/auth/callback/google`
+5. Copy the client ID and secret into the deployment environment as
+   `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
+6. Set `AUTH_SECRET` to a strong random value and set `ADMIN_EMAIL` to the
+   first admin's Google email address.
 
 ### Public demo
 
@@ -206,9 +227,10 @@ npm run deploy     # vercel deploy
 
 From a clean clone: `npm install`, set env vars in the Vercel dashboard
 (add `OPENAI_API_KEY` for model reviews, `DATABASE_URL` for durable Postgres
-storage, and `DEMO_AUTH=1` / `AUTH_SECRET` / `APP_ACCESS_CODE` only if you are
-intentionally deploying the persona demo — or `DEMO_PUBLIC=1` instead of the
-access code for an open demo link), then deploy. The seed runs
+storage, `AUTH_SECRET` + `AUTH_GOOGLE_ID` + `AUTH_GOOGLE_SECRET` +
+`ADMIN_EMAIL` for Google OAuth, and `DEMO_AUTH=1` / `APP_ACCESS_CODE` only if
+you are intentionally deploying the persona demo — or `DEMO_PUBLIC=1` instead
+of the access code for an open demo link), then deploy. The seed runs
 automatically on first access so the deployed app looks alive immediately.
 
 The execute and rubric-gate routes declare `maxDuration = 300` for model-mode
