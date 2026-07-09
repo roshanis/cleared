@@ -580,5 +580,19 @@ export function createPostgresDriver(): StoreDriver {
         client.release();
       }
     },
+
+    async schemaVersion(): Promise<number> {
+      const pool = await getPool();
+      const client = await pool.connect();
+      try {
+        const res = await client.query(
+          "SELECT value FROM meta WHERE key = 'schema_version'",
+        );
+        const row = res.rows[0] as { value?: string } | undefined;
+        return Number(row?.value ?? "3");
+      } finally {
+        client.release();
+      }
+    },
   };
 }

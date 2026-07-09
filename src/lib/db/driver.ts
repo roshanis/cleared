@@ -79,6 +79,8 @@ export interface StoreDriver {
   snapshot(): Promise<Db>;
   /** Run fn atomically; any throw rolls the whole unit of work back. */
   transact<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  /** Return the current schema version number from the meta table. */
+  schemaVersion(): Promise<number>;
 }
 
 // ---------------------------------------------------------------------------

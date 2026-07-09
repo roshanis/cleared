@@ -567,5 +567,15 @@ export function createSqliteDriver(
         }
       });
     },
+
+    async schemaVersion(): Promise<number> {
+      return enqueue(async () => {
+        const d = await openDb();
+        const row = d
+          .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
+          .get() as { value?: string } | undefined;
+        return Number(row?.value ?? "3");
+      });
+    },
   };
 }

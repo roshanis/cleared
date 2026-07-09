@@ -1060,3 +1060,41 @@ Before a client deploy, sign in once with ADMIN_EMAIL to create the first real
 admin, then invite the deployment's users from /users. Existing durable DBs
 will migrate schema_version 2 -> 3 on startup; old rows keep null actor_id
 where only a display name is known.
+
+## [AGENT: Claude] 2026-07-09T00:15:00Z
+### Action: Implement WS-4 (operations docs + health endpoint) and WS-5 (utilization metrics) from GOAL-LIVE.md
+### Files changed:
+- src/lib/db/driver.ts — added `schemaVersion(): Promise<number>` to StoreDriver interface
+- src/lib/db/memory.ts — implemented schemaVersion() returning hardcoded 3
+- src/lib/db/sqlite.ts — implemented schemaVersion() querying meta table via enqueue/openDb
+- src/lib/db/postgres.ts — implemented schemaVersion() querying meta table via pool
+- src/lib/db/index.ts — forwarded schemaVersion() in the lazy postgres shell
+- src/app/api/health/route.ts (new) — GET /api/health: no auth, returns ok/storage/reviewerMode/schemaVersion/time
+- src/app/api/health/route.test.ts (new) — 8 tests covering all response fields, secrets exclusion, no-auth
+- src/lib/metrics.ts — added UtilizationMetrics interface and computeUtilizationMetrics() with 6 computations
+- src/lib/metrics.test.ts (new) — 16 tests with empty, single-item, and percentile-edge (n=1, n=2) fixtures
+- src/app/dashboard/page.tsx — renders all 6 utilization metrics using existing Card/SectionHeading/MetricCell
+- docs/operations.md (new) — Neon PITR click-path, restore rehearsal, AUTH_SECRET/OAuth/OpenAI rotation runbooks
+- docs/client-onboarding.md (new) — deployment-per-client checklist: Vercel, Neon, env var table, first-admin bootstrap, smoke checklist
+### Diff summary:
+WS-4: Three-driver StoreDriver.schemaVersion() introspection method; unauthenticated /api/health route;
+docs/operations.md with exact Neon PITR click-path (console → Branches → New Branch, date picker),
+restore-branch inspection via psql, and secret rotation runbooks documenting that AUTH_SECRET rotation
+invalidates ALL sessions; docs/client-onboarding.md as the Phase-1 tenancy model checklist with a
+complete env var table (required vs optional), explicit prohibition of DEMO_AUTH/DEMO_PUBLIC/ALLOW_DEMO_DEPLOY
+for client deployments, first-admin bootstrap steps, and a smoke checklist ending with audit CSV export.
+WS-5: computeUtilizationMetrics(db, now, env) computing (a) reviews per author for current ISO week,
+(b) time-to-first-verdict p50/p95 (run.createdAt → run.finishedAt, nearest-rank convention documented in
+metrics.test.ts), (c) time-to-officer-decision p50/p95 (run.finishedAt → decision.createdAt), (d) pct
+needs_human_review, (e) model error rate, (f) reviewsTodayVsCap reusing modelBudgetStatus() from
+model-budget.ts. Dashboard renders all six with existing MetricCell/Card/SectionHeading vocabulary.
+### Verification:
+- `npm test`: 300 passed / 3 skipped (was 276/3; +24 new tests across metrics.test.ts and health/route.test.ts)
+- `npx tsc --noEmit`: clean
+- `npm run build`: ✓ Compiled successfully; /api/health appears in route manifest
+### Recommendations / Next steps:
+Walk docs/client-onboarding.md end-to-end for client #1 as real invited users (GOAL-LIVE.md operator
+checklist item 4). Rehearse one restore per docs/operations.md (operator item 5). Run /security-review
+before first client touches the deployment (operator item 6). The README records measured model-mode
+latency (4–5s per review, gpt-5.4); if measured values change after deployment, update README §
+Model-mode latency.

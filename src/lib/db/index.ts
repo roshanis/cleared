@@ -48,6 +48,9 @@ function createDefaultDriver(): StoreDriver {
       async transact(fn) {
         return (await awaitInner()).transact(fn);
       },
+      async schemaVersion() {
+        return (await awaitInner()).schemaVersion();
+      },
     };
   }
 

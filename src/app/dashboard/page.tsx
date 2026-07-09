@@ -9,7 +9,7 @@ import {
   relativeTime,
 } from "@/components/ui";
 import { ResetDemoDataButton } from "@/components/reset-demo-data-button";
-import { computeMetrics } from "@/lib/metrics";
+import { computeMetrics, computeUtilizationMetrics } from "@/lib/metrics";
 import { demoAuthEnabled, requireRole } from "@/lib/session";
 import { getDb, publishedRubric, storageKind } from "@/lib/store";
 
@@ -17,6 +17,7 @@ export default async function DashboardPage() {
   const session = await requireRole("officer", "admin", "auditor");
   const db = await getDb();
   const metrics = computeMetrics(db);
+  const utilization = computeUtilizationMetrics(db);
   const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));
   const maxCriteria = Math.max(1, ...metrics.topCriteria.map((c) => c.count));
 
@@ -146,6 +147,64 @@ export default async function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* WS-5: Utilization metrics */}
+      <Card className="overflow-hidden">
+        <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3">
+          <MetricCell
+            label="Verdict p50 / p95 (min)"
+            value={
+              utilization.timeToFirstVerdict.p50 === null
+                ? "—"
+                : `${Math.round(utilization.timeToFirstVerdict.p50)}m / ${Math.round(utilization.timeToFirstVerdict.p95 ?? 0)}m`
+            }
+          />
+          <MetricCell
+            label="Decision p50 / p95 (min)"
+            value={
+              utilization.timeToOfficerDecision.p50 === null
+                ? "—"
+                : `${Math.round(utilization.timeToOfficerDecision.p50)}m / ${Math.round(utilization.timeToOfficerDecision.p95 ?? 0)}m`
+            }
+          />
+          <MetricCell
+            label="Needs human review"
+            value={
+              utilization.pctNeedsHumanReview === null
+                ? "—"
+                : `${Math.round(utilization.pctNeedsHumanReview * 100)}%`
+            }
+          />
+          <MetricCell
+            label="Model error rate"
+            value={
+              utilization.modelErrorRate === null
+                ? "—"
+                : `${Math.round(utilization.modelErrorRate * 100)}%`
+            }
+          />
+          <MetricCell
+            label="Model reviews today / cap"
+            value={`${utilization.reviewsTodayVsCap.today} / ${utilization.reviewsTodayVsCap.cap}`}
+          />
+        </div>
+      </Card>
+
+      {utilization.reviewsPerAuthorThisWeek.length > 0 && (
+        <Card className="p-5">
+          <SectionHeading>Reviews this week, by author</SectionHeading>
+          <ul className="mt-4 space-y-2">
+            {utilization.reviewsPerAuthorThisWeek.map(({ author, count }) => (
+              <li key={author} className="flex justify-between text-sm">
+                <span>{author}</span>
+                <span className="tabular-nums text-muted">
+                  {count} review{count === 1 ? "" : "s"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {isAdmin && liveRubric && (
         <Card className="p-5">

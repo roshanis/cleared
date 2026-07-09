@@ -185,6 +185,11 @@ export function createMemoryDriver(): StoreDriver {
 
     async init() {},
 
+    async schemaVersion(): Promise<number> {
+      // Memory driver always boots to the current schema version.
+      return 3;
+    },
+
     snapshot(): Promise<Db> {
       return enqueue(async () => clone(state));
     },
