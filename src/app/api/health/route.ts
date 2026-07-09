@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { activeReviewer } from "@/agent/run";
 import { getDriver } from "@/lib/db/index";
+import { getDb } from "@/lib/store";
 
 /**
  * GET /api/health
@@ -18,6 +19,10 @@ import { getDriver } from "@/lib/db/index";
  * No secrets, credentials, or internal URLs are included in the response.
  */
 export async function GET(): Promise<NextResponse> {
+  // Force store initialization (and any pending schema migration) before
+  // reading the version — a cold instance's first health probe must report
+  // the post-migration state, not the row as it stood before boot.
+  await getDb();
   const driver = getDriver();
   const schemaVersion = await driver.schemaVersion();
 
