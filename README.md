@@ -67,9 +67,17 @@ The five-case golden set was run live against the OpenAI API
 Calibration that got here (see `agents-build-log.md`): reviewer prompts
 rewritten around a violations-only contract with an explicit
 `compliantCriteria` outlet (the mini model was returning "this complies"
-notes as findings), a concrete-defect bar for judge challenges, and
-C2/C6 rubric descriptions sharpened to draw the guarantee-vs-comparison
-and explicit-capital-at-risk boundaries.
+notes as findings), a deterministic contradiction filter (a finding whose
+criterion the reviewer itself declared compliant is dropped in code), a
+concrete-defect bar for judge challenges, and C2/C3/C6 rubric
+descriptions sharpened at their boundaries.
+
+With the adversarial set (11 cases, P1-4): **gpt-5.4 passes the full
+set** (clean run recorded 2026-07-08). Residual variance is one mode —
+the judge intermittently (~1 in 3 runs) escalates the UK capital-at-risk
+case to `needs_human_review` instead of `fail`. That escape is always in
+the safe direction: a human sees it, nothing wrongly passes — the
+designed behavior of an escalate-only judge under uncertainty.
 
 ## How the agents work (the plain-language version)
 
