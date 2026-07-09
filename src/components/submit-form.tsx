@@ -114,12 +114,15 @@ export function SubmitForm({
       });
       const submission = (await submissionRes.json()) as {
         error?: string;
+        retryAfterSeconds?: number;
         runId?: string;
         documentId?: string;
         reviewer?: "model" | "heuristic";
       };
       if (!submissionRes.ok || !submission.runId) {
-        throw new Error(submission.error ?? "Submission failed.");
+        throw new Error(
+          apiErrorMessage(submission.error, submission.retryAfterSeconds),
+        );
       }
       setDocumentId(submission.documentId ?? null);
       setRunId(submission.runId);
@@ -364,6 +367,16 @@ export function SubmitForm({
       )}
     </div>
   );
+}
+
+function apiErrorMessage(error?: string, retryAfterSeconds?: number) {
+  if (!error) return "Submission failed.";
+  if (!retryAfterSeconds || error.includes("Wait")) return error;
+  if (retryAfterSeconds < 60) {
+    return `${error} Retry in ${retryAfterSeconds} second${retryAfterSeconds === 1 ? "" : "s"}.`;
+  }
+  const minutes = Math.ceil(retryAfterSeconds / 60);
+  return `${error} Retry in about ${minutes} minute${minutes === 1 ? "" : "s"}.`;
 }
 
 function BudgetDowngradeNote() {

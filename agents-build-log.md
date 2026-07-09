@@ -825,3 +825,55 @@ the local/production callback URLs, and set `AUTH_SECRET`,
 `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, and `ADMIN_EMAIL` per deployment.
 WS-2 remains responsible for invitation flow, user records, role changes, and
 deactivation-backed session invalidation.
+
+## [AGENT: Codex] 2026-07-09T04:11Z
+### Action: Round C P1-6 + WS-3 — cost/rate controls and production demo refusal
+### Files changed:
+- .env.example
+- README.md
+- instrumentation.ts
+- src/app/api/submissions/route.ts
+- src/app/api/submissions/route.test.ts
+- src/components/submit-form.tsx
+- src/lib/model-budget.ts
+- src/lib/model-budget.test.ts
+- src/lib/production-guard.ts
+- src/lib/production-guard.test.ts
+- src/lib/rate-limit.ts
+- src/lib/rate-limit.test.ts
+- src/lib/submission-rate-limiter.ts
+- agents-build-log.md
+### Diff summary:
+P1-6: added a per-session-user submission limiter with env overrides
+(`RATE_LIMIT_SUBMISSIONS`, `RATE_LIMIT_WINDOW_MINUTES`) and 429 responses with
+`Retry-After`; generalized the daily model budget into `GLOBAL_MODEL_DAILY_CAP`
+with legacy `DEMO_MODEL_DAILY_CAP` fallback; public-demo cap exhaustion still
+downgrades to the deterministic reviewer with an honest note, while non-public
+model submissions receive a 429.
+
+WS-3: added `assertProductionSafeEnv()` plus `instrumentation.ts` so Vercel
+server startup refuses production demo flags unless `ALLOW_DEMO_DEPLOY=1`, and
+also refuses missing `AUTH_SECRET` or missing durable Postgres env
+(`DATABASE_URL`/`POSTGRES_URL`). Submission document size is now env-driven via
+`MAX_DOCUMENT_CHARS` with boundary tests. The submit form preserves the draft
+and renders 400/429 messages with retry hints through the existing error path.
+README and `.env.example` document the new guardrails.
+
+CRITICAL DEPLOYMENT WARNING: the current public demo intentionally uses
+`DEMO_AUTH=1` + `DEMO_PUBLIC=1`. Before the next Vercel deploy, set
+`ALLOW_DEMO_DEPLOY=1` in Vercel too, or production startup will fail closed and
+the demo will not serve.
+### Verification:
+- Red-first targeted run failed before implementation: missing
+  `rate-limit`/`production-guard` modules, missing generalized model-budget
+  APIs, and missing route-level reset hook.
+- `npm test -- src/lib/rate-limit.test.ts src/lib/model-budget.test.ts src/lib/production-guard.test.ts src/app/api/submissions/route.test.ts`:
+  21 passed.
+- `npm test`: 234 passed / 3 skipped.
+- `npm run typecheck`: clean.
+- `npm run build`: passed; existing metadataBase warning remains.
+### Recommendations / Next steps:
+Set `ALLOW_DEMO_DEPLOY=1` in the existing public demo Vercel environment before
+redeploying. Optionally set explicit `GLOBAL_MODEL_DAILY_CAP`,
+`RATE_LIMIT_SUBMISSIONS`, `RATE_LIMIT_WINDOW_MINUTES`, and `MAX_DOCUMENT_CHARS`
+values per deployment; otherwise the documented defaults apply.

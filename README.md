@@ -185,6 +185,12 @@ Google OAuth setup:
 
 ### Public demo
 
+> **WARNING:** Production startup now refuses `DEMO_AUTH=1` or `DEMO_PUBLIC=1`
+> unless `ALLOW_DEMO_DEPLOY=1` is also set. The current public demo deployment
+> intentionally uses `DEMO_AUTH=1` + `DEMO_PUBLIC=1`, so set
+> `ALLOW_DEMO_DEPLOY=1` in Vercel before the next deploy or the demo will fail
+> closed at startup.
+
 To share the link openly — anyone can pick a persona, no access code — add
 `DEMO_PUBLIC=1` (keeping `DEMO_AUTH=1` and `AUTH_SECRET`; `APP_ACCESS_CODE`
 is ignored while public). Signed-in visitors get a demo strip under the nav:
@@ -207,17 +213,37 @@ apply while `DEMO_PUBLIC=1`:
 
 To let anonymous visitors run live model reviews, set `DEMO_PUBLIC_MODEL=1`
 alongside `DEMO_PUBLIC=1` and `OPENAI_API_KEY`. The app enforces
-`DEMO_MODEL_DAILY_CAP` per UTC day, defaulting to 200 submissions; after the
-cap is reached, new public-demo submissions fall back to the deterministic
-reviewer and the response still reports which reviewer ran. Keep an OpenAI-side
+the daily model cap per UTC day, defaulting to 200 submissions. Set
+`GLOBAL_MODEL_DAILY_CAP` for the production-wide cap; legacy
+`DEMO_MODEL_DAILY_CAP` remains supported as the fallback. After the cap is
+reached, new public-demo submissions fall back to the deterministic reviewer
+and the response still reports which reviewer ran. Authenticated non-public
+model submissions receive a 429 with a retry hint instead. Keep an OpenAI-side
 budget cap enabled too — this application cap is a product guardrail, not a
 billing control.
+
+## Runtime guardrails
+
+Production startup runs through `instrumentation.ts`, which calls
+`assertProductionSafeEnv()` once per server process/function startup. In
+`NODE_ENV=production`, the app fails closed with a plain error if demo flags
+are set without `ALLOW_DEMO_DEPLOY=1`, if `AUTH_SECRET` is missing, or if no
+durable Postgres URL is configured through `DATABASE_URL` or `POSTGRES_URL`.
+
+Submission creation also has application-level caps:
+
+- `RATE_LIMIT_SUBMISSIONS` and `RATE_LIMIT_WINDOW_MINUTES` default to 10
+  submissions per signed-in user per 10 minutes.
+- `MAX_DOCUMENT_CHARS` defaults to 50000 characters.
+- `GLOBAL_MODEL_DAILY_CAP` defaults to 200 model-review submissions per UTC
+  day; `DEMO_MODEL_DAILY_CAP` is still read as a fallback for existing demo
+  deployments.
 
 ## Environment variables
 
 See `.env.example`. Local development has zero required env vars; production
-model reviews and demo auth fail closed unless their env vars are explicitly
-configured.
+model reviews, durable storage, and demo auth fail closed unless their env vars
+are explicitly configured.
 
 ## Deploy
 
@@ -230,7 +256,8 @@ From a clean clone: `npm install`, set env vars in the Vercel dashboard
 storage, `AUTH_SECRET` + `AUTH_GOOGLE_ID` + `AUTH_GOOGLE_SECRET` +
 `ADMIN_EMAIL` for Google OAuth, and `DEMO_AUTH=1` / `APP_ACCESS_CODE` only if
 you are intentionally deploying the persona demo — or `DEMO_PUBLIC=1` instead
-of the access code for an open demo link), then deploy. The seed runs
+of the access code for an open demo link). If any production demo flag is set,
+also set `ALLOW_DEMO_DEPLOY=1` intentionally. Then deploy. The seed runs
 automatically on first access so the deployed app looks alive immediately.
 
 The execute and rubric-gate routes declare `maxDuration = 300` for model-mode

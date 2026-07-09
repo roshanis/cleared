@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { demoModelDailyCap, underDailyModelCap } from "./model-budget";
+import {
+  dailyModelCap,
+  demoModelDailyCap,
+  modelBudgetStatus,
+  underDailyModelCap,
+} from "./model-budget";
 
 describe("model review budget", () => {
   afterEach(() => {
@@ -41,5 +46,37 @@ describe("model review budget", () => {
 
     vi.stubEnv("DEMO_MODEL_DAILY_CAP", "12");
     expect(demoModelDailyCap()).toBe(12);
+  });
+
+  it("uses GLOBAL_MODEL_DAILY_CAP as the generalized cap with demo cap fallback", () => {
+    vi.stubEnv("GLOBAL_MODEL_DAILY_CAP", "");
+    vi.stubEnv("DEMO_MODEL_DAILY_CAP", "9");
+    expect(dailyModelCap()).toBe(9);
+
+    vi.stubEnv("GLOBAL_MODEL_DAILY_CAP", "7");
+    vi.stubEnv("DEMO_MODEL_DAILY_CAP", "9");
+    expect(dailyModelCap()).toBe(7);
+
+    vi.stubEnv("GLOBAL_MODEL_DAILY_CAP", "invalid");
+    vi.stubEnv("DEMO_MODEL_DAILY_CAP", "9");
+    expect(dailyModelCap()).toBe(9);
+  });
+
+  it("reports model cap usage and retry seconds until the next UTC day", () => {
+    const status = modelBudgetStatus({
+      runs: [
+        { reviewer: "model", createdAt: "2026-07-08T01:00:00.000Z" },
+        { reviewer: "heuristic", createdAt: "2026-07-08T02:00:00.000Z" },
+      ],
+      nowIso: "2026-07-08T23:59:30.000Z",
+      cap: 1,
+    });
+
+    expect(status).toEqual({
+      allowed: false,
+      used: 1,
+      cap: 1,
+      retryAfterSeconds: 30,
+    });
   });
 });
