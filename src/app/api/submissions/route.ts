@@ -117,6 +117,7 @@ export async function POST(req: Request) {
     title: derivedTitle,
     content,
     author: session.name,
+    actorId: session.userId,
     documentId,
     reviewer,
     jurisdictions: [...new Set(jurisdictions)],

@@ -9,6 +9,7 @@ import type {
   DocVersion,
   DocumentRecord,
   ReviewRun,
+  UserRecord,
 } from "@/lib/store";
 import { UniqueViolationError, type StoreDriver, type Tx } from "./driver";
 import { createMemoryDriver } from "./memory";
@@ -90,6 +91,18 @@ const decisionFixture = (over: Partial<Decision> = {}): Decision => ({
   ...over,
 });
 
+const userFixture = (over: Partial<UserRecord> = {}): UserRecord => ({
+  id: "usr_1",
+  email: "writer@example.com",
+  displayName: "Writer Example",
+  role: "author",
+  status: "invited",
+  sessionGen: 0,
+  createdAt: T0,
+  updatedAt: T0,
+  ...over,
+});
+
 /** Insert the base FK graph (rubric, document, version) plus a run. */
 async function seedGraph(tx: Tx, run: ReviewRun = runFixture()) {
   await tx.insertRubric(rubricFixture());
@@ -136,7 +149,7 @@ if (process.env.DATABASE_URL) {
         max: 1,
       });
       await pool.query(
-        "TRUNCATE decisions, runs, versions, documents, rubrics CASCADE",
+        "TRUNCATE decisions, runs, versions, documents, rubrics, users CASCADE",
       );
       await pool.end();
       return driver;
@@ -174,21 +187,49 @@ for (const [name, makeDriver] of factories) {
         status: "done",
         result: failResult,
         finishedAt: "2026-07-01T00:05:00.000Z",
+        actorId: "usr_1",
       });
+      const decision = decisionFixture({ actorId: "usr_2" });
       await driver.transact(async (tx) => {
+        await tx.createUser(userFixture());
+        await tx.createUser(
+          userFixture({
+            id: "usr_2",
+            email: "officer@example.com",
+            displayName: "Officer Example",
+            role: "officer",
+            status: "active",
+          }),
+        );
         await tx.insertRubric(rubric);
         await tx.insertDocument(documentFixture());
         await tx.insertVersion(versionFixture());
         await tx.insertRun(run);
-        await tx.insertDecision(decisionFixture());
+        await tx.insertDecision(decision);
       });
 
       await driver.transact(async (tx) => {
+        expect(await tx.getUserById("usr_1")).toEqual(userFixture());
+        expect(await tx.getUserByEmail("WRITER@example.com")).toEqual(
+          userFixture(),
+        );
+        expect(await tx.listUsers()).toEqual([
+          userFixture(),
+          userFixture({
+            id: "usr_2",
+            email: "officer@example.com",
+            displayName: "Officer Example",
+            role: "officer",
+            status: "active",
+          }),
+        ]);
         expect(await tx.getDocument("doc_1")).toEqual(documentFixture());
         expect(await tx.getVersion("ver_1")).toEqual(versionFixture());
         expect(await tx.getRun("run_1")).toEqual(run);
         expect(await tx.getRubric(1)).toEqual(rubric);
-        expect(await tx.getDecisionByRunId("run_1")).toEqual(decisionFixture());
+        expect(await tx.getDecisionByRunId("run_1")).toEqual(decision);
+        expect(await tx.getUserById("usr_missing")).toBeNull();
+        expect(await tx.getUserByEmail("missing@example.com")).toBeNull();
         expect(await tx.getDocument("doc_missing")).toBeNull();
         expect(await tx.getRun("run_missing")).toBeNull();
         expect(await tx.getRubric(99)).toBeNull();
@@ -196,11 +237,55 @@ for (const [name, makeDriver] of factories) {
       });
 
       const db = await driver.snapshot();
+      expect(db.users).toEqual([
+        userFixture(),
+        userFixture({
+          id: "usr_2",
+          email: "officer@example.com",
+          displayName: "Officer Example",
+          role: "officer",
+          status: "active",
+        }),
+      ]);
       expect(db.documents).toEqual([documentFixture()]);
       expect(db.versions).toEqual([versionFixture()]);
       expect(db.runs).toEqual([run]);
-      expect(db.decisions).toEqual([decisionFixture()]);
+      expect(db.decisions).toEqual([decision]);
       expect(db.rubrics).toEqual([rubric]);
+    });
+
+    it("updates users and enforces unique email addresses", async () => {
+      await driver.transact((tx) => tx.createUser(userFixture()));
+
+      await expect(
+        driver.transact((tx) =>
+          tx.createUser(userFixture({ id: "usr_2", email: "WRITER@example.com" })),
+        ),
+      ).rejects.toThrow(UniqueViolationError);
+
+      const updated = await driver.transact((tx) =>
+        tx.updateUser("usr_1", {
+          displayName: "Updated Writer",
+          role: "officer",
+          status: "active",
+          sessionGen: 1,
+        }),
+      );
+      expect(updated).toEqual(
+        userFixture({
+          displayName: "Updated Writer",
+          role: "officer",
+          status: "active",
+          sessionGen: 1,
+          updatedAt: updated?.updatedAt,
+        }),
+      );
+      expect(updated?.updatedAt).not.toBe(T0);
+      expect(
+        await driver.transact((tx) =>
+          tx.updateUser("missing", { status: "active" }),
+        ),
+      ).toBeNull();
     });
 
     it("computes nextVersionNumber per document and maxRubricVersion", async () => {

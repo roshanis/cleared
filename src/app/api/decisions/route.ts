@@ -42,6 +42,7 @@ export async function POST(req: Request) {
   const result = await addDecision({
     runId: parsed.data.runId,
     officer: session.name,
+    actorId: session.userId,
     action: parsed.data.action,
     note: parsed.data.note,
     overrides: parsed.data.overrides,

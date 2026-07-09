@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resetStoreForTests } from "./store";
+import { demoPersonaUsers, resetStoreForTests } from "./store";
 
 describe("demo seed", () => {
   it("creates a lived-in demo workspace with decisions and open review work", async () => {
@@ -18,6 +18,15 @@ describe("demo seed", () => {
       true,
     );
     expect(db.decisions.length).toBeGreaterThanOrEqual(4);
+    expect(db.users).toEqual(demoPersonaUsers);
+    expect(db.runs.every((run) => run.actorId === demoPersonaUsers[0].id)).toBe(
+      true,
+    );
+    expect(
+      db.decisions.every(
+        (decision) => decision.actorId === demoPersonaUsers[1].id,
+      ),
+    ).toBe(true);
     expect(db.decisions.map((decision) => decision.action)).toEqual(
       expect.arrayContaining(["approve", "reject"]),
     );

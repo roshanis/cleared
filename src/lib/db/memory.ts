@@ -16,6 +16,7 @@ const clone = <T>(value: T): T => structuredClone(value);
  */
 export function createMemoryDriver(): StoreDriver {
   let state: Db = {
+    users: [],
     documents: [],
     versions: [],
     runs: [],
@@ -25,6 +26,37 @@ export function createMemoryDriver(): StoreDriver {
   const enqueue = createSerialQueue();
 
   const tx: Tx = {
+    async createUser(user): Promise<void> {
+      const normalized = { ...user, email: user.email.trim().toLowerCase() };
+      if (state.users.some((u) => u.id === normalized.id)) {
+        throw new UniqueViolationError(`users.id = ${normalized.id}`);
+      }
+      if (state.users.some((u) => u.email === normalized.email)) {
+        throw new UniqueViolationError(`users.email = ${normalized.email}`);
+      }
+      state.users.push(clone(normalized));
+    },
+
+    async getUserByEmail(email) {
+      const normalized = email.trim().toLowerCase();
+      return clone(state.users.find((u) => u.email === normalized) ?? null);
+    },
+
+    async getUserById(id) {
+      return clone(state.users.find((u) => u.id === id) ?? null);
+    },
+
+    async listUsers() {
+      return clone(state.users);
+    },
+
+    async updateUser(id, patch) {
+      const user = state.users.find((u) => u.id === id);
+      if (!user) return null;
+      Object.assign(user, clone(patch), { updatedAt: new Date().toISOString() });
+      return clone(user);
+    },
+
     async getDocument(id: string): Promise<DocumentRecord | null> {
       return clone(state.documents.find((d) => d.id === id) ?? null);
     },
@@ -65,6 +97,7 @@ export function createMemoryDriver(): StoreDriver {
 
     async clearAll(): Promise<void> {
       state = {
+        users: [],
         documents: [],
         versions: [],
         runs: [],

@@ -6,6 +6,8 @@ import {
   UniqueViolationError,
   rowToDocument,
   documentToRow,
+  rowToUser,
+  userToRow,
   rowToVersion,
   versionToRow,
   rowToRun,
@@ -59,6 +61,17 @@ const SCHEMA_DDL = `
     published_at TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS users (
+    id           TEXT PRIMARY KEY,
+    email        TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    role         TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    session_gen  INTEGER NOT NULL,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS documents (
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL,
@@ -87,7 +100,8 @@ const SCHEMA_DDL = `
     error          TEXT,
     created_at     TEXT NOT NULL,
     finished_at    TEXT,
-    jurisdictions  TEXT
+    jurisdictions  TEXT,
+    actor_id       TEXT
   );
 
   CREATE TABLE IF NOT EXISTS decisions (
@@ -98,23 +112,30 @@ const SCHEMA_DDL = `
     action      TEXT NOT NULL,
     note        TEXT NOT NULL,
     overrides   TEXT NOT NULL,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL,
+    actor_id    TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_runs_version_created
     ON runs(rubric_version, created_at);
 
-  INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');
+  INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '3');
 `;
 
-/** v1 -> v2: pre-jurisdiction databases lack runs.jurisdictions. */
+/** Guarded migrations for existing durable databases. */
 function migrate(instance: InstanceType<typeof import("node:sqlite").DatabaseSync>) {
   const row = instance
     .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
     .get() as { value?: string } | undefined;
-  if (row?.value === "1") {
+  const version = Number(row?.value ?? "1");
+  if (version < 2) {
     instance.exec("ALTER TABLE runs ADD COLUMN jurisdictions TEXT");
     instance.exec("UPDATE meta SET value = '2' WHERE key = 'schema_version'");
+  }
+  if (version < 3) {
+    instance.exec("ALTER TABLE runs ADD COLUMN actor_id TEXT");
+    instance.exec("ALTER TABLE decisions ADD COLUMN actor_id TEXT");
+    instance.exec("UPDATE meta SET value = '3' WHERE key = 'schema_version'");
   }
 }
 
@@ -156,6 +177,72 @@ function makeTx(db: DatabaseSync): Tx {
   const stmt = (sql: string): StatementSync => db.prepare(sql);
 
   return {
+    async createUser(user) {
+      const r = userToRow(user);
+      try {
+        stmt(
+          "INSERT INTO users(id, email, display_name, role, status, session_gen, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ).run(
+          r.id,
+          r.email,
+          r.display_name,
+          r.role,
+          r.status,
+          r.session_gen,
+          r.created_at,
+          r.updated_at,
+        );
+      } catch (err) {
+        mapUniqueOrThrow(err);
+      }
+    },
+
+    async getUserByEmail(email) {
+      const row = stmt("SELECT * FROM users WHERE email = ?").get(
+        email.trim().toLowerCase(),
+      );
+      return row ? rowToUser(row as SqlRow) : null;
+    },
+
+    async getUserById(id) {
+      const row = stmt("SELECT * FROM users WHERE id = ?").get(id);
+      return row ? rowToUser(row as SqlRow) : null;
+    },
+
+    async listUsers() {
+      return (stmt("SELECT * FROM users ORDER BY rowid").all() as SqlRow[]).map(
+        rowToUser,
+      );
+    },
+
+    async updateUser(id, patch) {
+      const fields: string[] = [];
+      const values: unknown[] = [];
+      if (patch.displayName !== undefined) {
+        fields.push("display_name=?");
+        values.push(patch.displayName);
+      }
+      if (patch.role !== undefined) {
+        fields.push("role=?");
+        values.push(patch.role);
+      }
+      if (patch.status !== undefined) {
+        fields.push("status=?");
+        values.push(patch.status);
+      }
+      if (patch.sessionGen !== undefined) {
+        fields.push("session_gen=?");
+        values.push(patch.sessionGen);
+      }
+      fields.push("updated_at=?");
+      values.push(new Date().toISOString());
+      values.push(id);
+      const row = stmt(
+        `UPDATE users SET ${fields.join(", ")} WHERE id=? RETURNING *`,
+      ).get(...(values as Parameters<StatementSync["get"]>));
+      return row ? rowToUser(row as SqlRow) : null;
+    },
+
     async getDocument(id) {
       const row = stmt("SELECT * FROM documents WHERE id = ?").get(id);
       return row ? rowToDocument(row as SqlRow) : null;
@@ -210,6 +297,7 @@ function makeTx(db: DatabaseSync): Tx {
       stmt("DELETE FROM versions").run();
       stmt("DELETE FROM documents").run();
       stmt("DELETE FROM rubrics").run();
+      stmt("DELETE FROM users").run();
     },
 
     async insertDocument(document) {
@@ -245,7 +333,7 @@ function makeTx(db: DatabaseSync): Tx {
       const r = runToRow(run);
       try {
         stmt(
-          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions, actor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).run(
           r.id,
           r.document_id,
@@ -258,6 +346,7 @@ function makeTx(db: DatabaseSync): Tx {
           r.created_at,
           r.finished_at,
           r.jurisdictions,
+          r.actor_id,
         );
       } catch (err) {
         mapUniqueOrThrow(err);
@@ -308,7 +397,7 @@ function makeTx(db: DatabaseSync): Tx {
       const r = decisionToRow(decision);
       try {
         stmt(
-          "INSERT INTO decisions(id, run_id, document_id, officer, action, note, overrides, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO decisions(id, run_id, document_id, officer, action, note, overrides, created_at, actor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).run(
           r.id,
           r.run_id,
@@ -318,6 +407,7 @@ function makeTx(db: DatabaseSync): Tx {
           r.note,
           r.overrides,
           r.created_at,
+          r.actor_id,
         );
       } catch (err) {
         mapUniqueOrThrow(err);
@@ -431,6 +521,9 @@ export function createSqliteDriver(
       return enqueue(async () => {
         const d = await openDb();
         return {
+          users: (
+            d.prepare("SELECT * FROM users ORDER BY rowid").all() as SqlRow[]
+          ).map(rowToUser),
           documents: (
             d
               .prepare("SELECT * FROM documents ORDER BY rowid")

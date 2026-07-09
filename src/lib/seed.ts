@@ -3,6 +3,7 @@ import { runReview } from "@/agent/run";
 import { loadGoldenCases } from "../../evals/grade";
 import { defaultRubricDraft } from "./rubric";
 import {
+  demoPersonaUsers,
   newId,
   publishedRubric,
   type Db,
@@ -166,6 +167,10 @@ export async function seedInto(
 ): Promise<void> {
   const { demoData = true } = opts;
 
+  if (demoData && db.users.length === 0) {
+    db.users.push(...demoPersonaUsers.map((user) => ({ ...user })));
+  }
+
   if (db.rubrics.length === 0) {
     db.rubrics.push({
       ...defaultRubricDraft,
@@ -229,6 +234,7 @@ export async function seedInto(
       createdAt,
       finishedAt: daysAgo(age, 1),
       jurisdictions: demo.jurisdictions,
+      actorId: demoPersonaUsers[0].id,
     };
     db.runs.push(run);
 
@@ -246,6 +252,7 @@ export async function seedInto(
           action: plannedDecision.overrideAction,
         })),
         createdAt: daysAgo(age, plannedDecision.extraMinutes),
+        actorId: demoPersonaUsers[1].id,
       });
     }
   }

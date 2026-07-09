@@ -974,3 +974,89 @@ No commit made.
   per-mode expectations, gate exercised/unexercised honesty, CI known-limit separation,
   unified quote locator with refuse-to-guess negatives.
 ### Recommendations / Next steps: Round E (WS-2 users as records).
+
+## [AGENT: Codex] 2026-07-09T04:57Z
+### Action: Round E GOAL-LIVE WS-2 — users are records, not personas
+### Files changed:
+- README.md
+- auth.ts
+- src/app/api/decisions/route.ts
+- src/app/api/submissions/route.ts
+- src/app/api/submissions/route.test.ts
+- src/app/api/users/route.ts
+- src/app/api/users/route.test.ts
+- src/app/api/users/invite/route.ts
+- src/app/api/users/invite/route.test.ts
+- src/app/api/users/[id]/route.ts
+- src/app/api/users/[id]/route.test.ts
+- src/app/users/page.tsx
+- src/components/nav.tsx
+- src/components/user-management.tsx
+- src/lib/db/driver.ts
+- src/lib/db/driver.test.ts
+- src/lib/db/memory.ts
+- src/lib/db/sqlite.ts
+- src/lib/db/postgres.ts
+- src/lib/oauth.ts
+- src/lib/oauth.test.ts
+- src/lib/seed.ts
+- src/lib/seed.test.ts
+- src/lib/session.ts
+- src/lib/session.oauth.test.ts
+- src/lib/store.ts
+- src/lib/store.test.ts
+### Diff summary:
+- Added a first-class users entity across the driver seam: id, unique email,
+  displayName, role, status, sessionGen, createdAt, and updatedAt. Memory,
+  SQLite, and Postgres now implement create/get/list/update user methods.
+- SQLite and Postgres schema_version move from 2 to 3. The guarded migration
+  adds the users table plus nullable runs.actor_id and decisions.actor_id.
+  Existing legacy/name-only rows retain null actor_id; seeded demo rows map
+  Maya/Devon names to stable demo user ids.
+- Replaced the Round B bare ADMIN_EMAIL-only OAuth gate with record-backed
+  sign-in. ADMIN_EMAIL bootstraps the first real admin; invited users activate
+  on first OAuth sign-in with their assigned role; unknown and deactivated
+  users are rejected. Demo persona admin records do not block bootstrap.
+- getSession() now validates OAuth sessions against the user record and returns
+  null on missing users, deactivation, or sessionGen mismatch. Demo persona
+  sessions skip the generation check.
+- Added admin-only user-management APIs: GET /api/users,
+  POST /api/users/invite, and PATCH /api/users/[id], all same-origin guarded.
+  Role changes and deactivation bump sessionGen.
+- Added /users admin UI linked from nav, with invite, inline display-name/role
+  edits, deactivate, and reactivate actions using existing UI primitives.
+- Fresh submissions and decisions now pass session.userId into run/decision
+  actorId while preserving author/officer display names for rendering.
+### Done-when evidence:
+1. Invited user signs in with exactly the assigned role:
+   src/lib/oauth.test.ts covers invited writer@example.com activating as
+   officer and returning role officer.
+2. Uninvited OAuth sign-in rejected:
+   src/lib/oauth.test.ts covers writer@example.com rejected after bootstrap.
+3. Deactivation kills a live session:
+   src/lib/session.oauth.test.ts covers deactivated user and sessionGen
+   mismatch returning null from getSession().
+4. Fresh runs/decisions record real user ids:
+   src/app/api/submissions/route.test.ts covers OAuth run actorId
+   usr_writer; src/lib/store.test.ts covers run actorId usr_author and
+   decision actorId usr_officer.
+5. Demo self-seeds all four personas and they work with zero config:
+   src/lib/seed.test.ts asserts all four stable demo user records are seeded
+   and seeded runs/decisions carry Maya/Devon user ids; demo session tests
+   preserve the zero-config demo session shape.
+### Verification:
+- Red-first targeted run failed before implementation on missing createUser,
+  inviteUser, resolveOAuthSignIn, actorId fields, and missing /api/users route
+  modules. A later red regression confirmed seeded demo admin users blocked
+  ADMIN_EMAIL bootstrap before the fix.
+- Targeted green:
+  `npm test -- src/lib/db/driver.test.ts src/lib/store.test.ts src/lib/seed.test.ts src/lib/oauth.test.ts src/lib/session.oauth.test.ts src/app/api/submissions/route.test.ts src/app/api/users/route.test.ts src/app/api/users/invite/route.test.ts 'src/app/api/users/[id]/route.test.ts'`:
+  66 passed.
+- `npm test`: 276 passed / 3 skipped.
+- `npm run typecheck`: clean.
+- `npm run build`: passed; existing metadataBase warning remains.
+### Recommendations / Next steps:
+Before a client deploy, sign in once with ADMIN_EMAIL to create the first real
+admin, then invite the deployment's users from /users. Existing durable DBs
+will migrate schema_version 2 -> 3 on startup; old rows keep null actor_id
+where only a display name is known.

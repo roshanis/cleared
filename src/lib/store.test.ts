@@ -4,6 +4,7 @@ import {
   createSubmission,
   emptyDb,
   getDb,
+  inviteUser,
   publishRubric,
   publishedRubric,
   resetDemoData,
@@ -47,6 +48,7 @@ describe("store", () => {
       title: "Test doc",
       content: "Some content",
       author: "Maya Chen",
+      actorId: "usr_author",
       reviewer: "heuristic",
     });
 
@@ -64,6 +66,7 @@ describe("store", () => {
     const result = await addDecision({
       runId: run.id,
       officer: "Devon Park",
+      actorId: "usr_officer",
       action: "reject",
       note: "Agreed with the agent.",
       overrides: [{ findingIndex: 0, action: "accept" }],
@@ -71,9 +74,32 @@ describe("store", () => {
     expect(result.status).toBe("created");
     if (result.status !== "created") throw new Error("unreachable");
     expect(result.decision.documentId).toBe(document.id);
+    expect(run.actorId).toBe("usr_author");
+    expect(result.decision.actorId).toBe("usr_officer");
 
     db = await getDb();
     expect(reviewQueue(db)).toHaveLength(0);
+  });
+
+  it("invites users idempotently for the same email and role", async () => {
+    const first = await inviteUser({
+      email: "Writer@Example.com",
+      role: "author",
+    });
+    const second = await inviteUser({
+      email: "writer@example.com",
+      role: "author",
+    });
+
+    expect(first.status).toBe("created");
+    expect(second.status).toBe("existing");
+    expect(second.user).toEqual(first.user);
+    expect(first.user).toMatchObject({
+      email: "writer@example.com",
+      role: "author",
+      status: "invited",
+      sessionGen: 0,
+    });
   });
 
   it("resubmission adds a version to the same document", async () => {

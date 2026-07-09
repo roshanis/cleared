@@ -1,5 +1,6 @@
 import type { ReviewResult } from "@/schema";
 import type { ReviewerKind } from "@/agent/run";
+import type { Role } from "./session";
 import type { GoldenGateReport, RubricDraft, RubricVersion } from "./rubric";
 import {
   getDriver,
@@ -20,6 +21,23 @@ export interface DocumentRecord {
   author: string;
   createdAt: string;
 }
+
+export type UserStatus = "invited" | "active" | "deactivated";
+
+export interface UserRecord {
+  id: string;
+  email: string;
+  displayName: string;
+  role: Role;
+  status: UserStatus;
+  sessionGen: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UserPatch = Partial<
+  Pick<UserRecord, "displayName" | "role" | "status" | "sessionGen">
+>;
 
 export interface DocVersion {
   id: string;
@@ -45,6 +63,8 @@ export interface ReviewRun {
   finishedAt: string | null;
   /** Target markets for this review; absent on pre-jurisdiction runs. */
   jurisdictions?: string[];
+  /** User id for the actor that created the run; null on legacy/name-only rows. */
+  actorId?: string | null;
 }
 
 export interface FindingOverride {
@@ -61,9 +81,12 @@ export interface Decision {
   note: string;
   overrides: FindingOverride[];
   createdAt: string;
+  /** User id for the actor that recorded the decision; null on legacy/name-only rows. */
+  actorId?: string | null;
 }
 
 export interface Db {
+  users: UserRecord[];
   documents: DocumentRecord[];
   versions: DocVersion[];
   runs: ReviewRun[];
@@ -72,6 +95,7 @@ export interface Db {
 }
 
 export const emptyDb = (): Db => ({
+  users: [],
   documents: [],
   versions: [],
   runs: [],
@@ -81,6 +105,51 @@ export const emptyDb = (): Db => ({
 
 export const newId = (prefix: string) =>
   `${prefix}_${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`;
+
+export const demoPersonaUsers: UserRecord[] = [
+  {
+    id: "00000000-0000-4000-8000-000000000001",
+    email: "maya.demo@cleared.local",
+    displayName: "Maya Chen",
+    role: "author",
+    status: "active",
+    sessionGen: 0,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    email: "devon.demo@cleared.local",
+    displayName: "Devon Park",
+    role: "officer",
+    status: "active",
+    sessionGen: 0,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000003",
+    email: "priya.demo@cleared.local",
+    displayName: "Priya Nair",
+    role: "admin",
+    status: "active",
+    sessionGen: 0,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000004",
+    email: "sam.demo@cleared.local",
+    displayName: "Sam Osei",
+    role: "auditor",
+    status: "active",
+    sessionGen: 0,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+  },
+];
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 // ---------------------------------------------------------------------------
 // Ready-memo — initialises the driver and seeds on first boot.
@@ -132,6 +201,9 @@ async function insertSeed(
 
   for (const rubric of seedDb.rubrics) {
     await run(() => tx.insertRubric(rubric));
+  }
+  for (const user of seedDb.users) {
+    await run(() => tx.createUser(user));
   }
   for (const doc of seedDb.documents) {
     await run(() => tx.insertDocument(doc));
@@ -231,6 +303,7 @@ export interface SubmissionInput {
   title: string;
   content: string;
   author: string;
+  actorId?: string | null;
   documentId?: string;
   reviewer: ReviewerKind;
   jurisdictions?: string[];
@@ -294,6 +367,7 @@ async function doCreateSubmission(
       createdAt: now,
       finishedAt: null,
       jurisdictions: input.jurisdictions,
+      actorId: input.actorId ?? null,
     };
     await tx.insertRun(run);
 
@@ -393,6 +467,7 @@ export async function updateRun(
 export interface DecisionInput {
   runId: string;
   officer: string;
+  actorId?: string | null;
   action: "approve" | "reject";
   note: string;
   overrides: FindingOverride[];
@@ -444,6 +519,7 @@ export async function addDecision(
         note: input.note,
         overrides: input.overrides,
         createdAt: new Date().toISOString(),
+        actorId: input.actorId ?? null,
       };
       // insertDecision throws UniqueViolationError on duplicate run_id.
       await tx.insertDecision(decision);
@@ -453,6 +529,68 @@ export async function addDecision(
     if (err instanceof UniqueViolationError) return { status: "duplicate" };
     throw err;
   }
+}
+
+export async function createUser(user: UserRecord): Promise<UserRecord> {
+  const normalized: UserRecord = {
+    ...user,
+    email: normalizeEmail(user.email),
+  };
+  await transact((tx) => tx.createUser(normalized));
+  return normalized;
+}
+
+export function getUserById(id: string): Promise<UserRecord | null> {
+  return transact((tx) => tx.getUserById(id));
+}
+
+export function getUserByEmail(email: string): Promise<UserRecord | null> {
+  return transact((tx) => tx.getUserByEmail(normalizeEmail(email)));
+}
+
+export function listUsers(): Promise<UserRecord[]> {
+  return transact((tx) => tx.listUsers());
+}
+
+export function updateUser(
+  id: string,
+  patch: UserPatch,
+): Promise<UserRecord | null> {
+  return transact((tx) => tx.updateUser(id, patch));
+}
+
+export type InviteUserResult =
+  | { status: "created"; user: UserRecord }
+  | { status: "existing"; user: UserRecord }
+  | { status: "conflict"; user: UserRecord };
+
+export async function inviteUser(input: {
+  email: string;
+  role: Role;
+}): Promise<InviteUserResult> {
+  const email = normalizeEmail(input.email);
+  return transact(async (tx): Promise<InviteUserResult> => {
+    const existing = await tx.getUserByEmail(email);
+    if (existing) {
+      if (existing.status === "invited" && existing.role === input.role) {
+        return { status: "existing", user: existing };
+      }
+      return { status: "conflict", user: existing };
+    }
+    const now = new Date().toISOString();
+    const user: UserRecord = {
+      id: newId("usr"),
+      email,
+      displayName: email,
+      role: input.role,
+      status: "invited",
+      sessionGen: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await tx.createUser(user);
+    return { status: "created", user };
+  });
 }
 
 async function doSaveRubricDraft(

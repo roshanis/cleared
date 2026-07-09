@@ -9,6 +9,8 @@ import type {
   FindingOverride,
   ReviewRun,
   RunStatus,
+  UserPatch,
+  UserRecord,
 } from "@/lib/store";
 
 export type StorageKind = "memory" | "sqlite" | "postgres";
@@ -36,6 +38,11 @@ export interface RubricPatch {
  * src/lib/store.ts on top of these.
  */
 export interface Tx {
+  createUser(user: UserRecord): Promise<void>;
+  getUserByEmail(email: string): Promise<UserRecord | null>;
+  getUserById(id: string): Promise<UserRecord | null>;
+  listUsers(): Promise<UserRecord[]>;
+  updateUser(id: string, patch: UserPatch): Promise<UserRecord | null>;
   getDocument(id: string): Promise<DocumentRecord | null>;
   nextVersionNumber(documentId: string): Promise<number>;
   getVersion(id: string): Promise<DocVersion | null>;
@@ -115,6 +122,28 @@ export const rowToDocument = (row: SqlRow): DocumentRecord => ({
   createdAt: text(row.created_at),
 });
 
+export const rowToUser = (row: SqlRow): UserRecord => ({
+  id: text(row.id),
+  email: text(row.email),
+  displayName: text(row.display_name),
+  role: text(row.role) as UserRecord["role"],
+  status: text(row.status) as UserRecord["status"],
+  sessionGen: integer(row.session_gen),
+  createdAt: text(row.created_at),
+  updatedAt: text(row.updated_at),
+});
+
+export const userToRow = (user: UserRecord) => ({
+  id: user.id,
+  email: user.email.trim().toLowerCase(),
+  display_name: user.displayName,
+  role: user.role,
+  status: user.status,
+  session_gen: user.sessionGen,
+  created_at: user.createdAt,
+  updated_at: user.updatedAt,
+});
+
 export const documentToRow = (document: DocumentRecord) => ({
   id: document.id,
   title: document.title,
@@ -152,6 +181,7 @@ export const rowToRun = (row: SqlRow): ReviewRun => ({
   createdAt: text(row.created_at),
   finishedAt: nullableText(row.finished_at),
   jurisdictions: nullableJson<string[]>(row.jurisdictions) ?? undefined,
+  actorId: nullableText(row.actor_id),
 });
 
 export const runToRow = (run: ReviewRun) => ({
@@ -167,6 +197,7 @@ export const runToRow = (run: ReviewRun) => ({
   finished_at: run.finishedAt,
   jurisdictions:
     run.jurisdictions === undefined ? null : JSON.stringify(run.jurisdictions),
+  actor_id: run.actorId ?? null,
 });
 
 export const rowToDecision = (row: SqlRow): Decision => ({
@@ -178,6 +209,7 @@ export const rowToDecision = (row: SqlRow): Decision => ({
   note: text(row.note),
   overrides: json<FindingOverride[]>(row.overrides),
   createdAt: text(row.created_at),
+  actorId: nullableText(row.actor_id),
 });
 
 export const decisionToRow = (decision: Decision) => ({
@@ -189,6 +221,7 @@ export const decisionToRow = (decision: Decision) => ({
   note: decision.note,
   overrides: JSON.stringify(decision.overrides),
   created_at: decision.createdAt,
+  actor_id: decision.actorId ?? null,
 });
 
 export const rowToRubric = (row: SqlRow): RubricVersion => ({

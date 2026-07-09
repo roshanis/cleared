@@ -6,6 +6,7 @@ import {
   normalizeDemoSession,
   sessionFromAuthJsSession,
 } from "./oauth";
+import { getUserById } from "./store";
 import { signToken, verifyToken } from "./token";
 
 export type Role = "author" | "officer" | "admin" | "auditor";
@@ -127,7 +128,18 @@ async function getAuthJsSession(): Promise<Session | null> {
   if (!isGoogleOAuthConfigured()) return null;
   const { auth } = await import("../../auth");
   const authSession = await auth();
-  return sessionFromAuthJsSession(authSession);
+  const session = sessionFromAuthJsSession(authSession);
+  if (!session) return null;
+  const user = await getUserById(session.userId);
+  if (!user || user.status === "deactivated") return null;
+  if (user.sessionGen !== session.gen) return null;
+  return {
+    ...session,
+    name: user.displayName,
+    email: user.email,
+    role: user.role,
+    gen: user.sessionGen,
+  };
 }
 
 export async function requireSession(): Promise<Session> {

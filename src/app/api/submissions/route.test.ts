@@ -3,8 +3,8 @@ import { resetSubmissionRateLimiterForTests } from "@/lib/submission-rate-limite
 import { createSubmission, getDb, resetStoreForTests } from "@/lib/store";
 import { POST } from "./route";
 
-vi.mock("@/lib/session", () => ({
-  getSession: vi.fn(async () => ({
+const { getSessionMock } = vi.hoisted(() => ({
+  getSessionMock: vi.fn(async (): Promise<unknown> => ({
     personaId: "maya",
     userId: "demo:maya",
     name: "Maya Chen",
@@ -13,6 +13,10 @@ vi.mock("@/lib/session", () => ({
     authMethod: "demo",
     gen: 0,
   })),
+}));
+
+vi.mock("@/lib/session", () => ({
+  getSession: getSessionMock,
 }));
 
 const submissionRequest = (content = "This customer email promises guaranteed returns.") =>
@@ -31,6 +35,15 @@ const submissionRequest = (content = "This customer email promises guaranteed re
 
 beforeEach(async () => {
   await resetStoreForTests(false);
+  getSessionMock.mockResolvedValue({
+    personaId: "maya",
+    userId: "demo:maya",
+    name: "Maya Chen",
+    email: null,
+    role: "author",
+    authMethod: "demo",
+    gen: 0,
+  });
   vi.stubEnv("OPENAI_API_KEY", "sk-test");
   vi.stubEnv("DEMO_PUBLIC_MODEL", "1");
   vi.stubEnv("DEMO_MODEL_DAILY_CAP", "1");
@@ -39,6 +52,30 @@ beforeEach(async () => {
   vi.stubEnv("RATE_LIMIT_WINDOW_MINUTES", "");
   vi.stubEnv("MAX_DOCUMENT_CHARS", "");
   resetSubmissionRateLimiterForTests();
+});
+
+describe("POST /api/submissions attribution", () => {
+  it("records the OAuth user id on fresh runs", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    getSessionMock.mockResolvedValueOnce({
+      personaId: "usr_writer",
+      userId: "usr_writer",
+      name: "Wendy Writer",
+      email: "writer@example.com",
+      role: "author",
+      authMethod: "oauth",
+      gen: 0,
+    });
+
+    const res = await POST(submissionRequest("Plain document"));
+    const body = (await res.json()) as { runId: string };
+    const db = await getDb();
+
+    expect(res.status).toBe(200);
+    expect(db.runs.find((run) => run.id === body.runId)?.actorId).toBe(
+      "usr_writer",
+    );
+  });
 });
 
 afterEach(() => {

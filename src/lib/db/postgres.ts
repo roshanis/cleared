@@ -3,6 +3,8 @@ import {
   UniqueViolationError,
   rowToDocument,
   documentToRow,
+  rowToUser,
+  userToRow,
   rowToVersion,
   versionToRow,
   rowToRun,
@@ -84,6 +86,18 @@ const SCHEMA_DDL = `
     published_at TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS users (
+    seq          BIGSERIAL,
+    id           TEXT PRIMARY KEY,
+    email        TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    role         TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    session_gen  INTEGER NOT NULL,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS documents (
     seq        BIGSERIAL,
     id         TEXT PRIMARY KEY,
@@ -115,7 +129,8 @@ const SCHEMA_DDL = `
     error          TEXT,
     created_at     TEXT NOT NULL,
     finished_at    TEXT,
-    jurisdictions  TEXT
+    jurisdictions  TEXT,
+    actor_id       TEXT
   );
 
   CREATE TABLE IF NOT EXISTS decisions (
@@ -127,18 +142,24 @@ const SCHEMA_DDL = `
     action      TEXT NOT NULL,
     note        TEXT NOT NULL,
     overrides   TEXT NOT NULL,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL,
+    actor_id    TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_runs_version_created
     ON runs(rubric_version, created_at);
 
-  INSERT INTO meta(key, value) VALUES ('schema_version', '2')
+  INSERT INTO meta(key, value) VALUES ('schema_version', '3')
     ON CONFLICT (key) DO NOTHING;
 
   -- v1 -> v2 guarded migration: add runs.jurisdictions to older databases.
   ALTER TABLE runs ADD COLUMN IF NOT EXISTS jurisdictions TEXT;
-  UPDATE meta SET value = '2' WHERE key = 'schema_version' AND value = '1';
+
+  -- v2 -> v3 guarded migration: users and actor attribution.
+  ALTER TABLE runs ADD COLUMN IF NOT EXISTS actor_id TEXT;
+  ALTER TABLE decisions ADD COLUMN IF NOT EXISTS actor_id TEXT;
+  UPDATE meta SET value = '3'
+    WHERE key = 'schema_version' AND value IN ('1', '2');
 `;
 
 // ---------------------------------------------------------------------------
@@ -168,6 +189,73 @@ function makeTx(client: import("pg").PoolClient): Tx {
   }
 
   return {
+    async createUser(user) {
+      const r = userToRow(user);
+      try {
+        await queryRun(
+          "INSERT INTO users(id, email, display_name, role, status, session_gen, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          [
+            r.id,
+            r.email,
+            r.display_name,
+            r.role,
+            r.status,
+            r.session_gen,
+            r.created_at,
+            r.updated_at,
+          ],
+        );
+      } catch (err) {
+        mapUniqueOrThrow(err);
+      }
+    },
+
+    async getUserByEmail(email) {
+      const row = await queryOne("SELECT * FROM users WHERE email = $1", [
+        email.trim().toLowerCase(),
+      ]);
+      return row ? rowToUser(row) : null;
+    },
+
+    async getUserById(id) {
+      const row = await queryOne("SELECT * FROM users WHERE id = $1", [id]);
+      return row ? rowToUser(row) : null;
+    },
+
+    async listUsers() {
+      return (await queryAll("SELECT * FROM users ORDER BY seq")).map(rowToUser);
+    },
+
+    async updateUser(id, patch) {
+      const fields: string[] = [];
+      const values: unknown[] = [];
+      let p = 1;
+      if (patch.displayName !== undefined) {
+        fields.push(`display_name=$${p++}`);
+        values.push(patch.displayName);
+      }
+      if (patch.role !== undefined) {
+        fields.push(`role=$${p++}`);
+        values.push(patch.role);
+      }
+      if (patch.status !== undefined) {
+        fields.push(`status=$${p++}`);
+        values.push(patch.status);
+      }
+      if (patch.sessionGen !== undefined) {
+        fields.push(`session_gen=$${p++}`);
+        values.push(patch.sessionGen);
+      }
+      fields.push(`updated_at=$${p++}`);
+      values.push(new Date().toISOString());
+      values.push(id);
+      const row = await queryOne(
+        `UPDATE users SET ${fields.join(", ")} WHERE id=$${p} RETURNING *`,
+        values,
+      );
+      return row ? rowToUser(row) : null;
+    },
+
     async getDocument(id) {
       const row = await queryOne(
         "SELECT * FROM documents WHERE id = $1",
@@ -225,7 +313,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
     },
 
     async clearAll() {
-      await queryRun("TRUNCATE decisions, runs, versions, documents, rubrics CASCADE");
+      await queryRun("TRUNCATE decisions, runs, versions, documents, rubrics, users CASCADE");
     },
 
     async insertDocument(document) {
@@ -256,7 +344,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
       const r = runToRow(run);
       try {
         await queryRun(
-          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions, actor_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
           [
             r.id,
             r.document_id,
@@ -269,6 +357,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
             r.created_at,
             r.finished_at,
             r.jurisdictions,
+            r.actor_id,
           ],
         );
       } catch (err) {
@@ -323,7 +412,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
       const r = decisionToRow(decision);
       try {
         await queryRun(
-          "INSERT INTO decisions(id, run_id, document_id, officer, action, note, overrides, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          "INSERT INTO decisions(id, run_id, document_id, officer, action, note, overrides, created_at, actor_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
           [
             r.id,
             r.run_id,
@@ -333,6 +422,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
             r.note,
             r.overrides,
             r.created_at,
+            r.actor_id,
           ],
         );
       } catch (err) {
@@ -433,7 +523,10 @@ export function createPostgresDriver(): StoreDriver {
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
-          const [docs, vers, runs, decs, rubs] = await Promise.all([
+          const [users, docs, vers, runs, decs, rubs] = await Promise.all([
+            client
+              .query("SELECT * FROM users ORDER BY seq")
+              .then((r) => r.rows.map(rowToUser)),
             client
               .query("SELECT * FROM documents ORDER BY seq")
               .then((r) => r.rows.map(rowToDocument)),
@@ -452,6 +545,7 @@ export function createPostgresDriver(): StoreDriver {
           ]);
           await client.query("COMMIT");
           return {
+            users,
             documents: docs,
             versions: vers,
             runs: runs,

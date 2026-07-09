@@ -173,6 +173,11 @@ Concurrent writes are safe: SQLite uses `BEGIN IMMEDIATE` transactions
 serialized in-process; Postgres uses interactive transactions with unique
 constraints as the conflict arbiter.
 
+The current durable schema version is **3**. Version 3 adds user records and
+nullable actor attribution (`actor_id`) on review runs and decisions. SQLite
+and Postgres apply this through the guarded `meta(schema_version)` migration
+path on startup.
+
 ## Auth
 
 Demo persona sign-in with signed httpOnly cookies (`src/lib/session.ts`,
@@ -183,11 +188,20 @@ production. To deploy the persona demo intentionally, set `DEMO_AUTH=1`,
 Production user sign-in uses Auth.js with Google OAuth. OAuth is configured
 only when both `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are present; otherwise
 the login page keeps the demo persona path when demo auth is enabled, or shows
-an honest "OAuth not configured" state. Until WS-2 adds invitations and user
-records, OAuth sign-in is fail-closed: set `ADMIN_EMAIL` to seed the first
-admin, and every other Google email is rejected with a clear sign-in message.
-OAuth and demo sessions normalize through `getSession()` to the same
-`Session` shape used by `requireRole()`.
+an honest "OAuth not configured" state.
+
+OAuth is invite-only. `ADMIN_EMAIL` is bootstrap only: on first Google sign-in,
+that email creates the first active admin user record. After that, admins use
+`/users` to invite emails with a specific role. Invited users activate on their
+first OAuth sign-in and keep exactly the assigned role. Unknown and deactivated
+emails are rejected with a clear sign-in message. Role changes and
+deactivation bump the user's session generation, so existing OAuth sessions
+fall through to `/login` on the next session check. Demo persona sessions skip
+that generation check and keep working with zero configuration.
+
+OAuth and demo sessions normalize through `getSession()` to the same `Session`
+shape used by `requireRole()`. New OAuth submissions and decisions record the
+real user id as `actorId` while preserving display names for rendering.
 
 Google OAuth setup:
 
@@ -201,7 +215,8 @@ Google OAuth setup:
 5. Copy the client ID and secret into the deployment environment as
    `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
 6. Set `AUTH_SECRET` to a strong random value and set `ADMIN_EMAIL` to the
-   first admin's Google email address.
+   first admin's Google email address. Sign in once as that email, then invite
+   the rest of the deployment's users from `/users`.
 
 ### Public demo
 

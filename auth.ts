@@ -2,8 +2,8 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import {
   assertAuthJsSecret,
-  evaluateOAuthSignIn,
   isGoogleOAuthConfigured,
+  resolveOAuthSignIn,
   sessionFromOAuthClaims,
   type OAuthClaims,
 } from "@/lib/oauth";
@@ -36,7 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      const result = evaluateOAuthSignIn({
+      const result = await resolveOAuthSignIn({
         email: user.email ?? profile?.email,
         name: user.name ?? profile?.name,
         provider: account?.provider,
@@ -48,7 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async jwt({ token, user, account, profile }) {
       if (!account) return token;
-      const result = evaluateOAuthSignIn({
+      const result = await resolveOAuthSignIn({
         email: user.email ?? profile?.email,
         name: user.name ?? profile?.name,
         provider: account.provider,

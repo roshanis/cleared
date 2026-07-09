@@ -18,6 +18,7 @@ const linksByRole: Record<Role, { href: string; label: string }[]> = {
     { href: "/documents", label: "Documents" },
     { href: "/submit", label: "Submit" },
     { href: "/rubric", label: "Rubric" },
+    { href: "/users", label: "Users" },
     { href: "/dashboard", label: "Dashboard" },
   ],
   auditor: [

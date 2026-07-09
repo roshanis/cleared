@@ -1,10 +1,18 @@
 import type { Role, Session } from "./session";
+import {
+  createUser,
+  getUserByEmail,
+  listUsers,
+  newId,
+  updateUser,
+} from "./store";
 
 export type OAuthProvider = "google";
 
 export interface OAuthClaims {
   provider: OAuthProvider;
   providerAccountId: string;
+  userId: string;
   email: string;
   name?: string | null;
   role: Role;
@@ -23,7 +31,11 @@ type OAuthSignInResult =
   | { ok: true; claims: OAuthClaims }
   | {
       ok: false;
-      reason: "missing_identity" | "missing_admin_email" | "unauthorized";
+      reason:
+        | "missing_identity"
+        | "missing_admin_email"
+        | "unauthorized"
+        | "deactivated";
       message: string;
     };
 
@@ -56,21 +68,6 @@ export function assertAuthJsSecret({
   }
 }
 
-export function stableOAuthUserId(
-  provider: OAuthProvider,
-  providerAccountId: string,
-): string {
-  return `oauth:${provider}:${providerAccountId}`;
-}
-
-export function isAdminEmailAllowed(
-  email: string | null | undefined,
-  adminEmail = process.env.ADMIN_EMAIL,
-): boolean {
-  if (!email || !adminEmail) return false;
-  return normalizeEmail(email) === normalizeEmail(adminEmail);
-}
-
 export function normalizeDemoSession(input: {
   personaId: string;
   name: string;
@@ -79,7 +76,7 @@ export function normalizeDemoSession(input: {
 }): Session {
   return {
     personaId: input.personaId,
-    userId: `demo:${input.personaId}`,
+    userId: demoUserIdForPersona(input.personaId) ?? `demo:${input.personaId}`,
     name: input.name,
     email: null,
     role: input.role,
@@ -89,10 +86,9 @@ export function normalizeDemoSession(input: {
 }
 
 export function sessionFromOAuthClaims(claims: OAuthClaims): Session {
-  const userId = stableOAuthUserId(claims.provider, claims.providerAccountId);
   return {
-    personaId: userId,
-    userId,
+    personaId: claims.userId,
+    userId: claims.userId,
     name: claims.name?.trim() || normalizeEmail(claims.email),
     email: normalizeEmail(claims.email),
     role: claims.role,
@@ -101,9 +97,9 @@ export function sessionFromOAuthClaims(claims: OAuthClaims): Session {
   };
 }
 
-export function evaluateOAuthSignIn(
+export async function resolveOAuthSignIn(
   input: OAuthSignInInput,
-): OAuthSignInResult {
+): Promise<OAuthSignInResult> {
   const email = input.email ? normalizeEmail(input.email) : "";
   const adminEmail = input.adminEmail ? normalizeEmail(input.adminEmail) : "";
   if (input.provider !== "google" || !input.providerAccountId || !email) {
@@ -114,6 +110,39 @@ export function evaluateOAuthSignIn(
         "Google did not return a stable account identity. Try again or contact the operator.",
     };
   }
+  const displayName = input.name?.trim() || email;
+  const existing = await getUserByEmail(email);
+
+  if (existing) {
+    if (existing.status === "deactivated") {
+      return {
+        ok: false,
+        reason: "deactivated",
+        message: "This Cleared account has been deactivated.",
+      };
+    }
+    const activated =
+      existing.status === "invited"
+        ? await updateUser(existing.id, {
+            status: "active",
+            displayName,
+          })
+        : existing;
+    const user = activated ?? existing;
+    return {
+      ok: true,
+      claims: {
+        provider: "google",
+        providerAccountId: input.providerAccountId,
+        userId: user.id,
+        email: user.email,
+        name: user.displayName,
+        role: user.role,
+        gen: user.sessionGen,
+      },
+    };
+  }
+
   if (!adminEmail) {
     return {
       ok: false,
@@ -122,25 +151,68 @@ export function evaluateOAuthSignIn(
         "OAuth sign-in is not ready: set ADMIN_EMAIL to seed the first admin.",
     };
   }
-  if (!isAdminEmailAllowed(email, adminEmail)) {
+  const users = await listUsers();
+  const hasAdmin = users.some(
+    (user) =>
+      user.role === "admin" &&
+      user.status !== "deactivated" &&
+      !isDemoUserId(user.id),
+  );
+  if (hasAdmin || email !== adminEmail) {
     return {
       ok: false,
       reason: "unauthorized",
       message:
-        "This Google account is not invited to Cleared. Ask an admin to add it in the next user-management round.",
+        "This Google account is not invited to Cleared. Ask an admin to invite it.",
     };
   }
+  const now = new Date().toISOString();
+  const user = await createUser({
+    id: newId("usr"),
+    email,
+    displayName,
+    role: "admin",
+    status: "active",
+    sessionGen: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
   return {
     ok: true,
     claims: {
       provider: "google",
       providerAccountId: input.providerAccountId,
+      userId: user.id,
       email,
-      name: input.name,
+      name: user.displayName,
       role: "admin",
       gen: 0,
     },
   };
+}
+
+function isDemoUserId(userId: string): boolean {
+  return (
+    userId === "00000000-0000-4000-8000-000000000001" ||
+    userId === "00000000-0000-4000-8000-000000000002" ||
+    userId === "00000000-0000-4000-8000-000000000003" ||
+    userId === "00000000-0000-4000-8000-000000000004"
+  );
+}
+
+function demoUserIdForPersona(personaId: string): string | null {
+  switch (personaId) {
+    case "maya":
+      return "00000000-0000-4000-8000-000000000001";
+    case "devon":
+      return "00000000-0000-4000-8000-000000000002";
+    case "priya":
+      return "00000000-0000-4000-8000-000000000003";
+    case "sam":
+      return "00000000-0000-4000-8000-000000000004";
+    default:
+      return null;
+  }
 }
 
 function roleFromUnknown(value: unknown): Role | null {
@@ -224,7 +296,9 @@ export function oauthLoginErrorMessage(reason: string | undefined): string | nul
       return "OAuth sign-in is not ready: set ADMIN_EMAIL to seed the first admin.";
     case "unauthorized":
     case "AccessDenied":
-      return "This Google account is not invited to Cleared. Ask an admin to add it in the next user-management round.";
+      return "This Google account is not invited to Cleared. Ask an admin to invite it.";
+    case "deactivated":
+      return "This Cleared account has been deactivated.";
     case "Configuration":
       return "OAuth is not configured for this deployment. Check the Auth.js and Google OAuth environment variables.";
     default:
