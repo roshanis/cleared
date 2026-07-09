@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { canManageUsers } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { inviteUser } from "@/lib/store";
 
@@ -17,9 +18,9 @@ export async function POST(req: Request) {
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
-  if (session.role !== "admin") {
+  if (!canManageUsers(session)) {
     return NextResponse.json(
-      { error: "Only admins can invite users." },
+      { error: "Inviting users requires an admin signed in with Google." },
       { status: 403 },
     );
   }

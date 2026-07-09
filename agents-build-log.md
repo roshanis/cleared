@@ -1104,3 +1104,23 @@ Model-mode latency.
 ### Files changed: merge only — no new edits beyond this log entry
 ### Diff summary: GOAL-LIVE shipped to main — P0-1 model path (11/11 golden on gpt-5.4), P0-3 Auth.js OAuth, P1-6 rate/cost controls, WS-3 production guards, P1-4/P1-5 adversarial goldens + quote location, WS-2 users as records, WS-4 ops docs + /api/health, WS-5 utilization metrics. Verified on main: npm test 300 passed / 3 skipped; tsc clean; build green.
 ### Recommendations / Next steps: Operator checklist in GOAL-LIVE.md (OAuth credentials, Neon PITR + restore rehearsal, ADMIN_EMAIL, onboarding walk, /security-review).
+
+## [AGENT: Claude] 2026-07-09T05:45Z
+### Action: Security review of GOAL-LIVE (a200707..75aaac1) + fix for the one High finding
+### Files changed: src/lib/roles.ts (+test), src/app/api/users/route.ts, src/app/api/users/invite/route.ts (+test), src/app/api/users/[id]/route.ts, src/app/users/page.tsx
+### Diff summary:
+- Sonnet security sub-agent reviewed the 93-file GOAL-LIVE diff (SQLi/authz/JWT/data-exposure).
+  One High finding, verified against source: the three /api/users* routes and the /users page
+  gated on session.role==="admin" but not authMethod. The demo "Priya" persona is
+  {role:"admin", authMethod:"demo"}, so a deployment running demo auth alongside real OAuth users
+  would let an unauthenticated visitor pick Priya and administer real user records (invite self as
+  OAuth admin, deactivate admins, enumerate emails).
+- Fix: canManageUsers(session) in roles.ts = role==="admin" && authMethod==="oauth"; applied to all
+  three routes (403) and the page (redirect). TDD: canManageUsers matrix in roles.test.ts + a
+  demo-admin-rejected regression in the invite route test. 304 tests, tsc clean, build green.
+- Everything else the review inspected was cleared: SQL is parameterized (column names hardcoded,
+  values bound); Auth.js overrides stale JWT role/gen with fresh DB values and enforces sessionGen
+  revocation; OAuth error param is a hardcoded union rendered as JSX; /api/health leaks nothing.
+### Recommendations / Next steps: Operator still owns the GOAL-LIVE checklist (OAuth creds, Neon PITR
+  + restore rehearsal, ADMIN_EMAIL, onboarding walk). Client deployments carry no demo flags, which
+  independently avoids the fixed condition; the fix is defense-in-depth for any mixed deployment.

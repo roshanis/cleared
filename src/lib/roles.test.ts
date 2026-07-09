@@ -3,6 +3,7 @@ import {
   canDecide,
   canEditRubric,
   canExport,
+  canManageUsers,
   canSubmit,
   canViewDashboard,
   canViewQueue,
@@ -99,6 +100,20 @@ describe("canViewDashboard — officer/admin/auditor", () => {
   });
   it("author cannot view dashboard", () => {
     expect(canViewDashboard("author")).toBe(false);
+  });
+});
+
+describe("canManageUsers — OAuth admin only", () => {
+  it("an OAuth admin can manage users", () => {
+    expect(canManageUsers({ role: "admin", authMethod: "oauth" })).toBe(true);
+  });
+  it("a demo admin persona cannot manage users", () => {
+    expect(canManageUsers({ role: "admin", authMethod: "demo" })).toBe(false);
+  });
+  it("a non-admin OAuth user cannot manage users", () => {
+    for (const role of ["author", "officer", "auditor"] as const) {
+      expect(canManageUsers({ role, authMethod: "oauth" })).toBe(false);
+    }
   });
 });
 

@@ -1,4 +1,4 @@
-import type { Role } from "./session";
+import type { Role, Session } from "./session";
 
 /** Only compliance officers and admins may record decisions. */
 export function canDecide(role: Role): boolean {
@@ -28,4 +28,16 @@ export function canViewQueue(role: Role): boolean {
 /** Officers, admins, and auditors may view the dashboard. */
 export function canViewDashboard(role: Role): boolean {
   return role === "officer" || role === "admin" || role === "auditor";
+}
+
+/**
+ * Managing real user records is an OAuth-admin capability only. A demo
+ * persona carries role "admin" but authMethod "demo"; it must never reach the
+ * user-management routes, or a deployment that runs demo auth alongside real
+ * OAuth users would let an unauthenticated visitor administer them.
+ */
+export function canManageUsers(
+  session: Pick<Session, "role" | "authMethod">,
+): boolean {
+  return session.role === "admin" && session.authMethod === "oauth";
 }

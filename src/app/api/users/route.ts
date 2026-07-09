@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { canManageUsers } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { listUsers } from "@/lib/store";
 
@@ -11,9 +12,9 @@ export async function GET(req: Request) {
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
-  if (session.role !== "admin") {
+  if (!canManageUsers(session)) {
     return NextResponse.json(
-      { error: "Only admins can manage users." },
+      { error: "User management requires an admin signed in with Google." },
       { status: 403 },
     );
   }

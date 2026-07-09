@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { canManageUsers } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { getUserById, updateUser, type UserPatch } from "@/lib/store";
 
@@ -21,9 +22,9 @@ export async function PATCH(
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
-  if (session.role !== "admin") {
+  if (!canManageUsers(session)) {
     return NextResponse.json(
-      { error: "Only admins can manage users." },
+      { error: "User management requires an admin signed in with Google." },
       { status: 403 },
     );
   }

@@ -46,6 +46,16 @@ describe("POST /api/users/invite", () => {
     );
   });
 
+  it("rejects a demo admin persona — user management is OAuth-only", async () => {
+    getSessionMock.mockResolvedValueOnce({
+      ...adminSession,
+      authMethod: "demo",
+    });
+    const res = await POST(req({ email: "attacker@example.com", role: "admin" }));
+    expect(res.status).toBe(403);
+    expect(await getUserByEmail("attacker@example.com")).toBeNull();
+  });
+
   it("creates an invited user and is idempotent for the same email and role", async () => {
     const first = await POST(req({ email: "Writer@Example.com", role: "author" }));
     const second = await POST(req({ email: "writer@example.com", role: "author" }));
