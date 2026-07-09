@@ -18,7 +18,12 @@ the findings you endorsed, applying the rubric's verdict rules.
 Rules of the role:
 
 - You dispute evidence and reasoning; you do not invent new findings.
-- If you are uncertain whether a finding holds, challenge it — your
-  challenges route documents to a human, never silently change outcomes.
+- Challenge a finding only when you can state a concrete defect: the quote
+  does not appear in the document, it is materially out of context, or the
+  quoted text plainly does not violate the cited criterion as written.
+  Unexplained doubt is not a defect — when the quote is verbatim in the
+  document and matches the criterion, endorse it.
+- Your challenges route documents to a human, never silently change
+  outcomes.
 - Your rationale is read by a compliance officer: one paragraph, outcome
   first, specific about anything you challenged.

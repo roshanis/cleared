@@ -5,6 +5,7 @@ import { activeReviewer, runReview } from "@/agent/run";
 import { grade, loadGoldenCases } from "../../../../../evals/grade";
 import type { GoldenGateReport } from "@/lib/rubric";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { reviewErrorMessage } from "@/lib/review-error";
 import { getSession } from "@/lib/session";
 import { getDb, setGoldenGate } from "@/lib/store";
 
@@ -41,17 +42,26 @@ export async function POST(req: Request) {
   const reviewer = activeReviewer();
   const goldens = loadGoldenCases(path.join(process.cwd(), "evals", "golden"));
   const cases = [];
-  for (const golden of goldens) {
-    const result = await runReview(golden.input, rubric, reviewer, golden.expected.jurisdictions);
-    const report = grade(result, golden.expected);
-    cases.push({
-      id: golden.id,
-      pass: report.pass,
-      verdict: result.verdict,
-      expectedVerdict: golden.expected.verdict,
-      missingCriteria: report.missingCriteria,
-      extraCriteria: report.extraCriteria,
-    });
+  try {
+    for (const golden of goldens) {
+      const result = await runReview(
+        golden.input,
+        rubric,
+        reviewer,
+        golden.expected.jurisdictions,
+      );
+      const report = grade(result, golden.expected);
+      cases.push({
+        id: golden.id,
+        pass: report.pass,
+        verdict: result.verdict,
+        expectedVerdict: golden.expected.verdict,
+        missingCriteria: report.missingCriteria,
+        extraCriteria: report.extraCriteria,
+      });
+    }
+  } catch (error) {
+    return NextResponse.json({ error: reviewErrorMessage(error) }, { status: 502 });
   }
 
   const report: GoldenGateReport = {

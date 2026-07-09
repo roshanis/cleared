@@ -712,3 +712,63 @@ version 1 restoration.
 ### Recommendations / Next steps:
 No commit made. Existing untracked ROADMAP.md and GOAL-LIVE.md were left
 untouched. Postgres-gated tests still skip locally without DATABASE_URL.
+
+## [AGENT: Codex] 2026-07-09T03:31Z
+### Action: P0-1 provider-failure hardening for model-mode reviews
+### Files changed:
+- src/lib/review-error.ts
+- src/lib/review-error.test.ts
+- src/app/api/runs/[id]/execute/route.ts
+- src/app/api/runs/[id]/execute/route.test.ts
+- src/app/api/rubric/gate/route.ts
+- src/app/api/rubric/gate/route.test.ts
+- README.md
+- agents-build-log.md
+### Diff summary:
+Added a shared model-provider error classifier for authentication failures,
+429/rate limits, timeouts, refusals, malformed structured output, nested AI
+SDK retry errors, and generic provider failures. The execute route now
+persists sanitized messages as run status `error`; errored runs remain
+retryable through the existing claim path. The rubric golden gate returns the
+same sanitized provider messages instead of a raw model exception. README now
+documents retryable model-mode error states, the Phase-1 Vercel plan-tier
+decision for `maxDuration = 300`, and the blocked live-latency attempt.
+### Verification:
+- Red-first targeted tests failed on raw provider errors / missing classifier,
+  then passed after implementation.
+- `npm test -- src/lib/review-error.test.ts 'src/app/api/runs/[id]/execute/route.test.ts' src/app/api/rubric/gate/route.test.ts`: 13 passed.
+- `npm test`: 205 passed / 3 skipped.
+- `npm run typecheck`: clean.
+- `npm run build`: passed; existing metadataBase warning remains.
+- `node --import tsx evals/run.ts`: all 5 heuristic golden cases passed.
+- `npm run eval` is blocked in this sandbox by `tsx` pipe creation
+  (`listen EPERM .../tsx-501/*.pipe`); the Node loader path above verifies the
+  same eval entrypoint without the pipe.
+- Model-mode eval reached `reviewer: model` with `.env` loaded but did not
+  reach OpenAI: `Cannot connect to API: getaddrinfo ENOTFOUND api.openai.com`.
+  No latency numbers were produced in this sandbox.
+### Recommendations / Next steps:
+Run `node --env-file=.env --import tsx evals/run.ts` from a network-enabled
+shell to complete the live 5-case model-mode golden set and record per-case
+latency in README. If preserving `npm run eval` inside this sandbox matters,
+change the package script from the `tsx` CLI to the Node `--import tsx` loader
+in a separate approved config edit.
+
+## [AGENT: Claude] 2026-07-08T18:30Z
+### Action: Round A completion — live model-path calibration on top of Codex's P0-1 error-state work
+### Files changed: src/prompts/reviewer-policy.md, src/prompts/reviewer-risk.md, src/prompts/judge.md, src/agent/model-reviewer.ts, src/lib/rubric.ts (C2/C6 descriptions), README.md (measured latency + validated model)
+### Diff summary:
+- Live golden-set runs (Codex sandbox has no OpenAI DNS; run locally) exposed three real
+  defects Codex could not see: (1) reviewers returned compliance confirmations as
+  findings — schema gained a compliantCriteria outlet and a violations-only contract;
+  (2) reviewer-policy.md hardcoded "review only C1–C3" so the model obediently ignored
+  C6 in its slice — prompts now scope to "every criterion in the rubric below";
+  (3) judge.md's "if uncertain, challenge" made the judge demote correct findings —
+  now requires a concrete defect to challenge.
+- Rubric boundary fixes: C6 demands the explicit capital-at-risk formulation (generic
+  loss warnings do not satisfy it); C2 explicitly excludes past-performance/comparative
+  claims (those are C3).
+- Result: gpt-5.4 passes all 5 golden cases twice consecutively (~4–5s/review);
+  gpt-5.4-mini documented as demo-grade (run-to-run variance). README records numbers.
+- Deterministic suite unaffected: 205 passed / 3 skipped, tsc clean, build green.
+### Recommendations / Next steps: Round B (P0-3 auth). Client deployments should set OPENAI_MODEL=gpt-5.4.

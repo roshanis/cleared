@@ -72,7 +72,7 @@ export const defaultRubricDraft: RubricDraft = {
       severity: "critical",
       area: "content",
       description:
-        'The document makes no guarantee of investment performance or returns. Triggers include "guaranteed", "risk-free", "can\'t lose", or promising a specific future return rate.',
+        'The document makes no guarantee of investment performance or returns. Triggers include "guaranteed", "risk-free", "can\'t lose", or promising a specific future return rate. Past-performance statements and competitor comparisons without guarantee language are C3 matters, not C2.',
     },
     {
       id: "C3",
@@ -101,7 +101,7 @@ export const defaultRubricDraft: RubricDraft = {
       area: "content",
       jurisdictions: ["UK"],
       description:
-        'UK promotions for investment products must carry a capital-at-risk warning (e.g. "your capital is at risk"). A C6 finding means investment content lacks that warning.',
+        'UK promotions for investment products must carry an explicit capital-at-risk warning using the words "capital" and "at risk" (e.g. "Your capital is at risk"). Generic loss warnings such as "investments may lose value" do NOT satisfy C6. A C6 finding means investment content lacks that explicit warning.',
     },
     {
       id: "C7",

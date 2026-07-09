@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runReview } from "@/agent/run";
 import { canAccessRun } from "@/lib/access";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { reviewErrorMessage } from "@/lib/review-error";
 import { getSession } from "@/lib/session";
 import { claimRunForReview, completeRun, failRun, getDb } from "@/lib/store";
 
@@ -66,7 +67,7 @@ export async function POST(
       documentId: claimed.run.documentId,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = reviewErrorMessage(error);
     await failRun(id, message);
     return NextResponse.json(
       { status: "error", error: message },

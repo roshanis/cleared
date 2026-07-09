@@ -41,6 +41,36 @@ findings are merged, deduped, and scored **in code**
 auditable regardless of model behavior. Low-confidence fail-level findings
 route to a human instead of failing outright.
 
+Model-mode failures are explicit and retryable. If the provider rejects the
+key, rate-limits the request, times out, refuses, or returns malformed
+structured output, the run is persisted as `error` with a human-readable
+message. The submit screen shows the message without clearing the draft, and
+the document history renders the failed run with "resubmit to retry." Retrying
+reclaims the errored run and clears the previous error before re-executing.
+
+### Model-mode latency and validated model (measured 2026-07-08)
+
+The five-case golden set was run live against the OpenAI API
+(`npx tsx --env-file=.env evals/run.ts`):
+
+- **`OPENAI_MODEL=gpt-5.4` — all 5 golden cases pass, verified twice
+  consecutively with identical results.** Full set: 20–26s wall clock,
+  ≈ **4–5s per review** (two reviewers in parallel, then the judge —
+  three model calls per review). This is the validated configuration for
+  client deployments.
+- **`gpt-5.4-mini` (the zero-config default) is demo-grade only:** across
+  four runs it showed run-to-run variance — phantom findings (C2/C4/C5)
+  on compliant documents and intermittent misses of the UK C6 absence
+  check. Fine for the budget-capped public demo; do not put it in front
+  of a design partner.
+
+Calibration that got here (see `agents-build-log.md`): reviewer prompts
+rewritten around a violations-only contract with an explicit
+`compliantCriteria` outlet (the mini model was returning "this complies"
+notes as findings), a concrete-defect bar for judge challenges, and
+C2/C6 rubric descriptions sharpened to draw the guarantee-vs-comparison
+and explicit-capital-at-risk boundaries.
+
 ## How the agents work (the plain-language version)
 
 Think of a newspaper editor's desk. When an author submits a document, it
@@ -182,9 +212,12 @@ access code for an open demo link), then deploy. The seed runs
 automatically on first access so the deployed app looks alive immediately.
 
 The execute and rubric-gate routes declare `maxDuration = 300` for model-mode
-reviews. That works on Vercel Pro and on Hobby projects with Fluid Compute
-(the default for new projects); if your deploy rejects it, lower both to 60 —
-demo-reviewer runs finish instantly either way.
+reviews. Cleared intentionally does not add job-queue infrastructure in Phase
+1. The deployment decision is: run model reviews only on Vercel Pro or on a
+Hobby project with Fluid Compute enabled. If a deployment rejects
+`maxDuration = 300`, keep live model reviews disabled or upgrade/enable Fluid
+Compute; the deterministic demo reviewer finishes inside the shorter Hobby
+budget.
 
 ## Layout
 
