@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { activeReviewer, type ReviewerKind } from "@/agent/run";
-import { publicDemoEnabled } from "@/lib/demo";
-import { dailyModelCap, modelBudgetStatus } from "@/lib/model-budget";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { chooseReviewer } from "@/lib/reviewer-choice";
 import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
@@ -85,33 +83,22 @@ export async function POST(req: Request) {
     content.match(/^Subject:\s*(.+)$/m)?.[1]?.trim() ||
     "Untitled document";
 
-  let reviewer: ReviewerKind = activeReviewer();
-  let reviewerNote: string | null = null;
-  if (reviewer === "model") {
-    const db = await getDb();
-    const budget = modelBudgetStatus({
-      runs: db.runs,
-      nowIso: new Date().toISOString(),
-      cap: dailyModelCap(),
-    });
-    if (!budget.allowed && publicDemoEnabled()) {
-      reviewer = "heuristic";
-      reviewerNote =
-        "Today's live-review budget is used up, so this public demo submission ran on the deterministic reviewer.";
-    } else if (!budget.allowed) {
-      return NextResponse.json(
-        {
-          error:
-            "The daily live-review budget is used up. Try again after the UTC daily reset or switch to the demo reviewer.",
-          retryAfterSeconds: budget.retryAfterSeconds,
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(budget.retryAfterSeconds) },
-        },
-      );
-    }
+  const choice = await chooseReviewer();
+  if (!choice.ok) {
+    return NextResponse.json(
+      {
+        error:
+          "The daily live-review budget is used up. Try again after the UTC daily reset or switch to the demo reviewer.",
+        retryAfterSeconds: choice.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(choice.retryAfterSeconds) },
+      },
+    );
   }
+  const reviewer = choice.reviewer;
+  const reviewerNote = choice.note;
 
   const { document, version, run } = await createSubmission({
     title: derivedTitle,

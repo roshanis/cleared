@@ -1124,3 +1124,42 @@ Model-mode latency.
 ### Recommendations / Next steps: Operator still owns the GOAL-LIVE checklist (OAuth creds, Neon PITR
   + restore rehearsal, ADMIN_EMAIL, onboarding walk). Client deployments carry no demo flags, which
   independently avoids the fixed condition; the fix is defense-in-depth for any mixed deployment.
+
+## [AGENT: Codex] [2026-07-13T14:55Z]
+### Action: Added re-run support for existing review runs
+### Files changed:
+- src/lib/roles.ts
+- src/lib/roles.test.ts
+- src/lib/store.ts
+- src/lib/store.rerun.test.ts
+- src/lib/execute-run.ts
+- src/app/api/runs/[id]/execute/route.ts
+- src/lib/reviewer-choice.ts
+- src/app/api/submissions/route.ts
+- src/app/api/runs/[id]/rerun/route.ts
+- src/app/api/runs/[id]/rerun/route.test.ts
+- agents-build-log.md
+### Diff summary:
+Added a `canRerun` role capability, store-level `rerunVersion` that creates a
+new queued run for an existing document version using the current published
+rubric, shared execution and reviewer-choice helpers, and a guarded rerun API
+route that preserves author ownership, auditor read-only behavior, rate limits,
+model-budget behavior, and audit history.
+### Recommendations / Next steps:
+None. Verification passed with `npm test`, `npx tsc --noEmit`, and `npm run build`.
+
+## [AGENT: Codex] [2026-07-13T15:06Z]
+### Action: Added review re-run UI and shared live progress theater
+### Files changed:
+- src/components/review-progress.tsx
+- src/components/rerun-panel.tsx
+- src/components/submit-form.tsx
+- src/app/documents/[id]/page.tsx
+- agents-build-log.md
+### Diff summary:
+Extracted the submit review-progress card into a shared component, added a
+client-side rerun panel with retry, polling, reduced-motion-aware theater
+gating, and document-detail wiring, and narrowed the document placeholder to
+only the no-run state. No re-run backend files were changed in this round.
+### Recommendations / Next steps:
+None. Verification passed with `npm test`, `npx tsc --noEmit`, and `npm run build`.

@@ -387,6 +387,37 @@ export async function createSubmission(input: SubmissionInput) {
   }
 }
 
+export async function rerunVersion(input: {
+  versionId: string;
+  reviewer: ReviewerKind;
+  actorId?: string | null;
+  jurisdictions?: string[];
+}): Promise<{ status: "created"; run: ReviewRun } | { status: "missing" }> {
+  return transact(async (tx) => {
+    const version = await tx.getVersion(input.versionId);
+    if (!version) return { status: "missing" };
+    const rubric = await tx.latestPublishedRubric();
+    if (!rubric) throw new Error("no published rubric — store was not seeded");
+    const now = new Date().toISOString();
+    const run: ReviewRun = {
+      id: newId("run"),
+      documentId: version.documentId,
+      versionId: version.id,
+      status: "queued",
+      reviewer: input.reviewer,
+      rubricVersion: rubric.version,
+      result: null,
+      error: null,
+      createdAt: now,
+      finishedAt: null,
+      jurisdictions: input.jurisdictions,
+      actorId: input.actorId ?? null,
+    };
+    await tx.insertRun(run);
+    return { status: "created", run };
+  });
+}
+
 export type ClaimRunResult =
   | {
       status: "claimed";

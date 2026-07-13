@@ -141,3 +141,19 @@ describe("personas", () => {
     expect(sam?.role).toBe("auditor");
   });
 });
+
+describe("canRerun", () => {
+  it("allows authors, officers, and admins to re-run reviews", async () => {
+    const { canRerun } = await import("./roles");
+
+    expect(canRerun("author")).toBe(true);
+    expect(canRerun("officer")).toBe(true);
+    expect(canRerun("admin")).toBe(true);
+  });
+
+  it("does not allow auditors to re-run reviews", async () => {
+    const { canRerun } = await import("./roles");
+
+    expect(canRerun("auditor")).toBe(false);
+  });
+});

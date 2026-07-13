@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DecisionPanel } from "@/components/decision-panel";
 import { FixDraftPanel } from "@/components/fix-draft-panel";
+import { RerunPanel } from "@/components/rerun-panel";
 import { ResultView } from "@/components/result-view";
 import {
   Card,
@@ -12,6 +13,7 @@ import {
   buttonClass,
   relativeTime,
 } from "@/components/ui";
+import { canRerun as canRerunRole } from "@/lib/roles";
 import { requireSession } from "@/lib/session";
 import { decisionForRun, getDb, latestRunForVersion } from "@/lib/store";
 
@@ -43,6 +45,7 @@ export default async function DocumentPage({
   const previousWithResult = timeline
     .slice(1)
     .find((entry) => entry.run?.result);
+  const canRerun = canRerunRole(session.role);
 
   const diff =
     latest?.run?.result && previousWithResult?.run?.result
@@ -116,6 +119,15 @@ export default async function DocumentPage({
         </Card>
       )}
 
+      {latest?.run && (
+        <RerunPanel
+          key={latest.run.id}
+          runId={latest.run.id}
+          status={latest.run.status}
+          canRerun={canRerun}
+        />
+      )}
+
       {latest?.run?.result ? (
         <ResultView
           content={latest.version.content}
@@ -125,15 +137,11 @@ export default async function DocumentPage({
               ?.criteria
           }
         />
-      ) : (
+      ) : !latest?.run ? (
         <Card className="p-6 text-sm text-muted">
-          {latest?.run
-            ? latest.run.status === "error"
-              ? `The review failed: ${latest.run.error}. Resubmit to retry.`
-              : "This version's review hasn't completed — resubmit from the submit page to run it."
-            : "No review has run for this document yet."}
+          No review has run for this document yet.
         </Card>
-      )}
+      ) : null}
 
       {latest?.decision && (
         <Card className="border-accent/20 bg-rail p-4">
