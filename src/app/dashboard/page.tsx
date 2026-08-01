@@ -20,6 +20,9 @@ export default async function DashboardPage() {
   const utilization = computeUtilizationMetrics(db);
   const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));
   const maxCriteria = Math.max(1, ...metrics.topCriteria.map((c) => c.count));
+  const outcomes = metrics.verdictCounts;
+  const outcomesTotal =
+    outcomes.pass + outcomes.needsHumanReview + outcomes.fail;
 
   // Rubric health — only computed for admin, but data loaded regardless to avoid
   // branching the getDb() call. Render the card only for admins.
@@ -78,6 +81,59 @@ export default async function DashboardPage() {
         </div>
       </Card>
 
+      {outcomesTotal > 0 && (
+        <Card className="p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <SectionHeading>Review outcomes</SectionHeading>
+            <span className="text-xs tabular-nums text-muted">
+              {outcomesTotal} completed review{outcomesTotal === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div
+            className="mt-4 flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
+            role="img"
+            aria-label={`Review outcomes: ${outcomes.pass} passed, ${outcomes.needsHumanReview} need human review, ${outcomes.fail} failed`}
+          >
+            {outcomes.pass > 0 && (
+              <div
+                className="h-full rounded-l-full"
+                style={{
+                  width: `${(outcomes.pass / outcomesTotal) * 100}%`,
+                  background: "var(--color-pass)",
+                }}
+              />
+            )}
+            {outcomes.needsHumanReview > 0 && (
+              <div
+                className="h-full"
+                style={{
+                  width: `${(outcomes.needsHumanReview / outcomesTotal) * 100}%`,
+                  background: "var(--color-chart-warn)",
+                }}
+              />
+            )}
+            {outcomes.fail > 0 && (
+              <div
+                className="h-full rounded-r-full"
+                style={{
+                  width: `${(outcomes.fail / outcomesTotal) * 100}%`,
+                  background: "var(--color-fail)",
+                }}
+              />
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+            <LegendItem color="var(--color-pass)" label="Passed" count={outcomes.pass} />
+            <LegendItem
+              color="var(--color-chart-warn)"
+              label="Needs human review"
+              count={outcomes.needsHumanReview}
+            />
+            <LegendItem color="var(--color-fail)" label="Failed" count={outcomes.fail} />
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <SectionHeading>Reviews per day, last 14 days</SectionHeading>
@@ -85,25 +141,55 @@ export default async function DashboardPage() {
             viewBox={`0 0 ${metrics.volumeByDay.length * 24} 84`}
             className="mt-4 h-28 w-full"
             role="img"
-            aria-label="Bar chart of review volume per day for the last 14 days"
+            aria-label="Stacked bar chart of review volume per day for the last 14 days, split by outcome"
           >
             {metrics.volumeByDay.map((day, i) => {
-              const height = (day.count / maxVolume) * 64;
+              const x = i * 24 + 4;
+              const scale = 64 / maxVolume;
+              const segments = [
+                { count: day.pass, fill: "var(--color-pass)" },
+                { count: day.needsHumanReview, fill: "var(--color-chart-warn)" },
+                { count: day.fail, fill: "var(--color-fail)" },
+                { count: day.other, fill: "var(--color-line-strong)" },
+              ].filter((segment) => segment.count > 0);
+              let y = 68;
+              const rects = segments.map((segment, s) => {
+                const height = Math.max(segment.count * scale, 3);
+                y -= height;
+                const isTop = s === segments.length - 1;
+                const rect = (
+                  <rect
+                    key={s}
+                    x={x}
+                    y={y}
+                    width={16}
+                    height={isTop ? height : Math.max(height - 1.5, 1.5)}
+                    rx={isTop ? 2 : 0}
+                    fill={segment.fill}
+                  />
+                );
+                return rect;
+              });
               return (
                 <g key={day.day}>
-                  <title>{`${day.day}: ${day.count} review${day.count === 1 ? "" : "s"}`}</title>
-                  <rect
-                    x={i * 24 + 4}
-                    y={68 - height}
-                    width={16}
-                    height={Math.max(height, day.count > 0 ? 3 : 1)}
-                    rx={2}
-                    fill={
-                      day.count > 0 ? "var(--color-accent)" : "var(--color-line)"
-                    }
-                  />
+                  <title>
+                    {`${day.day}: ${day.count} review${day.count === 1 ? "" : "s"}` +
+                      (day.count > 0
+                        ? ` — ${day.pass} passed, ${day.needsHumanReview} needs review, ${day.fail} failed${day.other > 0 ? `, ${day.other} in progress or errored` : ""}`
+                        : "")}
+                  </title>
+                  {day.count === 0 && (
+                    <rect
+                      x={x}
+                      y={67}
+                      width={16}
+                      height={1}
+                      fill="var(--color-line)"
+                    />
+                  )}
+                  {rects}
                   <text
-                    x={i * 24 + 12}
+                    x={x + 8}
                     y={80}
                     textAnchor="middle"
                     fontSize="7"
@@ -115,6 +201,16 @@ export default async function DashboardPage() {
               );
             })}
           </svg>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
+            <LegendItem color="var(--color-pass)" label="Passed" small />
+            <LegendItem color="var(--color-chart-warn)" label="Needs review" small />
+            <LegendItem color="var(--color-fail)" label="Failed" small />
+            <LegendItem
+              color="var(--color-line-strong)"
+              label="In progress / errored"
+              small
+            />
+          </div>
         </Card>
 
         <Card className="p-5">
@@ -280,6 +376,34 @@ export default async function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function LegendItem({
+  color,
+  label,
+  count,
+  small = false,
+}: {
+  color: string;
+  label: string;
+  count?: number;
+  small?: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 ${small ? "text-xs" : "text-sm"} text-muted`}
+    >
+      <span
+        aria-hidden
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+        style={{ background: color }}
+      />
+      <span>{label}</span>
+      {count !== undefined && (
+        <span className="font-semibold tabular-nums text-ink">{count}</span>
+      )}
+    </span>
   );
 }
 

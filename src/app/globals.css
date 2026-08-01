@@ -23,6 +23,11 @@
   --color-fail-soft: #f8e7e7;
   --color-info: #245a9a;
   --color-info-soft: #e4edf7;
+  /* Chart-mark amber: same "needs review" semantics as --color-warn, but a
+     lighter step so stacked marks stay distinguishable from --color-fail
+     under red-green color-vision deficiency (validated pass/warn/fail set:
+     #147a3d / #d97706 / #b91c1c). Badges and text keep --color-warn. */
+  --color-chart-warn: #d97706;
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;

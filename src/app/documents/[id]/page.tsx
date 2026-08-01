@@ -105,6 +105,12 @@ export default async function DocumentPage({
         }
       />
 
+      <ReviewPipeline
+        version={latest?.version ?? null}
+        run={latest?.run ?? null}
+        decision={latest?.decision ?? null}
+      />
+
       {diff && (
         <Card className="space-y-3 border-accent/20 bg-rail p-4 text-sm">
           <div className="font-semibold">
@@ -239,6 +245,178 @@ export default async function DocumentPage({
         </Card>
       </section>
     </div>
+  );
+}
+
+type StepState = "complete" | "active" | "failed" | "upcoming";
+
+/**
+ * Where this version sits in the review pipeline — submitted, AI review,
+ * human decision — so anyone landing on the page reads the state at a glance.
+ */
+function ReviewPipeline({
+  version,
+  run,
+  decision,
+}: {
+  version: { number: number; createdAt: string } | null;
+  run: {
+    status: string;
+    result: { verdict: string } | null;
+    error: string | null;
+  } | null;
+  decision: { action: "approve" | "reject"; officer: string } | null;
+}) {
+  if (!version) return null;
+
+  const verdict = run?.status === "done" ? run.result?.verdict ?? null : null;
+
+  const reviewStep: {
+    state: StepState;
+    detail: string;
+    detailClass?: string;
+  } = !run
+    ? { state: "upcoming", detail: "Not started" }
+    : run.status === "error"
+      ? { state: "failed", detail: "Failed — resubmit to retry" }
+      : run.status === "done"
+        ? verdict === "pass"
+          ? { state: "complete", detail: "Passed" }
+          : verdict === "fail"
+            ? {
+                state: "complete",
+                detail: "Failed the rubric",
+                detailClass: "font-medium text-fail",
+              }
+            : {
+                state: "complete",
+                detail: "Flagged for human review",
+                detailClass: "font-medium text-warn",
+              }
+        : { state: "active", detail: "In progress" };
+
+  const decisionStep: { state: StepState; detail: string } = decision
+    ? {
+        state: "complete",
+        detail: `${decision.action === "approve" ? "Approved" : "Rejected"} by ${decision.officer}`,
+      }
+    : verdict === "pass"
+      ? { state: "complete", detail: "Cleared — no decision needed" }
+      : verdict
+        ? { state: "active", detail: "Waiting on an officer" }
+        : { state: "upcoming", detail: "After the review" };
+
+  const steps: {
+    title: string;
+    detail: string;
+    state: StepState;
+    detailClass?: string;
+  }[] = [
+    {
+      title: "Submitted",
+      detail: `v${version.number} · ${relativeTime(version.createdAt)}`,
+      state: "complete",
+    },
+    { title: "AI review", ...reviewStep },
+    { title: "Decision", ...decisionStep },
+  ];
+
+  return (
+    <ol className="grid gap-3 sm:grid-cols-3" aria-label="Review progress">
+      {steps.map((step, i) => (
+        <li
+          key={step.title}
+          aria-current={step.state === "active" ? "step" : undefined}
+          className={`relative flex items-start gap-3 rounded-lg border p-3.5 ${
+            step.state === "active"
+              ? "border-accent/40 bg-accent-soft/40"
+              : step.state === "failed"
+                ? "border-fail/30 bg-fail-soft/50"
+                : "border-line bg-surface"
+          }`}
+        >
+          <PipelineMarker state={step.state} index={i + 1} />
+          <div className="min-w-0">
+            <p
+              className={`text-sm font-semibold ${
+                step.state === "upcoming" ? "text-muted" : "text-ink"
+              }`}
+            >
+              {step.title}
+            </p>
+            <p
+              className={`mt-0.5 text-xs leading-5 ${
+                step.state === "failed"
+                  ? "font-medium text-fail"
+                  : step.detailClass ?? "text-muted"
+              }`}
+            >
+              {step.detail}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PipelineMarker({ state, index }: { state: StepState; index: number }) {
+  if (state === "complete") {
+    return (
+      <span
+        aria-hidden
+        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pass-soft text-pass"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m3.5 8.5 3 3 6-7" />
+        </svg>
+      </span>
+    );
+  }
+  if (state === "failed") {
+    return (
+      <span
+        aria-hidden
+        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fail text-white"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="h-3 w-3"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+        </svg>
+      </span>
+    );
+  }
+  if (state === "active") {
+    return (
+      <span
+        aria-hidden
+        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft"
+      >
+        <span className="h-2 w-2 animate-pulse-soft rounded-full bg-accent" />
+      </span>
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line-strong text-xs font-semibold text-muted"
+    >
+      {index}
+    </span>
   );
 }
 
