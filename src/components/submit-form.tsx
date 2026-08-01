@@ -29,7 +29,12 @@ export function SubmitForm({
   criteria,
   fixDraftRequested = false,
 }: {
-  resubmit: { documentId: string; title: string; content: string } | null;
+  resubmit: {
+    documentId: string;
+    title: string;
+    content: string;
+    jurisdictions?: string[];
+  } | null;
   reviewer: "model" | "heuristic";
   /** Published rubric criteria, used to explain finding IDs in the result. */
   criteria?: RubricCriterion[];
@@ -37,7 +42,9 @@ export function SubmitForm({
   fixDraftRequested?: boolean;
 }) {
   const [title, setTitle] = useState(resubmit?.title ?? "");
-  const [markets, setMarkets] = useState<string[]>(["US"]);
+  const [markets, setMarkets] = useState<string[]>(
+    resubmit?.jurisdictions?.length ? resubmit.jurisdictions : ["US"],
+  );
   const [content, setContent] = useState(resubmit?.content ?? "");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);

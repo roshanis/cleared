@@ -103,6 +103,7 @@ const SCHEMA_DDL = `
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL,
     author     TEXT NOT NULL,
+    author_id  TEXT,
     created_at TEXT NOT NULL
   );
 
@@ -130,7 +131,8 @@ const SCHEMA_DDL = `
     created_at     TEXT NOT NULL,
     finished_at    TEXT,
     jurisdictions  TEXT,
-    actor_id       TEXT
+    actor_id       TEXT,
+    claimed_at     TEXT
   );
 
   CREATE TABLE IF NOT EXISTS decisions (
@@ -149,7 +151,7 @@ const SCHEMA_DDL = `
   CREATE INDEX IF NOT EXISTS idx_runs_version_created
     ON runs(rubric_version, created_at);
 
-  INSERT INTO meta(key, value) VALUES ('schema_version', '3')
+  INSERT INTO meta(key, value) VALUES ('schema_version', '4')
     ON CONFLICT (key) DO NOTHING;
 
   -- v1 -> v2 guarded migration: add runs.jurisdictions to older databases.
@@ -158,8 +160,12 @@ const SCHEMA_DDL = `
   -- v2 -> v3 guarded migration: users and actor attribution.
   ALTER TABLE runs ADD COLUMN IF NOT EXISTS actor_id TEXT;
   ALTER TABLE decisions ADD COLUMN IF NOT EXISTS actor_id TEXT;
-  UPDATE meta SET value = '3'
-    WHERE key = 'schema_version' AND value IN ('1', '2');
+
+  -- v3 -> v4 guarded migration: document ownership + claim timestamps.
+  ALTER TABLE documents ADD COLUMN IF NOT EXISTS author_id TEXT;
+  ALTER TABLE runs ADD COLUMN IF NOT EXISTS claimed_at TEXT;
+  UPDATE meta SET value = '4'
+    WHERE key = 'schema_version' AND value IN ('1', '2', '3');
 `;
 
 // ---------------------------------------------------------------------------
@@ -312,6 +318,14 @@ function makeTx(client: import("pg").PoolClient): Tx {
       return row ? rowToDecision(row) : null;
     },
 
+    async countModelRunsOnUtcDay(dayKey) {
+      const row = await queryOne(
+        "SELECT COUNT(*)::int AS n FROM runs WHERE reviewer='model' AND left(created_at, 10) = $1",
+        [dayKey],
+      );
+      return Number(row?.n ?? 0);
+    },
+
     async clearAll() {
       await queryRun("TRUNCATE decisions, runs, versions, documents, rubrics, users CASCADE");
     },
@@ -320,8 +334,8 @@ function makeTx(client: import("pg").PoolClient): Tx {
       const r = documentToRow(document);
       try {
         await queryRun(
-          "INSERT INTO documents(id, title, author, created_at) VALUES ($1, $2, $3, $4)",
-          [r.id, r.title, r.author, r.created_at],
+          "INSERT INTO documents(id, title, author, author_id, created_at) VALUES ($1, $2, $3, $4, $5)",
+          [r.id, r.title, r.author, r.author_id, r.created_at],
         );
       } catch (err) {
         mapUniqueOrThrow(err);
@@ -344,7 +358,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
       const r = runToRow(run);
       try {
         await queryRun(
-          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions, actor_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions, actor_id, claimed_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
           [
             r.id,
             r.document_id,
@@ -358,6 +372,7 @@ function makeTx(client: import("pg").PoolClient): Tx {
             r.finished_at,
             r.jurisdictions,
             r.actor_id,
+            r.claimed_at,
           ],
         );
       } catch (err) {
@@ -365,11 +380,19 @@ function makeTx(client: import("pg").PoolClient): Tx {
       }
     },
 
-    async claimRun(id) {
-      const row = await queryOne(
-        "UPDATE runs SET status='reviewing', error=NULL WHERE id=$1 AND status IN ('queued','error') RETURNING *",
-        [id],
-      );
+    async claimRun(id, nowIso, staleBefore) {
+      // Single-statement claim so concurrent claimers cannot both win; a
+      // stale 'reviewing' claim (older than staleBefore, or never stamped)
+      // counts as abandoned and is reclaimable.
+      const row = staleBefore
+        ? await queryOne(
+            "UPDATE runs SET status='reviewing', error=NULL, claimed_at=$2 WHERE id=$1 AND (status IN ('queued','error') OR (status='reviewing' AND (claimed_at IS NULL OR claimed_at < $3))) RETURNING *",
+            [id, nowIso ?? null, staleBefore],
+          )
+        : await queryOne(
+            "UPDATE runs SET status='reviewing', error=NULL, claimed_at=$2 WHERE id=$1 AND status IN ('queued','error') RETURNING *",
+            [id, nowIso ?? null],
+          );
       return row ? rowToRun(row) : null;
     },
 

@@ -95,6 +95,12 @@ export function createMemoryDriver(): StoreDriver {
       return clone(state.decisions.find((d) => d.runId === runId) ?? null);
     },
 
+    async countModelRunsOnUtcDay(dayKey: string): Promise<number> {
+      return state.runs.filter(
+        (r) => r.reviewer === "model" && r.createdAt.slice(0, 10) === dayKey,
+      ).length;
+    },
+
     async clearAll(): Promise<void> {
       state = {
         users: [],
@@ -137,13 +143,23 @@ export function createMemoryDriver(): StoreDriver {
       state.runs.push(clone(run));
     },
 
-    async claimRun(id: string): Promise<ReviewRun | null> {
+    async claimRun(
+      id: string,
+      nowIso?: string,
+      staleBefore?: string,
+    ): Promise<ReviewRun | null> {
       const run = state.runs.find((r) => r.id === id);
-      if (!run || (run.status !== "queued" && run.status !== "error")) {
+      if (!run) return null;
+      const staleClaim =
+        run.status === "reviewing" &&
+        staleBefore !== undefined &&
+        (run.claimedAt == null || run.claimedAt < staleBefore);
+      if (run.status !== "queued" && run.status !== "error" && !staleClaim) {
         return null;
       }
       run.status = "reviewing";
       run.error = null;
+      run.claimedAt = nowIso ?? null;
       return clone(run);
     },
 
@@ -187,7 +203,7 @@ export function createMemoryDriver(): StoreDriver {
 
     async schemaVersion(): Promise<number> {
       // Memory driver always boots to the current schema version.
-      return 3;
+      return 4;
     },
 
     snapshot(): Promise<Db> {

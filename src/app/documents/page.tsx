@@ -9,6 +9,7 @@ import {
   buttonClass,
   relativeTime,
 } from "@/components/ui";
+import { canAccessDocument } from "@/lib/access";
 import { requireSession } from "@/lib/session";
 import { decisionForRun, getDb, latestRunForVersion } from "@/lib/store";
 import { documentStatus } from "@/lib/document-status";
@@ -18,7 +19,7 @@ export default async function DocumentsPage() {
   const db = await getDb();
 
   const documents = db.documents
-    .filter((d) => session.role !== "author" || d.author === session.name)
+    .filter((d) => canAccessDocument(session, d))
     .map((document) => {
       const versions = db.versions
         .filter((v) => v.documentId === document.id)

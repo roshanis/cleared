@@ -54,20 +54,23 @@ export function heuristicReview(
   }
 
   if (has("C2")) {
+    // Scan every guarantee-pattern match: an exempt (negated) mention early
+    // in the document must not shield a real guarantee later on.
     const guaranteePattern =
-      /guarant\w*|risk[\s\-\u2010-\u2015]*free|can['’]?t\s+lose|returns?\s+you\s+can\s+count\s+on/i;
-    const match = guaranteePattern.exec(document);
-    const sentence = match ? sentenceAt(document, match.index) : "";
-    const normalizedSentence = sentence
-      .replace(/[\u2010-\u2015]/g, "-")
-      .replace(/[’]/g, "'")
-      .toLowerCase();
-    const negated =
-      /\bno\s+investment\s+is\s+risk[-\s]*free\b/.test(normalizedSentence) ||
-      /\bnot\s+risk[-\s]*free\b/.test(normalizedSentence) ||
-      /\bdo(?:es)?\s+not\s+guarantee\b/.test(normalizedSentence) ||
-      /\bno\s+guarantee\b/.test(normalizedSentence);
-    if (match && !negated && !/past\s+performance/i.test(sentence)) {
+      /guarant\w*|risk[\s\-\u2010-\u2015]*free|can['’]?t\s+lose|returns?\s+you\s+can\s+count\s+on/gi;
+    let match: RegExpExecArray | null;
+    while ((match = guaranteePattern.exec(document))) {
+      const sentence = sentenceAt(document, match.index);
+      const normalizedSentence = sentence
+        .replace(/[\u2010-\u2015]/g, "-")
+        .replace(/[’]/g, "'")
+        .toLowerCase();
+      const negated =
+        /\bno\s+investment\s+is\s+risk[-\s]*free\b/.test(normalizedSentence) ||
+        /\bnot\s+risk[-\s]*free\b/.test(normalizedSentence) ||
+        /\bdo(?:es)?\s+not\s+guarantee\b/.test(normalizedSentence) ||
+        /\bnot?\s+(?:a\s+)?guarantee\b/.test(normalizedSentence);
+      if (negated) continue;
       findings.push({
         criterionId: "C2",
         severity: sev("C2"),
@@ -77,6 +80,7 @@ export function heuristicReview(
           "Remove the guarantee language; describe historical performance factually with the required disclaimer.",
         confidence: "high",
       });
+      break;
     }
   }
 

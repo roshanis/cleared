@@ -12,6 +12,8 @@ import {
   buttonClass,
   relativeTime,
 } from "@/components/ui";
+import { canAccessDocument } from "@/lib/access";
+import { canDecide as roleCanDecide, canSubmit } from "@/lib/roles";
 import { requireSession } from "@/lib/session";
 import { decisionForRun, getDb, latestRunForVersion } from "@/lib/store";
 
@@ -26,7 +28,7 @@ export default async function DocumentPage({
 
   const document = db.documents.find((d) => d.id === id);
   if (!document) notFound();
-  if (session.role === "author" && document.author !== session.name) {
+  if (!canAccessDocument(session, document)) {
     redirect("/documents");
   }
 
@@ -53,7 +55,7 @@ export default async function DocumentPage({
       : null;
 
   const canDecide =
-    session.role !== "author" &&
+    roleCanDecide(session.role) &&
     latest?.run?.status === "done" &&
     latest.run.result &&
     latest.run.result.verdict !== "pass" &&
@@ -83,7 +85,7 @@ export default async function DocumentPage({
         }
         action={
           <div className="flex flex-wrap gap-3">
-            {session.role !== "officer" && (
+            {canSubmit(session.role) && (
               <Link
                 href={`/submit?documentId=${document.id}`}
                 className={buttonClass("primary")}

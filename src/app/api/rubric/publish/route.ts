@@ -40,11 +40,19 @@ export async function POST(req: Request) {
     );
   }
   const published = await publishRubric(parsed.data.version);
-  if (!published) {
+  if (published.status === "superseded") {
+    return NextResponse.json(
+      {
+        error: `Rubric v${published.activeVersion} is already live — publishing v${parsed.data.version} would have no effect. Save it as a new version to roll back.`,
+      },
+      { status: 409 },
+    );
+  }
+  if (published.status !== "published") {
     return NextResponse.json(
       { error: "Run a passing golden-set gate before publishing." },
       { status: 409 },
     );
   }
-  return NextResponse.json({ version: published.version });
+  return NextResponse.json({ version: published.rubric.version });
 }

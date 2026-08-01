@@ -1,6 +1,7 @@
 import { SubmitForm } from "@/components/submit-form";
 import { PageHeader } from "@/components/ui";
 import { activeReviewer } from "@/agent/run";
+import { canAccessDocument } from "@/lib/access";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric } from "@/lib/store";
 
@@ -14,21 +15,28 @@ export default async function SubmitPage({
   const db = await getDb();
   const rubric = publishedRubric(db);
 
-  let resubmit: { documentId: string; title: string; content: string } | null =
-    null;
+  let resubmit: {
+    documentId: string;
+    title: string;
+    content: string;
+    jurisdictions?: string[];
+  } | null = null;
   if (documentId) {
     const document = db.documents.find((d) => d.id === documentId);
-    const canSee =
-      document &&
-      (session.role !== "author" || document.author === session.name);
-    if (document && canSee) {
+    if (canAccessDocument(session, document)) {
       const latest = db.versions
         .filter((v) => v.documentId === document.id)
         .sort((a, b) => b.number - a.number)[0];
+      // Carry the previous review's target markets into the resubmit form so
+      // market-specific criteria stay in force on the new run.
+      const latestRun = db.runs
+        .filter((r) => r.documentId === document.id)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
       resubmit = {
         documentId: document.id,
         title: document.title,
         content: latest?.content ?? "",
+        jurisdictions: latestRun?.jurisdictions,
       };
     }
   }

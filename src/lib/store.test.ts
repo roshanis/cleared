@@ -129,7 +129,9 @@ describe("store", () => {
     expect(draft.publishedAt).toBeNull();
 
     // Publish before the gate has run is refused.
-    expect(await publishRubric(draft.version)).toBeNull();
+    expect(await publishRubric(draft.version)).toEqual({
+      status: "unpublishable",
+    });
 
     await setGoldenGate(draft.version, {
       ranAt: new Date().toISOString(),
@@ -138,10 +140,31 @@ describe("store", () => {
       cases: [],
     });
     const published = await publishRubric(draft.version);
-    expect(published?.publishedAt).not.toBeNull();
+    expect(published.status).toBe("published");
+    if (published.status === "published") {
+      expect(published.rubric.publishedAt).not.toBeNull();
+    }
 
     const db = await getDb();
     expect(publishedRubric(db).version).toBe(2);
+
+    // Publishing a version below the live one is refused, not a silent no-op.
+    const older = await saveRubricDraft(
+      { ...defaultRubricDraft, failOn: ["critical"] },
+      "Priya Nair",
+    );
+    await setGoldenGate(older.version, {
+      ranAt: new Date().toISOString(),
+      reviewer: "heuristic",
+      pass: true,
+      cases: [],
+    });
+    const newer = await publishRubric(older.version);
+    expect(newer.status).toBe("published");
+    expect(await publishRubric(draft.version)).toEqual({
+      status: "superseded",
+      activeVersion: older.version,
+    });
   });
 
   it("resets dirty demo data back to the pristine seed inventory", async () => {

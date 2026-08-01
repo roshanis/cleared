@@ -1,12 +1,25 @@
 import type { Session } from "./session";
 import type { Db, DocumentRecord, ReviewRun } from "./store";
 
+/**
+ * Author ownership is keyed on the stable user id; display names are neither
+ * unique nor verified. The name comparison only remains as a fallback for
+ * legacy rows created before documents carried an author id.
+ */
+export function ownsDocument(
+  session: Session,
+  document: DocumentRecord,
+): boolean {
+  if (document.authorId != null) return document.authorId === session.userId;
+  return document.author === session.name;
+}
+
 export function canAccessDocument(
   session: Session,
   document: DocumentRecord | null | undefined,
 ): document is DocumentRecord {
   if (!document) return false;
-  return session.role !== "author" || document.author === session.name;
+  return session.role !== "author" || ownsDocument(session, document);
 }
 
 export function documentForRun(

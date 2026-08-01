@@ -4,7 +4,6 @@ import { loadGoldenCases } from "../../evals/grade";
 import { defaultRubricDraft } from "./rubric";
 import {
   demoPersonaUsers,
-  newId,
   publishedRubric,
   type Db,
   type Decision,
@@ -200,15 +199,18 @@ export async function seedInto(
   for (const demo of cases) {
     const age = ageByCase[demo.id] ?? 2;
     const createdAt = daysAgo(age);
+    // Deterministic ids: concurrent first-boot seeders collide on the
+    // primary key and dedupe via ignoreUnique instead of double-seeding.
     const document = {
-      id: newId("doc"),
+      id: `doc_seed_${demo.id}`,
       title: titleFrom(demo.input, demo.id),
       author: "Maya Chen",
+      authorId: demoPersonaUsers[0].id,
       createdAt,
     };
     db.documents.push(document);
     const version = {
-      id: newId("ver"),
+      id: `ver_seed_${demo.id}`,
       documentId: document.id,
       number: 1,
       author: document.author,
@@ -223,7 +225,7 @@ export async function seedInto(
       demo.jurisdictions,
     );
     const run = {
-      id: newId("run"),
+      id: `run_seed_${demo.id}`,
       documentId: document.id,
       versionId: version.id,
       status: "done" as const,
@@ -241,7 +243,7 @@ export async function seedInto(
     const plannedDecision = decisionPlan[demo.id];
     if (plannedDecision && result.verdict !== "pass") {
       db.decisions.push({
-        id: newId("dec"),
+        id: `dec_seed_${demo.id}`,
         runId: run.id,
         documentId: document.id,
         officer: "Devon Park",

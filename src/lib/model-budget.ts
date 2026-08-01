@@ -71,7 +71,7 @@ function utcDayKey(iso: string): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-function secondsUntilNextUtcDay(iso: string): number {
+export function secondsUntilNextUtcDay(iso: string): number {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 60;
   const nextUtcMidnight = Date.UTC(

@@ -4,10 +4,13 @@ import { NextResponse } from "next/server";
 import { MODEL_ID } from "@/agent/run";
 import { heuristicFixes, modelFixes } from "@/agent/fixer";
 import { canAccessDocument } from "@/lib/access";
+import { publicDemoEnabled } from "@/lib/demo";
+import { dailyModelCap, modelBudgetStatus } from "@/lib/model-budget";
 import { applyFixes } from "@/lib/patch";
 import { requireSameOrigin } from "@/lib/request-guard";
 import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
+import { checkSubmissionRateLimit } from "@/lib/submission-rate-limiter";
 import { getDb } from "@/lib/store";
 
 export const maxDuration = 60;
@@ -54,10 +57,50 @@ export async function POST(
     );
   }
 
-  const fixes =
-    run.reviewer === "heuristic"
-      ? heuristicFixes(run.result.findings)
-      : await modelFixes({
+  // Drafting model fixes is a live provider call: rate-limit it and charge it
+  // against the same daily budget as model reviews.
+  let useModel = run.reviewer === "model";
+  if (useModel) {
+    const rateLimit = checkSubmissionRateLimit(session.userId);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many requests. Wait a moment, then try again.",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      );
+    }
+    const budget = modelBudgetStatus({
+      runs: db.runs,
+      nowIso: new Date().toISOString(),
+      cap: dailyModelCap(),
+    });
+    if (!budget.allowed) {
+      if (publicDemoEnabled()) {
+        useModel = false;
+      } else {
+        return NextResponse.json(
+          {
+            error:
+              "The daily live-review budget is used up. Try again after the UTC daily reset.",
+            retryAfterSeconds: budget.retryAfterSeconds,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(budget.retryAfterSeconds) },
+          },
+        );
+      }
+    }
+  }
+
+  const fixes = !useModel
+    ? heuristicFixes(run.result.findings)
+    : await modelFixes({
           document: version.content,
           findings: run.result.findings,
           instructions: readFileSync(

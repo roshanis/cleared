@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { NavLinks } from "@/components/nav-links";
 import { initials } from "@/components/ui";
-import { getSession, type Role } from "@/lib/session";
+import { canManageUsers } from "@/lib/roles";
+import { getSession, type Role, type Session } from "@/lib/session";
 
 const linksByRole: Record<Role, { href: string; label: string }[]> = {
   author: [
@@ -28,6 +29,14 @@ const linksByRole: Record<Role, { href: string; label: string }[]> = {
   ],
 };
 
+// User management is OAuth-admin only; a demo admin would just bounce off
+// the /users page, so don't offer the link to sessions that can't use it.
+function linksFor(session: Session) {
+  return linksByRole[session.role].filter(
+    (link) => link.href !== "/users" || canManageUsers(session),
+  );
+}
+
 export async function Nav() {
   const session = await getSession();
   return (
@@ -39,7 +48,7 @@ export async function Nav() {
         >
           Cleared<span className="text-accent">.</span>
         </Link>
-        {session && <NavLinks links={linksByRole[session.role]} />}
+        {session && <NavLinks links={linksFor(session)} />}
         <div className="ml-auto flex min-w-0 items-center gap-3 text-sm">
           {session ? (
             <>
