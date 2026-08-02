@@ -286,6 +286,31 @@ export function initials(name: string): string {
     .join("");
 }
 
+/** Full, unambiguous timestamp for audit surfaces (UTC, no locale drift). */
+export function absoluteTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+/**
+ * Relative time for scanning, exact time on hover and for machines. This is a
+ * compliance record — "2d ago" is never the whole answer.
+ */
+export function TimeAgo({
+  iso,
+  className = "",
+}: {
+  iso: string;
+  className?: string;
+}) {
+  return (
+    <time dateTime={iso} title={absoluteTime(iso)} className={className}>
+      {relativeTime(iso)}
+    </time>
+  );
+}
+
 export function relativeTime(iso: string, now = Date.now()): string {
   const minutes = Math.round((now - new Date(iso).getTime()) / 60e3);
   if (minutes < 1) return "just now";

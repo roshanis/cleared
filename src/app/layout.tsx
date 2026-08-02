@@ -16,7 +16,9 @@ const siteDescription =
   "Fast feedback for writers. Full authority for compliance. A complete trail for auditors.";
 
 export const metadata: Metadata = {
-  title: siteTitle,
+  // Pages set their own title; this suffixes them so a tab is identifiable
+  // when several are open at once (queue, a document, the audit log).
+  title: { default: siteTitle, template: "%s · Cleared" },
   description: siteDescription,
   openGraph: {
     title: siteTitle,
@@ -40,9 +42,21 @@ export default function RootLayout({
       className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable}`}
     >
       <body className="min-h-screen bg-paper font-sans text-ink antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Skip to content
+        </a>
         <Nav />
         <DemoStrip />
-        <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-7xl px-6 py-8 focus:outline-none"
+        >
+          {children}
+        </main>
       </body>
     </html>
   );

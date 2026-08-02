@@ -5,6 +5,8 @@ import { canAccessDocument } from "@/lib/access";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric } from "@/lib/store";
 
+export const metadata = { title: "Submit a document" };
+
 export default async function SubmitPage({
   searchParams,
 }: {

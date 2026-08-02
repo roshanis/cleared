@@ -21,6 +21,14 @@ const OUTCOME_SERIES = [
   },
 ] as const;
 
+function dayLabel(day: DayVolume): string {
+  if (day.count === 0) return `${day.day}: no reviews`;
+  const parts = OUTCOME_SERIES.filter((series) => day[series.key] > 0).map(
+    (series) => `${day[series.key]} ${series.label.toLowerCase()}`,
+  );
+  return `${day.day}: ${day.count} review${day.count === 1 ? "" : "s"} — ${parts.join(", ")}`;
+}
+
 function Dot({ color }: { color: string }) {
   return (
     <span
@@ -48,7 +56,7 @@ function Tooltip({
         : "left-1/2 -translate-x-1/2";
   return (
     <div
-      role="status"
+      aria-hidden
       className={`pointer-events-none absolute -top-2 z-10 -translate-y-full ${align} min-w-40 rounded-lg border border-line bg-surface px-3 py-2.5 text-xs shadow-raised`}
       style={{
         left:
@@ -105,19 +113,25 @@ export function OutcomesBar({
         </Tooltip>
       )}
       <div
-        className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
-        role="img"
+        role="group"
         aria-label={`Review outcomes: ${pass} passed, ${needsHumanReview} need human review, ${fail} failed`}
+        className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
       >
         {segments.map((segment, i) => {
           return (
-            <div
+            <button
               key={segment.label}
+              type="button"
+              // Focusable so the breakdown is reachable by keyboard, not just
+              // by hover; the label carries the same numbers as the tooltip.
+              aria-label={`${segment.label}: ${segment.count} of ${total}, ${Math.round((segment.count / total) * 100)}%`}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
               className={`h-full ${i === 0 ? "rounded-l-full" : ""} ${
                 i === segments.length - 1 ? "rounded-r-full" : ""
-              } ${hover !== null && hover !== i ? "opacity-60" : ""} transition-opacity duration-150`}
+              } ${hover !== null && hover !== i ? "opacity-60" : ""} transition-opacity duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
               style={{
                 width: `${(segment.count / total) * 100}%`,
                 background: segment.color,
@@ -167,8 +181,8 @@ export function VolumeChart({ days }: { days: DayVolume[] }) {
       <svg
         viewBox={`0 0 ${width} 84`}
         className="h-28 w-full"
-        role="img"
-        aria-label="Stacked bar chart of review volume per day for the last 14 days, split by outcome"
+        role="list"
+        aria-label="Reviews per day for the last 14 days, split by outcome"
       >
         {days.map((day, i) => {
           const x = i * 24 + 4;
@@ -197,14 +211,31 @@ export function VolumeChart({ days }: { days: DayVolume[] }) {
           return (
             <g
               key={day.day}
+              role="listitem"
+              tabIndex={0}
+              aria-label={dayLabel(day)}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
-              className={
+              onFocus={() => setHover(i)}
+              onBlur={() => setHover(null)}
+              className={`focus:outline-none ${
                 hover !== null && hover !== i
                   ? "opacity-60 transition-opacity duration-150"
                   : "transition-opacity duration-150"
-              }
+              }`}
             >
+              {hover === i && (
+                <rect
+                  x={i * 24 + 1}
+                  y={2}
+                  width={22}
+                  height={78}
+                  rx={3}
+                  fill="none"
+                  stroke="var(--color-accent)"
+                  strokeWidth="1.5"
+                />
+              )}
               {/* Full-column hit target so hovering anywhere over the day works */}
               <rect x={i * 24} y={0} width={24} height={84} fill="transparent" />
               {day.count === 0 && (

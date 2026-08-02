@@ -6,13 +6,15 @@ import {
   SectionHeading,
   StatusBadge,
   buttonClass,
-  relativeTime,
+  TimeAgo,
 } from "@/components/ui";
 import { OutcomesBar, VolumeChart } from "@/components/dashboard-charts";
 import { ResetDemoDataButton } from "@/components/reset-demo-data-button";
 import { computeMetrics, computeUtilizationMetrics } from "@/lib/metrics";
 import { demoAuthEnabled, requireRole } from "@/lib/session";
 import { getDb, publishedRubric, storageKind } from "@/lib/store";
+
+export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const session = await requireRole("officer", "admin", "auditor");
@@ -257,9 +259,11 @@ export default async function DashboardPage() {
             <span>
               Published{" "}
               <span className="font-medium text-ink">
-                {liveRubric.publishedAt
-                  ? relativeTime(liveRubric.publishedAt)
-                  : "—"}
+                {liveRubric.publishedAt ? (
+                  <TimeAgo iso={liveRubric.publishedAt} />
+                ) : (
+                  "—"
+                )}
               </span>
             </span>
           </div>

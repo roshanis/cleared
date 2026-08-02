@@ -6,9 +6,9 @@ import {
   StatusBadge,
   TableCard,
   Th,
+  TimeAgo,
   VerdictBadge,
   buttonClass,
-  relativeTime,
 } from "@/components/ui";
 import { requireRole } from "@/lib/session";
 import { getDb, reviewQueue } from "@/lib/store";
@@ -30,6 +30,30 @@ function severityCounts(findings: { severity: string }[]) {
     }))
     .filter(({ count }) => count > 0);
 }
+
+function SeveritySummary({
+  findings,
+}: {
+  findings: { severity: string }[];
+}) {
+  const counts = severityCounts(findings);
+  if (counts.length === 0) return <span className="text-muted">—</span>;
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap text-xs text-muted">
+      {counts.map(({ severity, count }) => (
+        <span key={severity} className="inline-flex items-center gap-1.5 font-medium">
+          <span
+            aria-hidden
+            className={`h-2 w-2 rounded-full ${severityDot[severity]}`}
+          />
+          {count} {severity}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export const metadata = { title: "Review queue" };
 
 export default async function QueuePage() {
   await requireRole("officer", "admin");
@@ -70,7 +94,53 @@ export default async function QueuePage() {
           }
         />
       ) : (
-        <TableCard>
+        <>
+        {/* Small screens: one card per item. A 880px-wide table on a phone
+            hides the columns that decide priority behind a scroll. */}
+        <ul className="space-y-3 md:hidden">
+          {queue.map(({ run, document, version }) => {
+            const overdue =
+              now - new Date(run.createdAt).getTime() > OVERDUE_MS;
+            return (
+              <li key={run.id}>
+                <Link
+                  href={`/documents/${document.id}`}
+                  className="block rounded-lg border border-line bg-surface p-4 shadow-card transition-colors duration-150 hover:border-accent"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {run.result && <VerdictBadge verdict={run.result.verdict} />}
+                    <span
+                      className={`text-xs font-semibold ${
+                        overdue ? "text-fail" : "text-warn"
+                      }`}
+                    >
+                      waiting <TimeAgo iso={run.createdAt} />
+                    </span>
+                  </div>
+                  <p className="mt-2.5 font-medium text-accent-strong">
+                    {document.title}
+                    <span className="ml-2 text-xs font-normal tabular-nums text-muted">
+                      v{version.number}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    by {document.author}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
+                    <SeveritySummary findings={run.result?.findings ?? []} />
+                    <span className="ml-auto flex flex-wrap gap-1">
+                      {run.result?.findings.map((f, i) => (
+                        <CriterionChip key={i} id={f.criterionId} />
+                      ))}
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+
+        <TableCard className="hidden md:block">
           <table className="w-full min-w-[880px] text-sm">
             <thead className="bg-rail">
               <tr>
@@ -97,7 +167,7 @@ export default async function QueuePage() {
                       overdue ? "text-fail" : "text-warn"
                     }`}
                   >
-                    {relativeTime(run.createdAt)}
+                    <TimeAgo iso={run.createdAt} />
                   </td>
                   <td className="px-4 py-3">
                     <Link
@@ -115,24 +185,7 @@ export default async function QueuePage() {
                     {run.result && <VerdictBadge verdict={run.result.verdict} />}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 whitespace-nowrap text-xs text-muted">
-                      {run.result?.findings.length
-                        ? severityCounts(run.result.findings).map(
-                            ({ severity, count }) => (
-                              <span
-                                key={severity}
-                                className="inline-flex items-center gap-1.5 font-medium"
-                              >
-                                <span
-                                  aria-hidden
-                                  className={`h-2 w-2 rounded-full ${severityDot[severity]}`}
-                                />
-                                {count} {severity}
-                              </span>
-                            ),
-                          )
-                        : "—"}
-                    </span>
+                    <SeveritySummary findings={run.result?.findings ?? []} />
                   </td>
                   <td className="px-4 py-3">
                     <span className="flex flex-wrap gap-1">
@@ -157,6 +210,7 @@ export default async function QueuePage() {
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
     </div>
   );

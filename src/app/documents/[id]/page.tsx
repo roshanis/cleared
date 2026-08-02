@@ -10,12 +10,25 @@ import {
   StatusBadge,
   VerdictBadge,
   buttonClass,
+  TimeAgo,
   relativeTime,
 } from "@/components/ui";
 import { canAccessDocument } from "@/lib/access";
 import { canDecide as roleCanDecide, canSubmit } from "@/lib/roles";
 import { requireSession } from "@/lib/session";
 import { decisionForRun, getDb, latestRunForVersion } from "@/lib/store";
+
+/** Name the tab after the document — reviewers keep several open at once. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const db = await getDb();
+  const document = db.documents.find((d) => d.id === id);
+  return { title: document?.title ?? "Document" };
+}
 
 export default async function DocumentPage({
   params,
@@ -153,7 +166,7 @@ export default async function DocumentPage({
             </StatusBadge>
             <span className="font-medium">by {latest.decision.officer}</span>
             <span className="text-muted">
-              {relativeTime(latest.decision.createdAt)}
+              <TimeAgo iso={latest.decision.createdAt} />
             </span>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">

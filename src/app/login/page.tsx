@@ -33,6 +33,8 @@ async function signInWithGoogle() {
   await signIn("google", { redirectTo: "/" });
 }
 
+export const metadata = { title: "Sign in" };
+
 export default async function LoginPage({
   searchParams,
 }: {

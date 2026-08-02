@@ -5,9 +5,9 @@ import {
   StatusBadge,
   TableCard,
   Th,
+  TimeAgo,
   VerdictBadge,
   buttonClass,
-  relativeTime,
 } from "@/components/ui";
 import { canAccessDocument } from "@/lib/access";
 import { requireSession } from "@/lib/session";
@@ -42,6 +42,28 @@ const statusFilters: {
     matches: (status) => status === "rejected",
   },
 ];
+
+function StatusCell({
+  status,
+  documentId,
+}: {
+  status: DocumentStatusKind;
+  documentId: string;
+}) {
+  if (status === "action_needed")
+    return <StatusBadge tone="warn">Action needed</StatusBadge>;
+  if (status === "in_review")
+    return <StatusBadge tone="info">In review</StatusBadge>;
+  if (status === "rejected")
+    return (
+      <Link href={`/submit?documentId=${documentId}`} className="inline-flex">
+        <StatusBadge tone="fail">Rejected — fix &amp; resubmit</StatusBadge>
+      </Link>
+    );
+  return null;
+}
+
+export const metadata = { title: "Documents" };
 
 export default async function DocumentsPage({
   searchParams,
@@ -163,7 +185,62 @@ export default async function DocumentsPage({
           }
         />
       ) : (
-        <TableCard>
+        <>
+        {/* Small screens: one card per document, so status and verdict stay
+            visible instead of scrolling off an 820px-wide table. */}
+        <ul className="space-y-3 md:hidden">
+          {documents.map(({ document, latestVersion, run, decision, status }) => (
+            <li key={document.id}>
+              <Link
+                href={`/documents/${document.id}`}
+                className="block rounded-lg border border-line bg-surface p-4 shadow-card transition-colors duration-150 hover:border-accent"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {run?.result ? (
+                    <VerdictBadge verdict={run.result.verdict} />
+                  ) : (
+                    <span className="text-xs text-muted">
+                      {run ? run.status : "no review"}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted">
+                    {latestVersion ? <TimeAgo iso={latestVersion.createdAt} /> : "—"}
+                  </span>
+                </div>
+                <p className="mt-2.5 font-medium text-accent-strong">
+                  {document.title}
+                  <span className="ml-2 text-xs font-normal tabular-nums text-muted">
+                    v{latestVersion?.number ?? "—"}
+                  </span>
+                </p>
+                {!isAuthor && (
+                  <p className="mt-0.5 text-xs text-muted">
+                    by {document.author}
+                  </p>
+                )}
+                {(isAuthor || decision) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                    {isAuthor && (
+                      <StatusCell status={status} documentId={document.id} />
+                    )}
+                    {decision && (
+                      <StatusBadge
+                        tone={decision.action === "approve" ? "pass" : "fail"}
+                      >
+                        {decision.action === "approve" ? "Approved" : "Rejected"}
+                        <span className="font-normal text-muted">
+                          by {decision.officer}
+                        </span>
+                      </StatusBadge>
+                    )}
+                  </div>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <TableCard className="hidden md:block">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-rail">
               <tr>
@@ -184,20 +261,7 @@ export default async function DocumentsPage({
                 >
                   {isAuthor && (
                     <td className="px-4 py-3">
-                      {status === "action_needed" ? (
-                        <StatusBadge tone="warn">Action needed</StatusBadge>
-                      ) : status === "in_review" ? (
-                        <StatusBadge tone="info">In review</StatusBadge>
-                      ) : status === "rejected" ? (
-                        <Link
-                          href={`/submit?documentId=${document.id}`}
-                          className="inline-flex"
-                        >
-                          <StatusBadge tone="fail">
-                            Rejected — fix &amp; resubmit
-                          </StatusBadge>
-                        </Link>
-                      ) : null}
+                      <StatusCell status={status} documentId={document.id} />
                     </td>
                   )}
                   <td className="px-4 py-3">
@@ -238,13 +302,18 @@ export default async function DocumentsPage({
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted">
-                    {latestVersion ? relativeTime(latestVersion.createdAt) : "—"}
+                    {latestVersion ? (
+                      <TimeAgo iso={latestVersion.createdAt} />
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </TableCard>
+        </>
       )}
     </div>
   );
