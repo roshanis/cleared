@@ -8,11 +8,11 @@ const buttonBase =
   "inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants = {
-  primary: "bg-accent text-white hover:bg-accent-strong active:bg-accent-strong",
+  primary: "bg-accent text-on-accent hover:bg-accent-strong active:bg-accent-strong",
   secondary:
     "border border-line-strong bg-surface text-accent-strong hover:border-accent hover:bg-accent-soft/70 active:bg-accent-soft",
-  danger: "bg-fail text-white hover:bg-fail-strong active:bg-fail-strong",
-  success: "bg-pass text-white hover:bg-pass-strong active:bg-pass-strong",
+  danger: "bg-fail text-on-fail hover:bg-fail-strong active:bg-fail-strong",
+  success: "bg-pass text-on-pass hover:bg-pass-strong active:bg-pass-strong",
   ghost: "text-muted hover:bg-rail hover:text-ink active:bg-well",
 } as const;
 
@@ -143,7 +143,7 @@ export function CriterionChip({
       aria-label={`${expanded ? "Hide" : "Show"} rule ${id}`}
       title={`${expanded ? "Hide" : "Show"} rule ${id}`}
       onClick={onToggle}
-      className={`${className} cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+      className={`${className} cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-on-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
     >
       {id}
     </button>

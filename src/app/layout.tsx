@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import { DemoStrip } from "@/components/demo-strip";
 import { Nav } from "@/components/nav";
+import { themeInitScript } from "@/components/theme-toggle";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -41,10 +42,14 @@ export default function RootLayout({
       lang="en"
       className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable}`}
     >
+      <head>
+        {/* Applies a stored theme before first paint — no flash of light. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-screen bg-paper font-sans text-ink antialiased">
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-on-accent"
         >
           Skip to content
         </a>

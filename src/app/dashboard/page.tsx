@@ -111,13 +111,13 @@ export default async function DashboardPage() {
             />
           </div>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
-            <LegendItem color="var(--color-pass)" label="Passed" count={outcomes.pass} />
+            <LegendItem color="var(--color-chart-pass)" label="Passed" count={outcomes.pass} />
             <LegendItem
               color="var(--color-chart-warn)"
               label="Needs human review"
               count={outcomes.needsHumanReview}
             />
-            <LegendItem color="var(--color-fail)" label="Failed" count={outcomes.fail} />
+            <LegendItem color="var(--color-chart-fail)" label="Failed" count={outcomes.fail} />
           </div>
         </Card>
       )}
@@ -129,9 +129,9 @@ export default async function DashboardPage() {
             <VolumeChart days={metrics.volumeByDay} />
           </div>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
-            <LegendItem color="var(--color-pass)" label="Passed" small />
+            <LegendItem color="var(--color-chart-pass)" label="Passed" small />
             <LegendItem color="var(--color-chart-warn)" label="Needs review" small />
-            <LegendItem color="var(--color-fail)" label="Failed" small />
+            <LegendItem color="var(--color-chart-fail)" label="Failed" small />
             <LegendItem
               color="var(--color-line-strong)"
               label="In progress / errored"

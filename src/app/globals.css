@@ -1,46 +1,99 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Theme. Every color is declared once with light-dark(); the active side is
+   chosen by `color-scheme` below, so there is no second palette to keep in
+   sync. Dark is a *selected* set of steps, not an inversion of the light one:
+   text, button fills, and chart marks each get their own step, and every pair
+   below was checked for WCAG contrast (and the chart marks additionally for
+   color-vision-deficiency separation) against the surface it sits on.
+   --------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 @theme {
-  --color-paper: #f7f8f6;
-  --color-surface: #ffffff;
-  --color-rail: #eef2ef;
-  --color-well: #e8ece8;
-  --color-ink: #171918;
-  --color-muted: #59625c;
-  --color-subtle: #727b74;
-  --color-line: #dfe5df;
-  --color-line-strong: #cbd4cd;
-  --color-accent: #0e5960;
-  --color-accent-strong: #083f45;
-  --color-accent-soft: #dcebea;
-  --color-pass: #147a3d;
-  --color-pass-strong: #0f6431;
-  --color-pass-soft: #e5f3ea;
-  --color-warn: #9a4a0b;
-  --color-warn-soft: #f7ead8;
-  --color-fail: #b91c1c;
-  --color-fail-strong: #991b1b;
-  --color-fail-soft: #f8e7e7;
-  --color-info: #245a9a;
-  --color-info-soft: #e4edf7;
-  /* Chart-mark amber: same "needs review" semantics as --color-warn, but a
-     lighter step so stacked marks stay distinguishable from --color-fail
-     under red-green color-vision deficiency (validated pass/warn/fail set:
-     #147a3d / #d97706 / #b91c1c). Badges and text keep --color-warn. */
-  --color-chart-warn: #d97706;
+  /* Surfaces, from furthest back to nearest. */
+  --color-paper: light-dark(#f7f8f6, #0f1211);
+  --color-surface: light-dark(#ffffff, #171a19);
+  --color-rail: light-dark(#eef2ef, #1e2321);
+  --color-well: light-dark(#e8ece8, #262c29);
+
+  /* Text. */
+  --color-ink: light-dark(#171918, #e6ebe8);
+  --color-muted: light-dark(#59625c, #a0aaa4);
+  --color-subtle: light-dark(#727b74, #8c968f);
+
+  /* Hairlines. */
+  --color-line: light-dark(#dfe5df, #2a302d);
+  --color-line-strong: light-dark(#cbd4cd, #3a423e);
+
+  /* Accent. `accent` fills buttons and draws focus rings; `accent-strong` is
+     link and heading text; `accent-soft` backs quiet badges. In dark mode the
+     fill lightens and its text darkens, which is why `on-accent` exists. */
+  --color-accent: light-dark(#0e5960, #4fbfc7);
+  --color-accent-strong: light-dark(#083f45, #6fd0d6);
+  --color-accent-soft: light-dark(#dcebea, #10312f);
+  --color-on-accent: light-dark(#ffffff, #06201f);
+
+  /* Always-dark brand panels (landing hero, login) — white text in both
+     modes, so this must not follow the accent inversion. */
+  --color-brand-deep: light-dark(#083f45, #0a2f33);
+
+  /* Status. Each pairs a text/fill step with a soft background and the text
+     color that sits on the filled button. */
+  --color-pass: light-dark(#147a3d, #35c078);
+  --color-pass-strong: light-dark(#0f6431, #55d091);
+  --color-pass-soft: light-dark(#e5f3ea, #10291b);
+  --color-on-pass: light-dark(#ffffff, #05210f);
+  --color-warn: light-dark(#9a4a0b, #e0a24f);
+  --color-warn-soft: light-dark(#f7ead8, #2b1e0e);
+  --color-fail: light-dark(#b91c1c, #ef6b72);
+  --color-fail-strong: light-dark(#991b1b, #f5858a);
+  --color-fail-soft: light-dark(#f8e7e7, #2c1516);
+  --color-on-fail: light-dark(#ffffff, #2a0a0a);
+  --color-info: light-dark(#245a9a, #7db3e8);
+  --color-info-soft: light-dark(#e4edf7, #111f2e);
+
+  /* Chart marks are their own palette, validated as a *set* per mode for
+     colorblind separation — status text colors alone do not survive being
+     placed next to each other as adjacent fills.
+       light  #147a3d / #d97706 / #b91c1c  (deutan ΔE 8.3+)
+       dark   #17a583 / #b88a00 / #e35370  (deutan ΔE 8.6+)
+     Badges and body text keep the status tokens above. */
+  --color-chart-pass: light-dark(#147a3d, #17a583);
+  --color-chart-warn: light-dark(#d97706, #b88a00);
+  --color-chart-fail: light-dark(#b91c1c, #e35370);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
   --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
 
-  --shadow-card: 0 1px 0 rgb(23 25 24 / 0.04);
-  --shadow-raised:
-    0 12px 30px rgb(23 25 24 / 0.12), 0 2px 8px rgb(23 25 24 / 0.08);
+  /* Dark surfaces sit closer together in luminance, so lift separation with
+     a hairline-plus-deeper-shadow instead of the light mode's faint drop. */
+  --shadow-card: light-dark(0 1px 0 rgb(23 25 24 / 0.04), 0 1px 0 rgb(0 0 0 / 0.4));
+  --shadow-raised: light-dark(
+    0 12px 30px rgb(23 25 24 / 0.12),
+    0 12px 30px rgb(0 0 0 / 0.55)
+  );
 }
 
 body {
   background-color: var(--color-paper);
   color: var(--color-ink);
+  /* Full-bleed sections use 100vw, which is wider than the content box when a
+     vertical scrollbar is present. `clip` trims the overhang without creating
+     a scroll container, so the sticky nav keeps working. */
+  overflow-x: clip;
   font-feature-settings:
     "cv02" 1,
     "cv03" 1,
@@ -66,7 +119,7 @@ li {
 }
 
 ::selection {
-  background-color: rgb(14 89 96 / 0.18);
+  background-color: light-dark(rgb(14 89 96 / 0.18), rgb(79 191 199 / 0.28));
 }
 
 :focus-visible {

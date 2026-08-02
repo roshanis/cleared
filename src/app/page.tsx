@@ -51,9 +51,11 @@ export default async function LandingPage() {
   );
 
   return (
-    <div className="-mx-6 -mt-8">
+    // Full-bleed: the landing sections must span the viewport, not the
+    // max-width main column, or their backgrounds leave bands at the edges.
+    <div className="relative left-1/2 -mt-8 w-screen -translate-x-1/2">
       {/* ── Hero: one statement, drenched ─────────────────────────────── */}
-      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col bg-accent-strong text-white">
+      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col bg-brand-deep text-white">
         <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-20">
           <h1
             className="animate-rise max-w-4xl font-serif text-5xl leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.75rem]"
@@ -204,7 +206,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Closer: mirror the hero ───────────────────────────────────── */}
-      <section className="bg-accent-strong text-white">
+      <section className="bg-brand-deep text-white">
         <div className="mx-auto max-w-6xl px-6 py-20 text-center sm:py-24">
           <h2 className="mx-auto max-w-2xl font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
             {session

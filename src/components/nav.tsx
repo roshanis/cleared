@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { NavLinks } from "@/components/nav-links";
 import { initials } from "@/components/ui";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { canManageUsers } from "@/lib/roles";
 import { getSession, type Role, type Session } from "@/lib/session";
 
@@ -50,6 +51,7 @@ export async function Nav() {
         </Link>
         {session && <NavLinks links={linksFor(session)} />}
         <div className="ml-auto flex min-w-0 items-center gap-3 text-sm">
+          <ThemeToggle />
           {session ? (
             <>
               <span className="flex items-center gap-2">
@@ -80,7 +82,7 @@ export async function Nav() {
               </span>
               <Link
                 href="/login"
-                className="inline-flex min-h-8 items-center rounded-md bg-accent px-3 py-1.5 font-semibold text-white transition-colors duration-150 hover:bg-accent-strong"
+                className="inline-flex min-h-8 items-center rounded-md bg-accent px-3 py-1.5 font-semibold text-on-accent transition-colors duration-150 hover:bg-accent-strong"
               >
                 Sign in
               </Link>

@@ -53,7 +53,7 @@ export default async function LoginPage({
   const oauthMessage = oauthLoginErrorMessage(oauth ?? error);
   return (
     <div className="mx-auto grid max-w-6xl items-start gap-8 py-6 lg:grid-cols-[1fr_0.9fr] lg:gap-14 lg:py-12">
-      <section className="rounded-lg bg-accent-strong p-8 text-white shadow-raised sm:p-10">
+      <section className="rounded-lg bg-brand-deep p-8 text-white shadow-raised sm:p-10">
         <p className="mb-5 inline-flex rounded-md border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
           Persona demo
         </p>

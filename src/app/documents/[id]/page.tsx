@@ -398,7 +398,7 @@ function PipelineMarker({ state, index }: { state: StepState; index: number }) {
     return (
       <span
         aria-hidden
-        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fail text-white"
+        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fail text-on-fail"
       >
         <svg
           viewBox="0 0 16 16"

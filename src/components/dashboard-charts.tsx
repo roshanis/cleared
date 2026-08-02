@@ -7,13 +7,13 @@ import type { DayVolume } from "@/lib/metrics";
    hover tooltip instead of the browser's native <title> bubble. */
 
 const OUTCOME_SERIES = [
-  { key: "pass", label: "Passed", color: "var(--color-pass)" },
+  { key: "pass", label: "Passed", color: "var(--color-chart-pass)" },
   {
     key: "needsHumanReview",
     label: "Needs review",
     color: "var(--color-chart-warn)",
   },
-  { key: "fail", label: "Failed", color: "var(--color-fail)" },
+  { key: "fail", label: "Failed", color: "var(--color-chart-fail)" },
   {
     key: "other",
     label: "In progress / errored",
@@ -81,13 +81,13 @@ export function OutcomesBar({
   const total = pass + needsHumanReview + fail;
   if (total === 0) return null;
   const segments = [
-    { label: "Passed", count: pass, color: "var(--color-pass)" },
+    { label: "Passed", count: pass, color: "var(--color-chart-pass)" },
     {
       label: "Needs human review",
       count: needsHumanReview,
       color: "var(--color-chart-warn)",
     },
-    { label: "Failed", count: fail, color: "var(--color-fail)" },
+    { label: "Failed", count: fail, color: "var(--color-chart-fail)" },
   ].filter((segment) => segment.count > 0);
 
   return (
