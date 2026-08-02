@@ -12,13 +12,47 @@ import {
 import { canAccessDocument } from "@/lib/access";
 import { requireSession } from "@/lib/session";
 import { decisionForRun, getDb, latestRunForVersion } from "@/lib/store";
-import { documentStatus } from "@/lib/document-status";
+import { documentStatus, type DocumentStatusKind } from "@/lib/document-status";
 
-export default async function DocumentsPage() {
+const statusFilters: {
+  value: string | undefined;
+  label: string;
+  matches: (status: DocumentStatusKind) => boolean;
+}[] = [
+  { value: undefined, label: "All", matches: () => true },
+  {
+    value: "action_needed",
+    label: "Awaiting fix",
+    matches: (status) => status === "action_needed",
+  },
+  {
+    value: "in_review",
+    label: "In review",
+    matches: (status) => status === "in_review",
+  },
+  { value: "passed", label: "Passed", matches: (status) => status === "clear" },
+  {
+    value: "approved",
+    label: "Approved",
+    matches: (status) => status === "approved",
+  },
+  {
+    value: "rejected",
+    label: "Rejected",
+    matches: (status) => status === "rejected",
+  },
+];
+
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const session = await requireSession();
+  const { status: statusParam } = await searchParams;
   const db = await getDb();
 
-  const documents = db.documents
+  const allDocuments = db.documents
     .filter((d) => canAccessDocument(session, d))
     .map((document) => {
       const versions = db.versions
@@ -42,6 +76,12 @@ export default async function DocumentsPage() {
       ),
     );
 
+  const activeFilter =
+    statusFilters.find((f) => f.value === statusParam) ?? statusFilters[0];
+  const documents = allDocuments.filter(({ status }) =>
+    activeFilter.matches(status),
+  );
+
   const isAuthor = session.role === "author";
 
   return (
@@ -62,7 +102,51 @@ export default async function DocumentsPage() {
         }
       />
 
-      {documents.length === 0 ? (
+      {allDocuments.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {statusFilters.map((filter) => {
+            const count = allDocuments.filter(({ status }) =>
+              filter.matches(status),
+            ).length;
+            if (filter.value !== undefined && count === 0) return null;
+            const isActive = filter.value === activeFilter.value;
+            const href = filter.value
+              ? `/documents?status=${filter.value}`
+              : "/documents";
+            return (
+              <Link
+                key={filter.label}
+                href={href}
+                aria-current={isActive ? "true" : undefined}
+                className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors duration-150 ${
+                  isActive
+                    ? "border-accent bg-accent-soft text-accent-strong"
+                    : "border-line-strong bg-surface text-muted hover:border-accent hover:text-ink"
+                }`}
+              >
+                {filter.label}
+                <span
+                  className={`tabular-nums ${isActive ? "" : "text-subtle"}`}
+                >
+                  {count}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {allDocuments.length > 0 && documents.length === 0 ? (
+        <EmptyState
+          title={`No documents are ${activeFilter.label.toLowerCase()}`}
+          hint="Clear the filter to see the rest of the list."
+          action={
+            <Link href="/documents" className={buttonClass("secondary")}>
+              Show all documents
+            </Link>
+          }
+        />
+      ) : documents.length === 0 ? (
         <EmptyState
           title="No documents yet"
           hint={

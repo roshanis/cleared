@@ -8,6 +8,7 @@ import {
   buttonClass,
   relativeTime,
 } from "@/components/ui";
+import { OutcomesBar, VolumeChart } from "@/components/dashboard-charts";
 import { ResetDemoDataButton } from "@/components/reset-demo-data-button";
 import { computeMetrics, computeUtilizationMetrics } from "@/lib/metrics";
 import { demoAuthEnabled, requireRole } from "@/lib/session";
@@ -18,11 +19,20 @@ export default async function DashboardPage() {
   const db = await getDb();
   const metrics = computeMetrics(db);
   const utilization = computeUtilizationMetrics(db);
-  const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));
   const maxCriteria = Math.max(1, ...metrics.topCriteria.map((c) => c.count));
   const outcomes = metrics.verdictCounts;
   const outcomesTotal =
     outcomes.pass + outcomes.needsHumanReview + outcomes.fail;
+
+  // Cumulative pass rate across the 14-day window, for the stat-tile trend.
+  const passRateSpark: (number | null)[] = [];
+  let sparkDone = 0;
+  let sparkPassed = 0;
+  for (const day of metrics.volumeByDay) {
+    sparkDone += day.pass + day.needsHumanReview + day.fail;
+    sparkPassed += day.pass;
+    passRateSpark.push(sparkDone > 0 ? sparkPassed / sparkDone : null);
+  }
 
   // Rubric health — only computed for admin, but data loaded regardless to avoid
   // branching the getDb() call. Render the card only for admins.
@@ -69,6 +79,8 @@ export default async function DashboardPage() {
                 ? "—"
                 : `${Math.round(metrics.passRate * 100)}%`
             }
+            spark={passRateSpark}
+            sparkLabel="Cumulative pass rate over the last 14 days"
           />
           <MetricCell
             label="Median time to decision"
@@ -89,38 +101,12 @@ export default async function DashboardPage() {
               {outcomesTotal} completed review{outcomesTotal === 1 ? "" : "s"}
             </span>
           </div>
-          <div
-            className="mt-4 flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
-            role="img"
-            aria-label={`Review outcomes: ${outcomes.pass} passed, ${outcomes.needsHumanReview} need human review, ${outcomes.fail} failed`}
-          >
-            {outcomes.pass > 0 && (
-              <div
-                className="h-full rounded-l-full"
-                style={{
-                  width: `${(outcomes.pass / outcomesTotal) * 100}%`,
-                  background: "var(--color-pass)",
-                }}
-              />
-            )}
-            {outcomes.needsHumanReview > 0 && (
-              <div
-                className="h-full"
-                style={{
-                  width: `${(outcomes.needsHumanReview / outcomesTotal) * 100}%`,
-                  background: "var(--color-chart-warn)",
-                }}
-              />
-            )}
-            {outcomes.fail > 0 && (
-              <div
-                className="h-full rounded-r-full"
-                style={{
-                  width: `${(outcomes.fail / outcomesTotal) * 100}%`,
-                  background: "var(--color-fail)",
-                }}
-              />
-            )}
+          <div className="mt-4">
+            <OutcomesBar
+              pass={outcomes.pass}
+              needsHumanReview={outcomes.needsHumanReview}
+              fail={outcomes.fail}
+            />
           </div>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
             <LegendItem color="var(--color-pass)" label="Passed" count={outcomes.pass} />
@@ -137,70 +123,9 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <SectionHeading>Reviews per day, last 14 days</SectionHeading>
-          <svg
-            viewBox={`0 0 ${metrics.volumeByDay.length * 24} 84`}
-            className="mt-4 h-28 w-full"
-            role="img"
-            aria-label="Stacked bar chart of review volume per day for the last 14 days, split by outcome"
-          >
-            {metrics.volumeByDay.map((day, i) => {
-              const x = i * 24 + 4;
-              const scale = 64 / maxVolume;
-              const segments = [
-                { count: day.pass, fill: "var(--color-pass)" },
-                { count: day.needsHumanReview, fill: "var(--color-chart-warn)" },
-                { count: day.fail, fill: "var(--color-fail)" },
-                { count: day.other, fill: "var(--color-line-strong)" },
-              ].filter((segment) => segment.count > 0);
-              let y = 68;
-              const rects = segments.map((segment, s) => {
-                const height = Math.max(segment.count * scale, 3);
-                y -= height;
-                const isTop = s === segments.length - 1;
-                const rect = (
-                  <rect
-                    key={s}
-                    x={x}
-                    y={y}
-                    width={16}
-                    height={isTop ? height : Math.max(height - 1.5, 1.5)}
-                    rx={isTop ? 2 : 0}
-                    fill={segment.fill}
-                  />
-                );
-                return rect;
-              });
-              return (
-                <g key={day.day}>
-                  <title>
-                    {`${day.day}: ${day.count} review${day.count === 1 ? "" : "s"}` +
-                      (day.count > 0
-                        ? ` — ${day.pass} passed, ${day.needsHumanReview} needs review, ${day.fail} failed${day.other > 0 ? `, ${day.other} in progress or errored` : ""}`
-                        : "")}
-                  </title>
-                  {day.count === 0 && (
-                    <rect
-                      x={x}
-                      y={67}
-                      width={16}
-                      height={1}
-                      fill="var(--color-line)"
-                    />
-                  )}
-                  {rects}
-                  <text
-                    x={x + 8}
-                    y={80}
-                    textAnchor="middle"
-                    fontSize="7"
-                    fill="var(--color-muted)"
-                  >
-                    {day.day.slice(8)}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
+          <div className="mt-4">
+            <VolumeChart days={metrics.volumeByDay} />
+          </div>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
             <LegendItem color="var(--color-pass)" label="Passed" small />
             <LegendItem color="var(--color-chart-warn)" label="Needs review" small />
@@ -407,13 +332,57 @@ function LegendItem({
   );
 }
 
-function MetricCell({ label, value }: { label: string; value: string }) {
+function MetricCell({
+  label,
+  value,
+  spark,
+  sparkLabel,
+}: {
+  label: string;
+  value: string;
+  /** Optional 0..1 series rendered as a small trend line under the value. */
+  spark?: (number | null)[];
+  sparkLabel?: string;
+}) {
+  const points = spark
+    ?.map((v, i) => ({ v, i }))
+    .filter((p): p is { v: number; i: number } => p.v !== null);
+  const showSpark = points !== undefined && points.length >= 2;
   return (
     <div className="px-5 py-4 lg:py-5">
       <p className="text-xs font-medium text-muted">{label}</p>
-      <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
-        {value}
-      </p>
+      <div className="mt-1.5 flex items-end justify-between gap-3">
+        <p className="text-3xl font-semibold tracking-tight tabular-nums">
+          {value}
+        </p>
+        {showSpark && (
+          <svg
+            viewBox={`0 0 ${(spark!.length - 1) * 6} 28`}
+            className="mb-1 h-7 w-20 shrink-0"
+            role="img"
+            aria-label={sparkLabel ?? `${label} trend`}
+            preserveAspectRatio="none"
+          >
+            <polyline
+              points={points!
+                .map((p) => `${p.i * 6},${25 - p.v * 22}`)
+                .join(" ")}
+              fill="none"
+              stroke="var(--color-accent)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx={points![points!.length - 1].i * 6}
+              cy={25 - points![points!.length - 1].v * 22}
+              r="2.5"
+              fill="var(--color-accent)"
+            />
+          </svg>
+        )}
+      </div>
     </div>
   );
 }
