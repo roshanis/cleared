@@ -6,20 +6,35 @@ import {
   SectionHeading,
   StatusBadge,
   buttonClass,
-  relativeTime,
+  TimeAgo,
 } from "@/components/ui";
+import { OutcomesBar, VolumeChart } from "@/components/dashboard-charts";
 import { ResetDemoDataButton } from "@/components/reset-demo-data-button";
 import { computeMetrics, computeUtilizationMetrics } from "@/lib/metrics";
 import { demoAuthEnabled, requireRole } from "@/lib/session";
 import { getDb, publishedRubric, storageKind } from "@/lib/store";
+
+export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const session = await requireRole("officer", "admin", "auditor");
   const db = await getDb();
   const metrics = computeMetrics(db);
   const utilization = computeUtilizationMetrics(db);
-  const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));
   const maxCriteria = Math.max(1, ...metrics.topCriteria.map((c) => c.count));
+  const outcomes = metrics.verdictCounts;
+  const outcomesTotal =
+    outcomes.pass + outcomes.needsHumanReview + outcomes.fail;
+
+  // Cumulative pass rate across the 14-day window, for the stat-tile trend.
+  const passRateSpark: (number | null)[] = [];
+  let sparkDone = 0;
+  let sparkPassed = 0;
+  for (const day of metrics.volumeByDay) {
+    sparkDone += day.pass + day.needsHumanReview + day.fail;
+    sparkPassed += day.pass;
+    passRateSpark.push(sparkDone > 0 ? sparkPassed / sparkDone : null);
+  }
 
   // Rubric health — only computed for admin, but data loaded regardless to avoid
   // branching the getDb() call. Render the card only for admins.
@@ -56,7 +71,7 @@ export default async function DashboardPage() {
       />
 
       <Card className="overflow-hidden">
-        <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-px bg-line lg:grid-cols-4">
           <MetricCell label="Documents" value={String(metrics.totalDocuments)} />
           <MetricCell label="Reviews, last 30 days" value={String(metrics.runs30d)} />
           <MetricCell
@@ -66,6 +81,8 @@ export default async function DashboardPage() {
                 ? "—"
                 : `${Math.round(metrics.passRate * 100)}%`
             }
+            spark={passRateSpark}
+            sparkLabel="Cumulative pass rate over the last 14 days"
           />
           <MetricCell
             label="Median time to decision"
@@ -78,43 +95,49 @@ export default async function DashboardPage() {
         </div>
       </Card>
 
+      {outcomesTotal > 0 && (
+        <Card className="p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <SectionHeading>Review outcomes</SectionHeading>
+            <span className="text-xs tabular-nums text-muted">
+              {outcomesTotal} completed review{outcomesTotal === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="mt-4">
+            <OutcomesBar
+              pass={outcomes.pass}
+              needsHumanReview={outcomes.needsHumanReview}
+              fail={outcomes.fail}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+            <LegendItem color="var(--color-chart-pass)" label="Passed" count={outcomes.pass} />
+            <LegendItem
+              color="var(--color-chart-warn)"
+              label="Needs human review"
+              count={outcomes.needsHumanReview}
+            />
+            <LegendItem color="var(--color-chart-fail)" label="Failed" count={outcomes.fail} />
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <SectionHeading>Reviews per day, last 14 days</SectionHeading>
-          <svg
-            viewBox={`0 0 ${metrics.volumeByDay.length * 24} 84`}
-            className="mt-4 h-28 w-full"
-            role="img"
-            aria-label="Bar chart of review volume per day for the last 14 days"
-          >
-            {metrics.volumeByDay.map((day, i) => {
-              const height = (day.count / maxVolume) * 64;
-              return (
-                <g key={day.day}>
-                  <title>{`${day.day}: ${day.count} review${day.count === 1 ? "" : "s"}`}</title>
-                  <rect
-                    x={i * 24 + 4}
-                    y={68 - height}
-                    width={16}
-                    height={Math.max(height, day.count > 0 ? 3 : 1)}
-                    rx={2}
-                    fill={
-                      day.count > 0 ? "var(--color-accent)" : "var(--color-line)"
-                    }
-                  />
-                  <text
-                    x={i * 24 + 12}
-                    y={80}
-                    textAnchor="middle"
-                    fontSize="7"
-                    fill="var(--color-muted)"
-                  >
-                    {day.day.slice(8)}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
+          <div className="mt-4">
+            <VolumeChart days={metrics.volumeByDay} />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-xs">
+            <LegendItem color="var(--color-chart-pass)" label="Passed" small />
+            <LegendItem color="var(--color-chart-warn)" label="Needs review" small />
+            <LegendItem color="var(--color-chart-fail)" label="Failed" small />
+            <LegendItem
+              color="var(--color-line-strong)"
+              label="In progress / errored"
+              small
+            />
+          </div>
         </Card>
 
         <Card className="p-5">
@@ -236,9 +259,11 @@ export default async function DashboardPage() {
             <span>
               Published{" "}
               <span className="font-medium text-ink">
-                {liveRubric.publishedAt
-                  ? relativeTime(liveRubric.publishedAt)
-                  : "—"}
+                {liveRubric.publishedAt ? (
+                  <TimeAgo iso={liveRubric.publishedAt} />
+                ) : (
+                  "—"
+                )}
               </span>
             </span>
           </div>
@@ -283,13 +308,85 @@ export default async function DashboardPage() {
   );
 }
 
-function MetricCell({ label, value }: { label: string; value: string }) {
+function LegendItem({
+  color,
+  label,
+  count,
+  small = false,
+}: {
+  color: string;
+  label: string;
+  count?: number;
+  small?: boolean;
+}) {
   return (
-    <div className="px-5 py-4 lg:py-5">
+    <span
+      className={`inline-flex items-center gap-1.5 ${small ? "text-xs" : "text-sm"} text-muted`}
+    >
+      <span
+        aria-hidden
+        className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+        style={{ background: color }}
+      />
+      <span>{label}</span>
+      {count !== undefined && (
+        <span className="font-semibold tabular-nums text-ink">{count}</span>
+      )}
+    </span>
+  );
+}
+
+function MetricCell({
+  label,
+  value,
+  spark,
+  sparkLabel,
+}: {
+  label: string;
+  value: string;
+  /** Optional 0..1 series rendered as a small trend line under the value. */
+  spark?: (number | null)[];
+  sparkLabel?: string;
+}) {
+  const points = spark
+    ?.map((v, i) => ({ v, i }))
+    .filter((p): p is { v: number; i: number } => p.v !== null);
+  const showSpark = points !== undefined && points.length >= 2;
+  return (
+    <div className="bg-surface px-4 py-4 lg:px-5 lg:py-5">
       <p className="text-xs font-medium text-muted">{label}</p>
-      <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
-        {value}
-      </p>
+      <div className="mt-1.5 flex items-end justify-between gap-3">
+        <p className="text-3xl font-semibold tracking-tight tabular-nums">
+          {value}
+        </p>
+        {showSpark && (
+          <svg
+            viewBox={`0 0 ${(spark!.length - 1) * 6} 28`}
+            className="mb-1 h-7 w-14 shrink-0 sm:w-20"
+            role="img"
+            aria-label={sparkLabel ?? `${label} trend`}
+            preserveAspectRatio="none"
+          >
+            <polyline
+              points={points!
+                .map((p) => `${p.i * 6},${25 - p.v * 22}`)
+                .join(" ")}
+              fill="none"
+              stroke="var(--color-accent)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx={points![points!.length - 1].i * 6}
+              cy={25 - points![points!.length - 1].v * 22}
+              r="2.5"
+              fill="var(--color-accent)"
+            />
+          </svg>
+        )}
+      </div>
     </div>
   );
 }

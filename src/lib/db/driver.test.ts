@@ -51,6 +51,7 @@ const documentFixture = (
   id: "doc_1",
   title: "Test document",
   author: "Maya Chen",
+  authorId: null,
   createdAt: T0,
   ...over,
 });
@@ -76,6 +77,7 @@ const runFixture = (over: Partial<ReviewRun> = {}): ReviewRun => ({
   error: null,
   createdAt: T0,
   finishedAt: null,
+  claimedAt: null,
   ...over,
 });
 
@@ -350,6 +352,31 @@ for (const [name, makeDriver] of factories) {
       expect(await driver.transact((tx) => tx.claimRun("run_missing"))).toBeNull();
       const db = await driver.snapshot();
       expect(db.runs.map((r) => r.status)).toEqual(["reviewing", "done"]);
+    });
+
+    it("reclaims a stale reviewing run but not a fresh claim", async () => {
+      await driver.transact((tx) => seedGraph(tx));
+      await driver.transact((tx) =>
+        tx.claimRun("run_1", "2026-07-01T00:00:00.000Z"),
+      );
+      expect(
+        await driver.transact((tx) =>
+          tx.claimRun(
+            "run_1",
+            "2026-07-01T00:10:00.000Z",
+            "2026-07-01T00:00:00.000Z",
+          ),
+        ),
+      ).toBeNull();
+      const reclaimed = await driver.transact((tx) =>
+        tx.claimRun(
+          "run_1",
+          "2026-07-01T01:00:00.000Z",
+          "2026-07-01T00:30:00.000Z",
+        ),
+      );
+      expect(reclaimed?.status).toBe("reviewing");
+      expect(reclaimed?.claimedAt).toBe("2026-07-01T01:00:00.000Z");
     });
 
     it("rolls back the whole transaction when the callback throws", async () => {

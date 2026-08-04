@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { cookies } from "next/headers";
 import { auth } from "../../auth";
 import { createUser, resetStoreForTests, updateUser } from "./store";
-import { getSession } from "./session";
+import { SESSION_COOKIE, getSession, sessionTokenFor } from "./session";
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
@@ -73,6 +73,24 @@ describe("getSession OAuth user-record validation", () => {
       gen: 0,
     });
 
+    await expect(getSession()).resolves.toBeNull();
+  });
+});
+
+describe("getSession demo-cookie gating", () => {
+  it("rejects an outstanding demo cookie once demo auth is disabled", async () => {
+    vi.stubEnv("DEMO_AUTH", "1");
+    const token = sessionTokenFor("priya");
+    expect(token).toBeTruthy();
+    mockedCookies.mockResolvedValue({
+      get: (name: string) =>
+        name === SESSION_COOKIE ? { name, value: token! } : undefined,
+    } as unknown as Awaited<ReturnType<typeof cookies>>);
+    mockedAuth.mockResolvedValue(null);
+
+    await expect(getSession()).resolves.not.toBeNull();
+
+    vi.stubEnv("DEMO_AUTH", "0");
     await expect(getSession()).resolves.toBeNull();
   });
 });

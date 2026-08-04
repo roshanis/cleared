@@ -48,6 +48,28 @@ describe("heuristicReview", () => {
     ).not.toContain("C2");
   });
 
+  it("flags C2 when a real guarantee follows a negated mention", () => {
+    const doc = `No investment is risk-free, of course. But our Alpha Fund delivers guaranteed 12% annual returns for every client. ${disclaimer}`;
+    const findings = heuristicReview(doc, criteria);
+    const c2 = findings.find((f) => f.criterionId === "C2");
+    expect(c2).toBeDefined();
+    expect(c2!.quote).toBe(
+      "But our Alpha Fund delivers guaranteed 12% annual returns for every client.",
+    );
+  });
+
+  it("flags C2 on guarantees framed around past performance", () => {
+    expect(
+      ids(`Our past performance guarantees you similar returns. ${disclaimer}`),
+    ).toContain("C2");
+  });
+
+  it('does not flag C2 for "not a guarantee" phrasing', () => {
+    expect(
+      ids(`Historical returns are not a guarantee of future results. ${disclaimer}`),
+    ).not.toContain("C2");
+  });
+
   it("flags C3 on unsubstantiated competitor comparisons only", () => {
     expect(ids(`We outperformed Vanguard last year. ${disclaimer}`)).toContain("C3");
     expect(

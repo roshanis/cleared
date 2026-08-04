@@ -29,7 +29,12 @@ export function SubmitForm({
   criteria,
   fixDraftRequested = false,
 }: {
-  resubmit: { documentId: string; title: string; content: string } | null;
+  resubmit: {
+    documentId: string;
+    title: string;
+    content: string;
+    jurisdictions?: string[];
+  } | null;
   reviewer: "model" | "heuristic";
   /** Published rubric criteria, used to explain finding IDs in the result. */
   criteria?: RubricCriterion[];
@@ -37,7 +42,9 @@ export function SubmitForm({
   fixDraftRequested?: boolean;
 }) {
   const [title, setTitle] = useState(resubmit?.title ?? "");
-  const [markets, setMarkets] = useState<string[]>(["US"]);
+  const [markets, setMarkets] = useState<string[]>(
+    resubmit?.jurisdictions?.length ? resubmit.jurisdictions : ["US"],
+  );
   const [content, setContent] = useState(resubmit?.content ?? "");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -238,7 +245,7 @@ export function SubmitForm({
                         return next.length === 0 ? prev : next;
                       })
                     }
-                    className={`inline-flex min-h-8 items-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors duration-150 ${
+                    className={`touch-target inline-flex min-h-8 items-center justify-center rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors duration-150 ${
                       active
                         ? "border-accent bg-accent-soft text-accent-strong"
                         : "border-line-strong bg-surface text-muted hover:border-accent hover:text-ink"

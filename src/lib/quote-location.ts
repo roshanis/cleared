@@ -103,8 +103,9 @@ function findFuzzy(
   const quoteValues = quoteTokens.map((token) => token.value);
   if (quoteValues.length < 6) return null;
 
-  let best: { index: number; length: number; distance: number } | null = null;
-  let ties = 0;
+  type Candidate = { index: number; length: number };
+  let best: Candidate[] = [];
+  let bestDistance = Infinity;
   const lengths = [
     quoteValues.length - 1,
     quoteValues.length,
@@ -117,21 +118,40 @@ function findFuzzy(
         .slice(i, i + length)
         .map((token) => token.value);
       const distance = tokenEditDistance(quoteValues, window);
-      if (!best || distance < best.distance) {
-        best = { index: i, length, distance };
-        ties = 1;
-      } else if (distance === best.distance) {
-        ties += 1;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = [{ index: i, length }];
+      } else if (distance === bestDistance) {
+        best.push({ index: i, length });
       }
     }
   }
 
-  if (!best || best.distance > 1 || ties !== 1) return null;
+  if (best.length === 0 || bestDistance > 1) return null;
+
+  // Equal-distance windows count as ambiguity only when they sit at distinct
+  // locations. An edit at the quote boundary always produces overlapping
+  // L and L±1 windows with the same distance — that's one location, not two.
+  const overlaps = (a: Candidate, b: Candidate) =>
+    a.index < b.index + b.length && b.index < a.index + a.length;
+  const groups: Candidate[][] = [];
+  for (const candidate of best) {
+    const group = groups.find((g) => g.some((o) => overlaps(o, candidate)));
+    if (group) group.push(candidate);
+    else groups.push([candidate]);
+  }
+  if (groups.length !== 1) return null;
+
+  const chosen = groups[0].sort(
+    (a, b) =>
+      Math.abs(a.length - quoteValues.length) -
+        Math.abs(b.length - quoteValues.length) || a.index - b.index,
+  )[0];
   return locationFromTokens(
     content,
     contentTokens,
-    best.index,
-    best.length,
+    chosen.index,
+    chosen.length,
     "token-fuzzy",
   );
 }

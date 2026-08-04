@@ -51,6 +51,8 @@ export interface Tx {
   latestPublishedRubric(): Promise<RubricVersion | null>;
   maxRubricVersion(): Promise<number>;
   getDecisionByRunId(runId: string): Promise<Decision | null>;
+  /** Count model-reviewer runs created on the given UTC day ("YYYY-MM-DD"). */
+  countModelRunsOnUtcDay(dayKey: string): Promise<number>;
   /** Clear every app-owned entity table inside the current transaction. */
   clearAll(): Promise<void>;
   insertDocument(document: DocumentRecord): Promise<void>;
@@ -58,11 +60,17 @@ export interface Tx {
   insertVersion(version: DocVersion): Promise<void>;
   insertRun(run: ReviewRun): Promise<void>;
   /**
-   * Atomic claim: UPDATE … SET status='reviewing', error=NULL
+   * Atomic claim: UPDATE … SET status='reviewing', error=NULL, claimed_at=now
    * WHERE id=? AND status IN ('queued','error') RETURNING *.
+   * When staleBefore is given, a run stuck in 'reviewing' whose claimed_at is
+   * null or older than staleBefore is also claimable (abandoned claim).
    * Returns the claimed run, or null when no transition happened.
    */
-  claimRun(id: string): Promise<ReviewRun | null>;
+  claimRun(
+    id: string,
+    nowIso?: string,
+    staleBefore?: string,
+  ): Promise<ReviewRun | null>;
   updateRun(id: string, patch: RunPatch): Promise<ReviewRun | null>;
   /** Throws UniqueViolationError on a duplicate run_id. */
   insertDecision(decision: Decision): Promise<void>;
@@ -121,6 +129,7 @@ export const rowToDocument = (row: SqlRow): DocumentRecord => ({
   id: text(row.id),
   title: text(row.title),
   author: text(row.author),
+  authorId: nullableText(row.author_id),
   createdAt: text(row.created_at),
 });
 
@@ -150,6 +159,7 @@ export const documentToRow = (document: DocumentRecord) => ({
   id: document.id,
   title: document.title,
   author: document.author,
+  author_id: document.authorId ?? null,
   created_at: document.createdAt,
 });
 
@@ -184,6 +194,7 @@ export const rowToRun = (row: SqlRow): ReviewRun => ({
   finishedAt: nullableText(row.finished_at),
   jurisdictions: nullableJson<string[]>(row.jurisdictions) ?? undefined,
   actorId: nullableText(row.actor_id),
+  claimedAt: nullableText(row.claimed_at),
 });
 
 export const runToRow = (run: ReviewRun) => ({
@@ -200,6 +211,7 @@ export const runToRow = (run: ReviewRun) => ({
   jurisdictions:
     run.jurisdictions === undefined ? null : JSON.stringify(run.jurisdictions),
   actor_id: run.actorId ?? null,
+  claimed_at: run.claimedAt ?? null,
 });
 
 export const rowToDecision = (row: SqlRow): Decision => ({

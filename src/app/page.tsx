@@ -51,10 +51,12 @@ export default async function LandingPage() {
   );
 
   return (
-    <div className="-mx-6 -mt-8">
+    // Full-bleed: the landing sections must span the viewport, not the
+    // max-width main column, or their backgrounds leave bands at the edges.
+    <div className="relative left-1/2 -mt-8 w-screen -translate-x-1/2">
       {/* ── Hero: one statement, drenched ─────────────────────────────── */}
-      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col bg-accent-strong text-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-20">
+      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col bg-brand-deep text-white">
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gutter py-20">
           <h1
             className="animate-rise max-w-4xl font-serif text-5xl leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.75rem]"
             style={{ "--rise-delay": "0ms" } as React.CSSProperties}
@@ -83,7 +85,7 @@ export default async function LandingPage() {
           </div>
         </div>
         <div
-          className="animate-rise mx-auto w-full max-w-6xl px-6 pb-8"
+          className="animate-rise gutter mx-auto w-full max-w-6xl pb-8"
           style={{ "--rise-delay": "480ms" } as React.CSSProperties}
         >
           <p className="flex items-center gap-2 text-xs font-medium text-white/50">
@@ -106,7 +108,7 @@ export default async function LandingPage() {
 
       {/* ── Live review proof (centerpiece) ───────────────────────────── */}
       <section id="live-review" className="bg-surface">
-        <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+        <div className="gutter mx-auto max-w-6xl py-20 sm:py-24">
           <div className="max-w-2xl">
             <h2 className="font-serif text-3xl tracking-tight text-ink sm:text-4xl">
               This is not a screenshot.
@@ -133,7 +135,7 @@ export default async function LandingPage() {
 
       {/* ── How it works ──────────────────────────────────────────────── */}
       <section className="border-t border-line">
-        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="gutter mx-auto max-w-6xl py-16 sm:py-20">
           <h2 className="font-serif text-3xl tracking-tight text-ink">
             How it works
           </h2>
@@ -151,7 +153,7 @@ export default async function LandingPage() {
 
       {/* ── Personas ──────────────────────────────────────────────────── */}
       <section className="border-t border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="gutter mx-auto max-w-6xl py-16 sm:py-20">
           <h2 className="font-serif text-3xl tracking-tight text-ink">
             Four seats, one system
           </h2>
@@ -204,8 +206,8 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Closer: mirror the hero ───────────────────────────────────── */}
-      <section className="bg-accent-strong text-white">
-        <div className="mx-auto max-w-6xl px-6 py-20 text-center sm:py-24">
+      <section className="bg-brand-deep text-white">
+        <div className="gutter mx-auto max-w-6xl py-20 text-center sm:py-24">
           <h2 className="mx-auto max-w-2xl font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
             {session
               ? "Your workspace is waiting."

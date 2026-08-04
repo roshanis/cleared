@@ -5,6 +5,8 @@ import { canManageUsers } from "@/lib/roles";
 import { requireRole } from "@/lib/session";
 import { listUsers } from "@/lib/store";
 
+export const metadata = { title: "Users" };
+
 export default async function UsersPage() {
   const session = await requireRole("admin");
   // Real user administration is OAuth-admin only; a demo persona (even the

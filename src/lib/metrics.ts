@@ -1,13 +1,25 @@
 import { dailyModelCap, modelBudgetStatus } from "./model-budget";
 import type { Db } from "./store";
 
+export interface DayVolume {
+  day: string;
+  count: number;
+  /** Completed-run verdicts for the day; `other` is queued/reviewing/error. */
+  pass: number;
+  needsHumanReview: number;
+  fail: number;
+  other: number;
+}
+
 export interface Metrics {
   totalDocuments: number;
   runs30d: number;
   passRate: number | null;
+  /** Verdict split across all completed runs. */
+  verdictCounts: { pass: number; needsHumanReview: number; fail: number };
   topCriteria: { criterionId: string; count: number }[];
   medianMinutesToDecision: number | null;
-  volumeByDay: { day: string; count: number }[];
+  volumeByDay: DayVolume[];
 }
 
 export function computeMetrics(db: Db, now = new Date()): Metrics {
@@ -46,12 +58,29 @@ export function computeMetrics(db: Db, now = new Date()): Metrics {
   const medianMinutesToDecision =
     minutes.length > 0 ? minutes[Math.floor(minutes.length / 2)] : null;
 
+  const verdictCounts = {
+    pass: done.filter((r) => r.result!.verdict === "pass").length,
+    needsHumanReview: done.filter(
+      (r) => r.result!.verdict === "needs_human_review",
+    ).length,
+    fail: done.filter((r) => r.result!.verdict === "fail").length,
+  };
+
   const volumeByDay: Metrics["volumeByDay"] = [];
   for (let i = 13; i >= 0; i--) {
     const day = new Date(now.getTime() - i * 86400e3).toISOString().slice(0, 10);
+    const runs = db.runs.filter((r) => r.createdAt.slice(0, 10) === day);
+    const verdictOf = (r: (typeof runs)[number]) =>
+      r.status === "done" && r.result ? r.result.verdict : null;
     volumeByDay.push({
       day,
-      count: db.runs.filter((r) => r.createdAt.slice(0, 10) === day).length,
+      count: runs.length,
+      pass: runs.filter((r) => verdictOf(r) === "pass").length,
+      needsHumanReview: runs.filter(
+        (r) => verdictOf(r) === "needs_human_review",
+      ).length,
+      fail: runs.filter((r) => verdictOf(r) === "fail").length,
+      other: runs.filter((r) => verdictOf(r) === null).length,
     });
   }
 
@@ -59,6 +88,7 @@ export function computeMetrics(db: Db, now = new Date()): Metrics {
     totalDocuments: db.documents.length,
     runs30d,
     passRate,
+    verdictCounts,
     topCriteria,
     medianMinutesToDecision,
     volumeByDay,

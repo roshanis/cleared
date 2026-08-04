@@ -19,6 +19,8 @@ export interface DocumentRecord {
   id: string;
   title: string;
   author: string;
+  /** User id of the owning author; null on legacy/name-only rows. */
+  authorId?: string | null;
   createdAt: string;
 }
 
@@ -65,6 +67,8 @@ export interface ReviewRun {
   jurisdictions?: string[];
   /** User id for the actor that created the run; null on legacy/name-only rows. */
   actorId?: string | null;
+  /** When the run was last claimed for review; null before any claim. */
+  claimedAt?: string | null;
 }
 
 export interface FindingOverride {
@@ -176,7 +180,13 @@ async function initStore(): Promise<void> {
   await seedInto(seedDb, { demoData: process.env.SEED_DEMO_DATA !== "0" });
 
   // Bulk-insert in one transaction; swallow UniqueViolationError as a seed race.
-  await driver.transact((tx) => insertSeed(tx, seedDb, { ignoreUnique: true }));
+  // Re-check inside the transaction: a concurrent seeder may have won while
+  // seedInto was running, and seed ids are deterministic so any stragglers
+  // dedupe via ignoreUnique instead of inserting a second copy.
+  await driver.transact(async (tx) => {
+    if ((await tx.maxRubricVersion()) > 0) return;
+    await insertSeed(tx, seedDb, { ignoreUnique: true });
+  });
 }
 
 async function buildSeedDb(demoData: boolean): Promise<Db> {
@@ -220,7 +230,16 @@ async function insertSeed(
 }
 
 function ensureReady(): Promise<void> {
-  return (readyPromise ??= initStore());
+  if (!readyPromise) {
+    const attempt = initStore();
+    // A failed init (e.g. transient DB outage at cold start) must not poison
+    // the memo forever — clear it so the next request retries.
+    attempt.catch(() => {
+      if (readyPromise === attempt) readyPromise = null;
+    });
+    readyPromise = attempt;
+  }
+  return readyPromise;
 }
 
 /** Transaction entry point for all ops: seeds on first boot, then runs fn. */
@@ -273,10 +292,19 @@ export interface ResetDemoDataResult {
 export async function resetDemoData(): Promise<ResetDemoDataResult> {
   await ensureReady();
   const seedDb = await buildSeedDb(true);
+  const demoPersonaIds = new Set(demoPersonaUsers.map((user) => user.id));
 
   await getDriver().transact(async (tx) => {
+    // Resetting demo data must not destroy real accounts: keep every
+    // OAuth-provisioned/invited user record across the wipe.
+    const preservedUsers = (await tx.listUsers()).filter(
+      (user) => !demoPersonaIds.has(user.id),
+    );
     await tx.clearAll();
     await insertSeed(tx, seedDb);
+    for (const user of preservedUsers) {
+      await tx.createUser(user);
+    }
   });
 
   return {
@@ -307,6 +335,20 @@ export interface SubmissionInput {
   documentId?: string;
   reviewer: ReviewerKind;
   jurisdictions?: string[];
+  /**
+   * When set for a model run, the daily cap is re-checked inside the insert
+   * transaction, closing the window where concurrent submissions each pass a
+   * snapshot-based pre-check and overshoot the cap together.
+   */
+  modelDailyCap?: number;
+}
+
+/** Thrown when the in-transaction daily model budget check fails. */
+export class ModelBudgetExceededError extends Error {
+  constructor() {
+    super("daily model budget exceeded");
+    this.name = "ModelBudgetExceededError";
+  }
 }
 
 async function doCreateSubmission(
@@ -314,6 +356,11 @@ async function doCreateSubmission(
 ): Promise<{ document: DocumentRecord; version: DocVersion; run: ReviewRun }> {
   return transact(async (tx) => {
     const now = new Date().toISOString();
+
+    if (input.reviewer === "model" && input.modelDailyCap !== undefined) {
+      const used = await tx.countModelRunsOnUtcDay(now.slice(0, 10));
+      if (used >= input.modelDailyCap) throw new ModelBudgetExceededError();
+    }
 
     // Find or create the document.
     let document: DocumentRecord;
@@ -326,6 +373,7 @@ async function doCreateSubmission(
           id: newId("doc"),
           title: input.title || "Untitled document",
           author: input.author,
+          authorId: input.actorId ?? null,
           createdAt: now,
         };
         await tx.insertDocument(document);
@@ -335,6 +383,7 @@ async function doCreateSubmission(
         id: newId("doc"),
         title: input.title || "Untitled document",
         author: input.author,
+        authorId: input.actorId ?? null,
         createdAt: now,
       };
       await tx.insertDocument(document);
@@ -403,10 +452,26 @@ export type ClaimRunResult =
 // that the claimed run's version/rubric could not be found.
 const CORRUPT = Symbol("corrupt");
 
-export async function claimRunForReview(runId: string): Promise<ClaimRunResult> {
+/**
+ * A run stuck in "reviewing" longer than this is treated as an abandoned
+ * claim (process killed mid-review) and may be reclaimed. Model reviews are
+ * capped at 300s, so 15 minutes leaves ample margin.
+ */
+const STALE_CLAIM_MS = 15 * 60 * 1000;
+
+export async function claimRunForReview(
+  runId: string,
+  opts: { staleAfterMs?: number } = {},
+): Promise<ClaimRunResult> {
+  const staleAfterMs = opts.staleAfterMs ?? STALE_CLAIM_MS;
   try {
     return await transact(async (tx): Promise<ClaimRunResult> => {
-      const claimed = await tx.claimRun(runId);
+      const now = Date.now();
+      const claimed = await tx.claimRun(
+        runId,
+        new Date(now).toISOString(),
+        new Date(now - staleAfterMs).toISOString(),
+      );
 
       if (!claimed) {
         // The run wasn't transitioned — find out why.
@@ -569,28 +634,40 @@ export async function inviteUser(input: {
   role: Role;
 }): Promise<InviteUserResult> {
   const email = normalizeEmail(input.email);
-  return transact(async (tx): Promise<InviteUserResult> => {
-    const existing = await tx.getUserByEmail(email);
-    if (existing) {
-      if (existing.status === "invited" && existing.role === input.role) {
-        return { status: "existing", user: existing };
+  const attempt = () =>
+    transact(async (tx): Promise<InviteUserResult> => {
+      const existing = await tx.getUserByEmail(email);
+      if (existing) {
+        if (existing.status === "invited" && existing.role === input.role) {
+          return { status: "existing", user: existing };
+        }
+        return { status: "conflict", user: existing };
       }
-      return { status: "conflict", user: existing };
+      const now = new Date().toISOString();
+      const user: UserRecord = {
+        id: newId("usr"),
+        email,
+        displayName: email,
+        role: input.role,
+        status: "invited",
+        sessionGen: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await tx.createUser(user);
+      return { status: "created", user };
+    });
+  try {
+    return await attempt();
+  } catch (err) {
+    if (err instanceof UniqueViolationError) {
+      // A concurrent invite for the same email won the users.email unique
+      // constraint — retry so the caller gets the structured
+      // existing/conflict result instead of a 500.
+      return attempt();
     }
-    const now = new Date().toISOString();
-    const user: UserRecord = {
-      id: newId("usr"),
-      email,
-      displayName: email,
-      role: input.role,
-      status: "invited",
-      sessionGen: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await tx.createUser(user);
-    return { status: "created", user };
-  });
+    throw err;
+  }
 }
 
 async function doSaveRubricDraft(
@@ -637,13 +714,28 @@ export async function setGoldenGate(
   );
 }
 
+export type PublishRubricResult =
+  | { status: "published"; rubric: RubricVersion }
+  | { status: "unpublishable" }
+  | { status: "superseded"; activeVersion: number };
+
 export async function publishRubric(
   version: number,
-): Promise<RubricVersion | null> {
-  return transact(async (tx) => {
+): Promise<PublishRubricResult> {
+  return transact(async (tx): Promise<PublishRubricResult> => {
     const rubric = await tx.getRubric(version);
-    if (!rubric || !rubric.goldenGate?.pass) return null;
-    return tx.updateRubric(version, { publishedAt: new Date().toISOString() });
+    if (!rubric || !rubric.goldenGate?.pass) return { status: "unpublishable" };
+    // The active rubric is the highest published version, so stamping an
+    // older version would be a silent no-op — refuse it explicitly.
+    const active = await tx.latestPublishedRubric();
+    if (active && active.version > version) {
+      return { status: "superseded", activeVersion: active.version };
+    }
+    const updated = await tx.updateRubric(version, {
+      publishedAt: new Date().toISOString(),
+    });
+    if (!updated) return { status: "unpublishable" };
+    return { status: "published", rubric: updated };
   });
 }
 
@@ -679,6 +771,16 @@ export function reviewQueue(db: Db): QueueItem[] {
         run.result.verdict !== "pass" &&
         !decisionForRun(db, run.id),
     )
+    .filter((run) => {
+      // Only the latest run of a document's latest version is decidable —
+      // a superseded run has no decision UI and would sit in the queue
+      // forever, inflating the "waiting" count.
+      const latestVersion = db.versions
+        .filter((v) => v.documentId === run.documentId)
+        .sort((a, b) => b.number - a.number)[0];
+      if (!latestVersion || latestVersion.id !== run.versionId) return false;
+      return latestRunForVersion(db, latestVersion.id)?.id === run.id;
+    })
     .map((run) => ({
       run,
       document: db.documents.find((d) => d.id === run.documentId)!,

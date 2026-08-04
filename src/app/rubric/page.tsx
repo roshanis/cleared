@@ -3,6 +3,8 @@ import { PageHeader, StatusBadge, TableCard, Th } from "@/components/ui";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric } from "@/lib/store";
 
+export const metadata = { title: "Rubric" };
+
 export default async function RubricPage() {
   await requireRole("admin");
   const db = await getDb();

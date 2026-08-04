@@ -3,6 +3,7 @@ import { runReview } from "@/agent/run";
 import { canAccessRun } from "@/lib/access";
 import { requireSameOrigin } from "@/lib/request-guard";
 import { reviewErrorMessage } from "@/lib/review-error";
+import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { claimRunForReview, completeRun, failRun, getDb } from "@/lib/store";
 
@@ -19,6 +20,14 @@ export async function POST(
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  }
+  // Executing a review mutates the run and spends model budget — it belongs
+  // to the submit flow, not to read-only or reviewer roles.
+  if (!canSubmit(session.role)) {
+    return NextResponse.json(
+      { error: "Only authors and admins can run reviews." },
+      { status: 403 },
+    );
   }
   const { id } = await params;
   const db = await getDb();

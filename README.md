@@ -29,7 +29,7 @@ Sign in as a persona to see each customer's experience:
 | Maya Chen | author | Submit documents, act on findings, resubmit |
 | Devon Park | officer | Review queue, accept/dismiss findings, approve/reject with a note |
 | Priya Nair | admin | Everything + rubric editing, dashboard |
-| Sam Osei | admin | Audit history and CSV export |
+| Sam Osei | auditor | Read-only audit history and CSV export |
 
 ## Model mode
 

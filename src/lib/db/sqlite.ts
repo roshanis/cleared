@@ -76,6 +76,7 @@ const SCHEMA_DDL = `
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL,
     author     TEXT NOT NULL,
+    author_id  TEXT,
     created_at TEXT NOT NULL
   );
 
@@ -101,7 +102,8 @@ const SCHEMA_DDL = `
     created_at     TEXT NOT NULL,
     finished_at    TEXT,
     jurisdictions  TEXT,
-    actor_id       TEXT
+    actor_id       TEXT,
+    claimed_at     TEXT
   );
 
   CREATE TABLE IF NOT EXISTS decisions (
@@ -119,7 +121,7 @@ const SCHEMA_DDL = `
   CREATE INDEX IF NOT EXISTS idx_runs_version_created
     ON runs(rubric_version, created_at);
 
-  INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '3');
+  INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '4');
 `;
 
 /** Guarded migrations for existing durable databases. */
@@ -136,6 +138,11 @@ function migrate(instance: InstanceType<typeof import("node:sqlite").DatabaseSyn
     instance.exec("ALTER TABLE runs ADD COLUMN actor_id TEXT");
     instance.exec("ALTER TABLE decisions ADD COLUMN actor_id TEXT");
     instance.exec("UPDATE meta SET value = '3' WHERE key = 'schema_version'");
+  }
+  if (version < 4) {
+    instance.exec("ALTER TABLE documents ADD COLUMN author_id TEXT");
+    instance.exec("ALTER TABLE runs ADD COLUMN claimed_at TEXT");
+    instance.exec("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
   }
 }
 
@@ -291,6 +298,13 @@ function makeTx(db: DatabaseSync): Tx {
       return row ? rowToDecision(row as SqlRow) : null;
     },
 
+    async countModelRunsOnUtcDay(dayKey) {
+      const row = stmt(
+        "SELECT COUNT(*) AS n FROM runs WHERE reviewer='model' AND substr(created_at, 1, 10) = ?",
+      ).get(dayKey) as SqlRow;
+      return Number(row.n);
+    },
+
     async clearAll() {
       stmt("DELETE FROM decisions").run();
       stmt("DELETE FROM runs").run();
@@ -304,8 +318,8 @@ function makeTx(db: DatabaseSync): Tx {
       const r = documentToRow(document);
       try {
         stmt(
-          "INSERT INTO documents(id, title, author, created_at) VALUES (?, ?, ?, ?)",
-        ).run(r.id, r.title, r.author, r.created_at);
+          "INSERT INTO documents(id, title, author, author_id, created_at) VALUES (?, ?, ?, ?, ?)",
+        ).run(r.id, r.title, r.author, r.author_id, r.created_at);
       } catch (err) {
         mapUniqueOrThrow(err);
       }
@@ -333,7 +347,7 @@ function makeTx(db: DatabaseSync): Tx {
       const r = runToRow(run);
       try {
         stmt(
-          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions, actor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO runs(id, document_id, version_id, status, reviewer, rubric_version, result, error, created_at, finished_at, jurisdictions, actor_id, claimed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ).run(
           r.id,
           r.document_id,
@@ -347,17 +361,22 @@ function makeTx(db: DatabaseSync): Tx {
           r.finished_at,
           r.jurisdictions,
           r.actor_id,
+          r.claimed_at,
         );
       } catch (err) {
         mapUniqueOrThrow(err);
       }
     },
 
-    async claimRun(id) {
-      // Atomic: only transitions queued|error → reviewing.
+    async claimRun(id, nowIso, staleBefore) {
+      // Atomic: transitions queued|error → reviewing, plus abandoned
+      // 'reviewing' claims older than staleBefore (or never stamped).
+      const staleClause = staleBefore
+        ? " OR (status='reviewing' AND (claimed_at IS NULL OR claimed_at < ?))"
+        : "";
       const row = stmt(
-        "UPDATE runs SET status='reviewing', error=NULL WHERE id=? AND status IN ('queued','error') RETURNING *",
-      ).get(id);
+        `UPDATE runs SET status='reviewing', error=NULL, claimed_at=? WHERE id=? AND (status IN ('queued','error')${staleClause}) RETURNING *`,
+      ).get(...(staleBefore ? [nowIso ?? null, id, staleBefore] : [nowIso ?? null, id]));
       return row ? rowToRun(row as SqlRow) : null;
     },
 

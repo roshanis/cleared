@@ -109,7 +109,9 @@ export function sessionTokenFor(personaId: string): string | null {
 export async function getSession(): Promise<Session | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
-  if (!token) {
+  // Demo cookies are only honored while demo auth is enabled: turning
+  // DEMO_AUTH off must revoke outstanding demo sessions, not just new logins.
+  if (!token || !demoAuthEnabled()) {
     return getAuthJsSession();
   }
   const payload = verifyToken<{

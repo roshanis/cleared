@@ -5,14 +5,14 @@ import type { Severity } from "@/lib/rubric";
    these so the same action looks the same on every screen. */
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50";
+  "touch-target inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants = {
-  primary: "bg-accent text-white hover:bg-accent-strong active:bg-accent-strong",
+  primary: "bg-accent text-on-accent hover:bg-accent-strong active:bg-accent-strong",
   secondary:
     "border border-line-strong bg-surface text-accent-strong hover:border-accent hover:bg-accent-soft/70 active:bg-accent-soft",
-  danger: "bg-fail text-white hover:bg-fail-strong active:bg-fail-strong",
-  success: "bg-pass text-white hover:bg-pass-strong active:bg-pass-strong",
+  danger: "bg-fail text-on-fail hover:bg-fail-strong active:bg-fail-strong",
+  success: "bg-pass text-on-pass hover:bg-pass-strong active:bg-pass-strong",
   ghost: "text-muted hover:bg-rail hover:text-ink active:bg-well",
 } as const;
 
@@ -29,10 +29,10 @@ export function buttonClass(
 }
 
 export const inputClass =
-  "min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
+  "touch-target min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
 
 export const selectClass =
-  "min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
+  "touch-target min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
 
 export const textareaClass = `${inputClass} leading-6`;
 
@@ -143,7 +143,7 @@ export function CriterionChip({
       aria-label={`${expanded ? "Hide" : "Show"} rule ${id}`}
       title={`${expanded ? "Hide" : "Show"} rule ${id}`}
       onClick={onToggle}
-      className={`${className} cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+      className={`${className} touch-halo cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-on-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
     >
       {id}
     </button>
@@ -284,6 +284,31 @@ export function initials(name: string): string {
     .slice(0, 2)
     .map((word) => word[0]!.toUpperCase())
     .join("");
+}
+
+/** Full, unambiguous timestamp for audit surfaces (UTC, no locale drift). */
+export function absoluteTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+/**
+ * Relative time for scanning, exact time on hover and for machines. This is a
+ * compliance record — "2d ago" is never the whole answer.
+ */
+export function TimeAgo({
+  iso,
+  className = "",
+}: {
+  iso: string;
+  className?: string;
+}) {
+  return (
+    <time dateTime={iso} title={absoluteTime(iso)} className={className}>
+      {relativeTime(iso)}
+    </time>
+  );
 }
 
 export function relativeTime(iso: string, now = Date.now()): string {

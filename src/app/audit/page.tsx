@@ -7,7 +7,7 @@ import {
   Th,
   VerdictBadge,
   buttonClass,
-  relativeTime,
+  TimeAgo,
 } from "@/components/ui";
 import { requireRole } from "@/lib/session";
 import { decisionForRun, getDb } from "@/lib/store";
@@ -15,6 +15,8 @@ import { decisionForRun, getDb } from "@/lib/store";
 interface SearchParams {
   action?: string;
 }
+
+export const metadata = { title: "Audit log" };
 
 export default async function AuditPage({
   searchParams,
@@ -142,7 +144,7 @@ export default async function AuditPage({
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted">
-                    {relativeTime(decision.createdAt)}
+                    <TimeAgo iso={decision.createdAt} />
                   </td>
                 </tr>
               ))}

@@ -49,7 +49,7 @@ export function DemoBanner({
 
   return (
     <div className="border-b border-line bg-rail">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2 text-[13px] leading-5 sm:px-6">
+      <div className="gutter mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-1.5 py-2 text-[13px] leading-5">
         <span className="flex items-center gap-1.5 font-medium text-ink">
           <span
             aria-hidden
@@ -57,17 +57,21 @@ export function DemoBanner({
           >
             {initials(current.name)}
           </span>
-          Viewing as {current.name}
+          {/* "Viewing as" is the first thing to go on a phone: dropping it is
+              what lets the seat switcher share this row instead of taking one
+              of its own. */}
+          <span className="hidden sm:inline">Viewing as</span>
+          {current.name}
           <span className="font-normal text-muted">· {current.role}</span>
         </span>
         <Link
           href={hint.href}
-          className="min-w-0 text-muted underline decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-accent-strong hover:decoration-accent"
+          className="touch-band order-last min-w-0 basis-full truncate text-muted underline sm:order-none sm:basis-auto decoration-line-strong underline-offset-2 transition-colors duration-150 hover:text-accent-strong hover:decoration-accent sm:overflow-visible sm:whitespace-normal"
         >
           Try: {hint.text}
         </Link>
         <span className="ml-auto flex items-center gap-1.5">
-          <span className="text-muted">Switch seat</span>
+          <span className="hidden text-muted sm:inline">Switch seat</span>
           {others.map((persona) => (
             <button
               key={persona.id}
@@ -75,7 +79,7 @@ export function DemoBanner({
               onClick={() => switchTo(persona.id)}
               disabled={pending !== null}
               title={`${persona.name} · ${persona.role}`}
-              className="inline-flex min-h-7 items-center gap-1 rounded-md border border-line bg-surface px-2.5 py-0.5 font-medium text-muted transition-colors duration-150 hover:border-accent hover:text-accent-strong disabled:pointer-events-none disabled:opacity-60"
+              className="touch-target inline-flex min-h-7 items-center justify-center gap-1 rounded-md border border-line bg-surface px-2.5 py-0.5 font-medium text-muted transition-colors duration-150 hover:border-accent hover:text-accent-strong disabled:pointer-events-none disabled:opacity-60"
             >
               {pending === persona.id ? "…" : persona.name.split(" ")[0]}
             </button>

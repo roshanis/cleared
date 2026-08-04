@@ -52,6 +52,20 @@ describe("locateQuote", () => {
     ).toBeNull();
   });
 
+  it("matches a single-token edit at the end of the quote", () => {
+    const range = locateQuote(doc, "returns you can count on every month");
+    expect(range && doc.slice(range.start, range.end)).toBe(
+      "returns you can count on every quarter",
+    );
+  });
+
+  it("matches a single-token edit at the start of the quote", () => {
+    const range = locateQuote(doc, "profits you can count on every quarter");
+    expect(range && doc.slice(range.start, range.end)).toBe(
+      "returns you can count on every quarter",
+    );
+  });
+
   it("never guesses when multiple fuzzy windows tie", () => {
     const content =
       "returns you can count on every quarter; returns you can count on every month.";

@@ -36,6 +36,7 @@ export function DecisionPanel({
   const [error, setError] = useState<string | null>(null);
   const acceptedCount = overrides.filter((action) => action === "accept").length;
   const dismissedCount = overrides.length - acceptedCount;
+  const ready = note.trim().length >= 3;
 
   async function decide(action: "approve" | "reject") {
     setSubmitting(action);
@@ -165,10 +166,41 @@ export function DecisionPanel({
           </p>
         )}
 
+        {/* A decision is final and lands on the audit record — say plainly
+            what will be written before the click, not after. */}
+        <div
+          aria-live="polite"
+          className="rounded-md border border-line bg-rail px-3.5 py-3 text-xs leading-5 text-muted"
+        >
+          {ready ? (
+            <>
+              Recording this will accept{" "}
+              <span className="font-semibold text-ink">
+                {acceptedCount} finding{acceptedCount === 1 ? "" : "s"}
+              </span>
+              {dismissedCount > 0 && (
+                <>
+                  , dismiss{" "}
+                  <span className="font-semibold text-ink">
+                    {dismissedCount}
+                  </span>
+                </>
+              )}
+              , and attach your note to the permanent audit record. It
+              can&rsquo;t be edited afterwards.
+            </>
+          ) : (
+            <>
+              Add a decision note to continue. Your decision is final once
+              recorded and appears in the audit log.
+            </>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-3 border-t border-line pt-4">
           <button
             type="button"
-            disabled={submitting !== null || note.trim().length < 3}
+            disabled={submitting !== null || !ready}
             onClick={() => decide("reject")}
             className={buttonClass("danger")}
           >
@@ -176,7 +208,7 @@ export function DecisionPanel({
           </button>
           <button
             type="button"
-            disabled={submitting !== null || note.trim().length < 3}
+            disabled={submitting !== null || !ready}
             onClick={() => decide("approve")}
             className={buttonClass("success")}
           >
