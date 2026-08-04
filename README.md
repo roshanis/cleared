@@ -7,8 +7,10 @@ exact quotes and fixes. Humans stay in charge: failed or uncertain documents
 land in a review queue, every decision needs a note, and the full history is
 exportable for audit.
 
-Built from [GOAL.md](./GOAL.md). Tests: `npm test` (40 tests + golden-set
-evals). Deploys to Vercel as a single Next.js project.
+Built from [GOAL.md](./GOAL.md). Tests: `npm test` (320 unit tests +
+golden-set evals) and `npm run e2e` (browser tests across iPhone and iPad
+viewports). Both run on every pull request. Deploys to Vercel as a single
+Next.js project.
 
 ## Quick start
 
@@ -132,7 +134,7 @@ robot verdict.
 
 - `evals/golden/` — golden documents with expected outcomes
 - `evals/grade.ts` — grading harness (verdict + expected criteria)
-- `npm test` — runs the golden set through the full pipeline in CI
+- `npm test` — runs the golden set through the full pipeline
 - `npm run eval` — same from the CLI (uses model reviewers when a key is set)
 - **Rubric publish gate** — editing the rubric in the UI creates a draft
   version; the app runs the golden set against it and shows per-case deltas
@@ -141,6 +143,29 @@ robot verdict.
 
 Grow `evals/golden/` with sanitized real documents — that's what makes prompt,
 rubric, and model changes safe.
+
+### Browser tests
+
+`npm run e2e` (Playwright, `e2e/`) covers what a unit test cannot see: real
+layout at real device sizes. Every assertion corresponds to a defect the app
+actually shipped, so a failure is a regression rather than a matter of taste —
+sideways scrolling on any of seven iPhone and iPad viewports, the header link
+rail overlapping the account controls at iPad-portrait widths, the phone tab
+bar hiding a destination or covering the end of a page, a text field small
+enough to make Safari zoom on focus, and content landing under the notch or
+the home indicator.
+
+The Playwright config builds the app and starts it in demo mode itself, so no
+server needs to be running first. In sandboxes that ship a prebuilt browser,
+point at it with `PLAYWRIGHT_CHROMIUM_PATH`; otherwise run `npx playwright
+install chromium` once.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs typecheck, unit tests, and a production build
+in one job, and the browser tests in another, on every pull request and every
+push to `main`. A failing browser run uploads its report and traces as an
+artifact.
 
 Golden `expected.json` files can also mark eval metadata:
 
