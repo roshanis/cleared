@@ -140,7 +140,7 @@ export default async function DocumentsPage({
                 key={filter.label}
                 href={href}
                 aria-current={isActive ? "true" : undefined}
-                className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors duration-150 ${
+                className={`touch-target inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors duration-150 ${
                   isActive
                     ? "border-accent bg-accent-soft text-accent-strong"
                     : "border-line-strong bg-surface text-muted hover:border-accent hover:text-ink"

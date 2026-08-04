@@ -5,7 +5,7 @@ import type { Severity } from "@/lib/rubric";
    these so the same action looks the same on every screen. */
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50";
+  "touch-target inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants = {
   primary: "bg-accent text-on-accent hover:bg-accent-strong active:bg-accent-strong",
@@ -29,10 +29,10 @@ export function buttonClass(
 }
 
 export const inputClass =
-  "min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
+  "touch-target min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
 
 export const selectClass =
-  "min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
+  "touch-target min-h-10 w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:bg-well disabled:text-muted";
 
 export const textareaClass = `${inputClass} leading-6`;
 
@@ -143,7 +143,7 @@ export function CriterionChip({
       aria-label={`${expanded ? "Hide" : "Show"} rule ${id}`}
       title={`${expanded ? "Hide" : "Show"} rule ${id}`}
       onClick={onToggle}
-      className={`${className} cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-on-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+      className={`${className} touch-halo cursor-pointer transition-colors duration-150 hover:bg-accent hover:text-on-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
     >
       {id}
     </button>

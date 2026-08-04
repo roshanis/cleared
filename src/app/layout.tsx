@@ -1,12 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import { DemoStrip } from "@/components/demo-strip";
+import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { Nav } from "@/components/nav";
 import { themeInitScript } from "@/components/theme-toggle";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+});
 const sourceSerif = Source_Serif_4({
   subsets: ["latin"],
   variable: "--font-source-serif",
@@ -32,6 +36,24 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription,
   },
+  // Names the tile if someone adds the app to an iPhone/iPad home screen.
+  appleWebApp: { title: "Cleared" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Paint edge to edge on notched iPhones; the `gutter`/`safe-bottom`
+  // utilities put content back inside the safe area, so nothing lands under
+  // the Dynamic Island in landscape or the home indicator at the bottom.
+  viewportFit: "cover",
+  // Colors the Safari toolbar to match the sticky header it sits against.
+  // These two follow the OS; the theme toggle overrides them at runtime when
+  // the reader has picked a side explicitly.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#171a19" },
+  ],
 };
 
 export default function RootLayout({
@@ -46,7 +68,9 @@ export default function RootLayout({
         {/* Applies a stored theme before first paint — no flash of light. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-screen bg-paper font-sans text-ink antialiased">
+      {/* dvh, not vh: iOS Safari's vh ignores the collapsing toolbar, which
+          leaves a screen-height page scrolling by the toolbar's height. */}
+      <body className="min-h-dvh bg-paper font-sans text-ink antialiased">
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-on-accent"
@@ -58,10 +82,11 @@ export default function RootLayout({
         <main
           id="main"
           tabIndex={-1}
-          className="mx-auto w-full max-w-7xl px-6 py-8 focus:outline-none"
+          className="gutter mx-auto w-full max-w-7xl py-8 focus:outline-none"
         >
           {children}
         </main>
+        <MobileTabBar />
       </body>
     </html>
   );

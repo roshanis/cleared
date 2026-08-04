@@ -71,7 +71,7 @@ export default async function DashboardPage() {
       />
 
       <Card className="overflow-hidden">
-        <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-px bg-line lg:grid-cols-4">
           <MetricCell label="Documents" value={String(metrics.totalDocuments)} />
           <MetricCell label="Reviews, last 30 days" value={String(metrics.runs30d)} />
           <MetricCell
@@ -353,7 +353,7 @@ function MetricCell({
     .filter((p): p is { v: number; i: number } => p.v !== null);
   const showSpark = points !== undefined && points.length >= 2;
   return (
-    <div className="px-5 py-4 lg:py-5">
+    <div className="bg-surface px-4 py-4 lg:px-5 lg:py-5">
       <p className="text-xs font-medium text-muted">{label}</p>
       <div className="mt-1.5 flex items-end justify-between gap-3">
         <p className="text-3xl font-semibold tracking-tight tabular-nums">
@@ -362,7 +362,7 @@ function MetricCell({
         {showSpark && (
           <svg
             viewBox={`0 0 ${(spark!.length - 1) * 6} 28`}
-            className="mb-1 h-7 w-20 shrink-0"
+            className="mb-1 h-7 w-14 shrink-0 sm:w-20"
             role="img"
             aria-label={sparkLabel ?? `${label} trend`}
             preserveAspectRatio="none"

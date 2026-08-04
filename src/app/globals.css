@@ -80,7 +80,10 @@
 
   /* Dark surfaces sit closer together in luminance, so lift separation with
      a hairline-plus-deeper-shadow instead of the light mode's faint drop. */
-  --shadow-card: light-dark(0 1px 0 rgb(23 25 24 / 0.04), 0 1px 0 rgb(0 0 0 / 0.4));
+  --shadow-card: light-dark(
+    0 1px 0 rgb(23 25 24 / 0.04),
+    0 1px 0 rgb(0 0 0 / 0.4)
+  );
   --shadow-raised: light-dark(
     0 12px 30px rgb(23 25 24 / 0.12),
     0 12px 30px rgb(0 0 0 / 0.55)
@@ -105,6 +108,88 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+/* iOS taps: replace Safari's grey flash with the app's accent, and opt out of
+   double-tap-to-zoom so the first tap registers immediately. */
+a,
+button,
+[role="button"],
+summary,
+label {
+  -webkit-tap-highlight-color: light-dark(
+    rgb(14 89 96 / 0.12),
+    rgb(79 191 199 / 0.16)
+  );
+  touch-action: manipulation;
+}
+
+@layer utilities {
+  /* Page gutter that also clears the notch when an iPhone is held in
+     landscape — the inset is zero on every other device, so this is just
+     px-4 / sm:px-6 everywhere else. */
+  .gutter {
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    padding-right: calc(1rem + env(safe-area-inset-right));
+  }
+
+  @media (width >= 40rem) {
+    .gutter {
+      padding-left: calc(1.5rem + env(safe-area-inset-left));
+      padding-right: calc(1.5rem + env(safe-area-inset-right));
+    }
+  }
+
+  /* Keeps fixed bottom chrome above the home indicator. */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Touch sizing is a property of the pointer, not the viewport: an iPad at
+     1194px still deserves 44px targets, a 375px desktop window does not. */
+  @media (pointer: coarse) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Segmented controls are contiguous, so a near miss lands on a
+       neighbouring option rather than on nothing — height carries the target
+       and the segments stay narrow. */
+    .touch-segment {
+      min-height: 40px;
+      min-width: 36px;
+    }
+
+    /* Grows a thin control's hit box by 12px above and below, then takes the
+       same amount back as negative margin, so the row keeps its height. Unlike
+       a pseudo-element halo this survives `overflow: hidden`, because padding
+       is part of the box that hit-testing uses. */
+    .touch-band {
+      padding-top: 12px;
+      padding-bottom: 12px;
+      margin-top: -12px;
+      margin-bottom: -12px;
+    }
+
+    /* Widens the hit area around a small inline control without changing how
+       big it looks or disturbing the line it sits on. Only for controls that
+       do not clip their own overflow. */
+    .touch-halo {
+      position: relative;
+    }
+
+    .touch-halo::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      height: 44px;
+      width: 100%;
+      min-width: 44px;
+      transform: translate(-50%, -50%);
+    }
+  }
 }
 
 h1,
