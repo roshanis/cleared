@@ -62,6 +62,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      // The pre-paint script intentionally applies the stored theme here.
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable}`}
     >
       <head>

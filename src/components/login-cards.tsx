@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { StatusBadge, initials, inputClass } from "./ui";
 
@@ -10,6 +9,7 @@ interface PersonaCard {
   role: string;
   tagline: string;
   sees: string;
+  home: string;
 }
 
 export function LoginCards({
@@ -22,7 +22,6 @@ export function LoginCards({
   /** Persona id to visually highlight as "Suggested" (from ?as= param). */
   highlight?: string;
 }) {
-  const router = useRouter();
   const [accessCode, setAccessCode] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +41,9 @@ export function LoginCards({
         } | null;
         throw new Error(body?.error ?? "Sign-in failed.");
       }
-      router.push("/");
-      router.refresh();
+      // Cross the authentication boundary with a fresh server navigation. A
+      // push+refresh can race against cached anonymous route data after Set-Cookie.
+      window.location.assign(personas.find(persona => persona.id === personaId)?.home ?? "/documents");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");
       setPending(null);

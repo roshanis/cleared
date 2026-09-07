@@ -43,6 +43,7 @@ export function FixDraftPanel({ runId }: { runId: string }) {
 
   function loadIntoResubmit() {
     if (!draft) return;
+    try {
     sessionStorage.setItem(
       FIX_DRAFT_STORAGE_KEY,
       JSON.stringify({
@@ -52,6 +53,9 @@ export function FixDraftPanel({ runId }: { runId: string }) {
       }),
     );
     router.push(`/submit?documentId=${draft.documentId}&fixDraft=1`);
+    } catch {
+      setError("Your browser could not transfer this draft. Copy the proposed text below into the revision form.");
+    }
   }
 
   return (
@@ -60,7 +64,7 @@ export function FixDraftPanel({ runId }: { runId: string }) {
         <div>
           <SectionHeading>Fix draft</SectionHeading>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-            The fix-it agent drafts a compliant rewrite for each finding.
+            The fixer proposes edits for the reported findings.
             Nothing is submitted — you review, edit, and resubmit.
           </p>
         </div>
@@ -84,6 +88,7 @@ export function FixDraftPanel({ runId }: { runId: string }) {
 
       {draft && (
         <div className="space-y-4 p-5">
+          <details className="rounded-lg border border-line p-4 text-sm"><summary className="cursor-pointer font-medium">Read the complete proposed draft</summary><pre className="mt-3 whitespace-pre-wrap break-words font-serif leading-7">{draft.patched}</pre></details>
           <ul className="space-y-3">
             {draft.applied.map((fix, i) => (
               <li key={i} className="rounded-lg border border-line p-3 text-sm">

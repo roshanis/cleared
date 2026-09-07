@@ -4,11 +4,11 @@ import type { ReviewResult } from "@/schema";
 export function verdictNextStep(verdict: ReviewResult["verdict"]): string {
   switch (verdict) {
     case "pass":
-      return "No rubric violations — this version is cleared and needs no human review.";
+      return "No issues reported under the checked rules. This automated result is not an officer approval or a verification of external facts.";
     case "fail":
       return "This version violates a fail-level rule. A compliance officer will review it; fixing the highlighted passages and resubmitting is the fastest way to clear it.";
     case "needs_human_review":
-      return "The reviewer flagged issues but isn't certain enough to fail the document outright. A compliance officer will make the final call — no action needed from you yet.";
+      return "Some findings or coverage gaps need human judgment. Inspect the review scope and evidence; a compliance officer can record the decision.";
   }
 }
 

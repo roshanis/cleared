@@ -10,6 +10,11 @@ export function canSubmit(role: Role): boolean {
   return role === "author" || role === "admin";
 }
 
+/** Auditors are read-only; everyone else who can access a run may re-run it. */
+export function canRerun(role: Role): boolean {
+  return role !== "auditor";
+}
+
 /** Everyone except authors may export the audit CSV. */
 export function canExport(role: Role): boolean {
   return role !== "author";

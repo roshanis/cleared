@@ -1124,3 +1124,96 @@ Model-mode latency.
 ### Recommendations / Next steps: Operator still owns the GOAL-LIVE checklist (OAuth creds, Neon PITR
   + restore rehearsal, ADMIN_EMAIL, onboarding walk). Client deployments carry no demo flags, which
   independently avoids the fixed condition; the fix is defense-in-depth for any mixed deployment.
+
+## [AGENT: Codex] [2026-07-13T14:55Z]
+### Action: Added re-run support for existing review runs
+### Files changed:
+- src/lib/roles.ts
+- src/lib/roles.test.ts
+- src/lib/store.ts
+- src/lib/store.rerun.test.ts
+- src/lib/execute-run.ts
+- src/app/api/runs/[id]/execute/route.ts
+- src/lib/reviewer-choice.ts
+- src/app/api/submissions/route.ts
+- src/app/api/runs/[id]/rerun/route.ts
+- src/app/api/runs/[id]/rerun/route.test.ts
+- agents-build-log.md
+### Diff summary:
+Added a `canRerun` role capability, store-level `rerunVersion` that creates a
+new queued run for an existing document version using the current published
+rubric, shared execution and reviewer-choice helpers, and a guarded rerun API
+route that preserves author ownership, auditor read-only behavior, rate limits,
+model-budget behavior, and audit history.
+### Recommendations / Next steps:
+None. Verification passed with `npm test`, `npx tsc --noEmit`, and `npm run build`.
+
+## [AGENT: Codex] [2026-07-13T15:06Z]
+### Action: Added review re-run UI and shared live progress theater
+### Files changed:
+- src/components/review-progress.tsx
+- src/components/rerun-panel.tsx
+- src/components/submit-form.tsx
+- src/app/documents/[id]/page.tsx
+- agents-build-log.md
+### Diff summary:
+Extracted the submit review-progress card into a shared component, added a
+client-side rerun panel with retry, polling, reduced-motion-aware theater
+gating, and document-detail wiring, and narrowed the document placeholder to
+only the no-run state. No re-run backend files were changed in this round.
+### Recommendations / Next steps:
+None. Verification passed with `npm test`, `npx tsc --noEmit`, and `npm run build`.
+
+
+## [AGENT: Codex] [2026-09-07T16:50Z]
+### Action: Implemented the GO-approved product and review-trust upgrade
+### Files changed:
+- Review engine/schema, submission/rerun/decision routes and store helpers
+- Landing, login, navigation, intake, documents, queue, dashboard and audit views
+- Evidence, coverage, decision, recovery and shared UI components
+- Regression tests, four golden evaluations, README and product verification docs
+- agents-build-log.md
+### Diff summary:
+Implemented explicit coverage and retained contradictory model allegations; fixed
+reproduced heuristic masking misses. Rebuilt the responsive evidence workspace,
+exact-run history, role affordances, market-preserving resubmission, tab-scoped
+drafts, idempotent retries and honest progress. Human approval now explicitly
+acknowledges coverage gaps in the immutable audit note. Luna reviewed and Codex
+reproduced/fixed its final finding. Existing data and application checkout intact.
+### Verification:
+352 tests passed, 3 Postgres integration tests skipped; typecheck and isolated
+production build passed. Offline eval: 14 passed, 1 model-only skipped. Browser
+checks exercised desktop/mobile authors, officers, auditors and admin navigation.
+Offline production-dependency audit had no cached advisories (not a fresh audit).
+Full evidence and limitations: docs/PRODUCT-UPGRADE-VERIFICATION.md.
+### Recommendations / Next steps:
+Review uncommitted codex/product-upgrade in this isolated worktree before
+integration. No paid calls, real OAuth/DB use, commit, push, merge or deploy.
+Stable user-ID ownership migration and customer-specific model validation remain
+release blockers. Keep the worktree before temporary-directory cleanup.
+Final fresh-login browser check exposed and fixed a push/refresh navigation race;
+retest reached the author workspace. Final source-only backup (no credentials or
+review data): /Users/roshanvenugopal/Documents/github/eveagents/.codex-backups/product-upgrade-final-20260907.0Up3ra.
+
+## [AGENT: Codex] [2026-09-07T17:57Z]
+### Action: Reconciled the human-approved local main merge
+### Files changed:
+- Conflicting review, submission, store, navigation and workspace files
+- Rerun budget/history/execute regression tests, README and verification docs
+- agents-build-log.md
+### Diff summary:
+Integrated product-upgrade ef7f8bf with upstream a9b11e6 in a separate durable
+worktree. Preserved upstream security, storage, mobile, theme and chart work.
+Re-runs now enforce the transactional model cap after idempotent replay.
+Historical inspection remains separate from current decision work. Corrected
+the reproduced pre-paint theme hydration warning.
+### Verification:
+371 passed, 3 Postgres tests skipped; typecheck and production build passed.
+Offline eval: 14 passed, 1 model-only skipped. Browser exercised synthetic
+author submission/rerun, officer history/gating and auditor read-only controls,
+390px light/dark views and 1280px dark workspace. Luna reviewed against main;
+its worker-fencing concern was confirmed pre-existing and documented.
+### Recommendations / Next steps:
+Complete the local main fast-forward after the final clean-checkout build.
+No push or deployment; preserve the original dirty goal-live checkout.
+See docs/MAIN-INTEGRATION-2026-09-07.md for evidence and release limitations.

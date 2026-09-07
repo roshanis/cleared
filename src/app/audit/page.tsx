@@ -110,7 +110,7 @@ export default async function AuditPage({
                   <td className="px-4 py-3">
                     {document ? (
                       <Link
-                        href={`/documents/${document.id}`}
+                        href={`/documents/${document.id}?run=${decision.runId}`}
                         className="font-medium text-accent-strong hover:underline"
                       >
                         {document.title}

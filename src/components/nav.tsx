@@ -3,7 +3,7 @@ import { NavLinks } from "@/components/nav-links";
 import { initials } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { linksFor } from "@/lib/navigation";
-import { getSession } from "@/lib/session";
+import { getSession, homeByRole } from "@/lib/session";
 
 export async function Nav() {
   const session = await getSession();
@@ -14,7 +14,7 @@ export async function Nav() {
           account controls onto a second line or under the theme toggle. */}
       <div className="gutter mx-auto flex min-h-14 w-full max-w-7xl items-center gap-3 py-2">
         <Link
-          href="/"
+          href={session ? homeByRole[session.role] : "/"}
           className="touch-target flex shrink-0 items-center text-xl font-semibold tracking-tight text-accent-strong sm:text-2xl"
         >
           Cleared<span className="text-accent">.</span>

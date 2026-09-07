@@ -4,6 +4,13 @@ import { segmentDocument } from "./highlight";
 describe("segmentDocument", () => {
   const doc = "The fund is risk-free and beats Vanguard easily.";
 
+  it("highlights every repeated exact quote without changing the source", () => {
+    const content = "Guaranteed returns.\nA different section.\nGuaranteed returns.";
+    const segments = segmentDocument(content, ["Guaranteed returns."]);
+    expect(segments.filter(s => s.findingIndexes.includes(0))).toHaveLength(2);
+    expect(segments.map(s => s.text).join("")).toBe(content);
+  });
+
   it("segments concatenate back to the original content", () => {
     const segments = segmentDocument(doc, ["risk-free", "beats Vanguard"]);
     expect(segments.map((s) => s.text).join("")).toBe(doc);

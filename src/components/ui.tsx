@@ -17,8 +17,8 @@ const buttonVariants = {
 } as const;
 
 const buttonSizes = {
-  md: "min-h-10 px-4 py-2 text-sm",
-  sm: "min-h-8 px-3 py-1.5 text-xs",
+  md: "min-h-11 px-4 py-2.5 text-sm",
+  sm: "min-h-10 px-3 py-2 text-xs",
 } as const;
 
 export function buttonClass(
@@ -68,12 +68,12 @@ const verdictStyles: Record<
   { label: string; className: string; dot: string }
 > = {
   pass: {
-    label: "Pass",
+    label: "No issues found",
     className: "bg-pass-soft text-pass ring-pass/25",
     dot: "bg-pass",
   },
   fail: {
-    label: "Fail",
+    label: "Issues found",
     className: "bg-fail-soft text-fail ring-fail/25",
     dot: "bg-fail",
   },
@@ -246,7 +246,7 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="break-words text-3xl font-semibold tracking-tight text-ink">
           {title}
         </h1>
         {subtitle && (

@@ -7,8 +7,32 @@ exact quotes and fixes. Humans stay in charge: failed or uncertain documents
 land in a review queue, every decision needs a note, and the full history is
 exportable for audit.
 
-Built from [GOAL.md](./GOAL.md). Tests: `npm test` (40 tests + golden-set
-evals). Deploys to Vercel as a single Next.js project.
+Built from [GOAL.md](./GOAL.md). Tests: `npm test` and `npm run typecheck`.
+Deploys to Vercel as a single Next.js project.
+
+## Product upgrade — September 2026
+
+The investment-communications workflow now includes a responsive evidence
+workspace, explicit rule coverage, current-work review queues, exact run links,
+all-run history, and separate automated outcomes and officer decisions. No
+findings are accepted by default. Approving an incomplete review requires an
+explicit coverage acknowledgment, recorded with the rationale in the audit note.
+
+Draft recovery uses user/document-scoped browser-tab storage, is disclosed and
+optional, and expires eight hours after its last save (expired entries are
+removed when read). Submission and rerun request keys prevent duplicate saved
+work after ambiguous responses. Resubmission retains the selected markets.
+
+The deterministic reviewer is a limited starter-rule demonstration, not legal
+coverage or independent verification of external claims. Edited/custom rules it
+cannot evaluate are marked unsupported and routed to a human. Model omissions
+and contradictory assessments cannot silently count as completed checks.
+
+See [the upgrade verification and release boundaries](docs/PRODUCT-UPGRADE-VERIFICATION.md).
+New documents use stable author-ID ownership; legacy name-only records still
+need an approved identity mapping before customer use. Real OAuth onboarding,
+Postgres recovery, and a customer-specific model/rubric evaluation remain
+required before a customer-data pilot.
 
 ## Quick start
 
@@ -18,8 +42,8 @@ npm run dev        # http://localhost:3000
 ```
 
 No configuration needed: without an `OPENAI_API_KEY` the app runs in demo
-mode (a deterministic heuristic reviewer — the UI says so), storage is a local
-JSON file (`.data/db.json`), and the store self-seeds with demo documents on
+mode (a deterministic heuristic reviewer — the UI says so), storage is local
+SQLite (`.data/app.db`, Node >= 22.5), and the store self-seeds with demo documents on
 first run.
 
 Sign in as a persona to see each customer's experience:
@@ -45,10 +69,14 @@ Model-mode failures are explicit and retryable. If the provider rejects the
 key, rate-limits the request, times out, refuses, or returns malformed
 structured output, the run is persisted as `error` with a human-readable
 message. The submit screen shows the message without clearing the draft, and
-the document history renders the failed run with "resubmit to retry." Retrying
+the document workspace offers "Resume review." Retrying
 reclaims the errored run and clears the previous error before re-executing.
 
 ### Model-mode latency and validated model (measured 2026-07-08)
+
+Historical measurements only: the September coverage/schema changes have **not**
+been evaluated with paid model calls. The results below do not validate the
+current implementation or establish a recommended production configuration.
 
 The five-case golden set was run live against the OpenAI API
 (`npx tsx --env-file=.env evals/run.ts`):
@@ -56,8 +84,8 @@ The five-case golden set was run live against the OpenAI API
 - **`OPENAI_MODEL=gpt-5.4` — all 5 golden cases pass, verified twice
   consecutively with identical results.** Full set: 20–26s wall clock,
   ≈ **4–5s per review** (two reviewers in parallel, then the judge —
-  three model calls per review). This is the validated configuration for
-  client deployments.
+  three model calls per review). This was the configuration validated for that
+  historical revision, not the current code.
 - **`gpt-5.4-mini` (the zero-config default) is demo-grade only:** across
   four runs it showed run-to-run variance — phantom findings (C2/C4/C5)
   on compliant documents and intermittent misses of the UK C6 absence
@@ -67,8 +95,8 @@ The five-case golden set was run live against the OpenAI API
 Calibration that got here (see `agents-build-log.md`): reviewer prompts
 rewritten around a violations-only contract with an explicit
 `compliantCriteria` outlet (the mini model was returning "this complies"
-notes as findings), a deterministic contradiction filter (a finding whose
-criterion the reviewer itself declared compliant is dropped in code), a
+notes as findings), a historical contradiction filter (replaced in September by
+retaining conflicting findings as uncertainty and recording coverage), a
 concrete-defect bar for judge challenges, and C2/C3/C6 rubric
 descriptions sharpened at their boundaries.
 
@@ -89,8 +117,8 @@ passes down a line of specialists:
    *risk reviewer* looks for things like asking customers for account
    numbers. Each reads the document against the rubric — the versioned rule
    list an admin maintains — and writes findings. Every finding must include
-   the **exact quote**, the rule it breaks, and a suggested fix. No vibes,
-   no scores: point at the sentence or it doesn't count.
+   the **exact quote**, the rule it breaks, and a suggested fix. Missing-language
+   findings label the quote as context for an absence, not offending text.
 2. **A judge checks the reviewers' homework.** After findings are merged and
    deduped, the judge agent asks "is this real?" — e.g. does the quote
    actually appear in the document, or did a reviewer hallucinate it? The
@@ -106,7 +134,7 @@ passes down a line of specialists:
    (US/UK/EU). The same findings always produce the same verdict — that's
    what makes it auditable.
 4. **A fixer, only when asked.** If the document fails and the author clicks
-   **Draft fixes**, a fourth agent drafts a compliant rewrite per quoted
+   **Draft fixes**, a fourth agent proposes a rewrite per quoted
    violation. Code does the careful part: it locates each quote and swaps in
    the replacement, and says "apply manually" when it can't find a passage
    rather than guessing. Nothing is auto-submitted — the author reviews the
@@ -114,13 +142,14 @@ passes down a line of specialists:
 5. **A human always has the last word.** Anything failed or uncertain lands
    in the officer's queue. He can accept or dismiss any finding but can't
    decide without a note — and his decision, not the agents', is what goes
-   in the audit trail.
+   in the audit trail. Coverage gaps require a separate acknowledgment before
+   approval and remain gaps in the original automated result.
 
 In the website: "Submit for review" calls `/api/submissions` (saves the
 document) then `/api/runs/{id}/execute`, which runs the whole chain in
-`src/agent/run.ts` and persists the result. The staged progress you see
-("Policy reviewer reading… Judge verifying quotes…") is the real pipeline
-order, paced so you can read it.
+`src/agent/run.ts` and persists the result. Progress reports saving/running state
+and elapsed time; it does not pretend to know which model stage is active.
+Results appear immediately when available.
 
 In demo mode every agent is replaced by a deterministic stand-in (regex
 reviewers, a quote-verifying judge, templated fixes) so it costs nothing and

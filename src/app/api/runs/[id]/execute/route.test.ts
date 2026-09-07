@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSubmission, getDb, resetStoreForTests } from "@/lib/store";
 import { POST } from "./route";
+import { getSession } from "@/lib/session";
 
 const runReviewMock = vi.hoisted(() => vi.fn());
 
@@ -38,6 +39,24 @@ beforeEach(async () => {
 });
 
 describe("POST /api/runs/[id]/execute provider failures", () => {
+  it("does not let an officer execute an author's queued review", async () => {
+    const run = await queuedRun();
+    vi.mocked(getSession).mockResolvedValueOnce({ personaId: "jordan", userId: "demo:jordan", name: "Jordan", email: null, role: "officer", authMethod: "demo", gen: 0 });
+    const res = await POST(executeRequest(run.id), { params: Promise.resolve({ id: run.id }) });
+    expect(res.status).toBe(403);
+    expect(runReviewMock).not.toHaveBeenCalled();
+    expect((await getDb()).runs[0].status).toBe("queued");
+  });
+
+  it("does not let an auditor execute a saved review", async () => {
+    const run = await queuedRun();
+    vi.mocked(getSession).mockResolvedValueOnce({ personaId: "sam", userId: "demo:sam", name: "Sam Osei", email: null, role: "auditor", authMethod: "demo", gen: 0 });
+    const res = await POST(executeRequest(run.id), { params: Promise.resolve({ id: run.id }) });
+    expect(res.status).toBe(403);
+    expect(runReviewMock).not.toHaveBeenCalled();
+    expect((await getDb()).runs[0].status).toBe("queued");
+  });
+
   it("persists a sanitized error state for bad OpenAI keys", async () => {
     const run = await queuedRun();
     runReviewMock.mockRejectedValueOnce(

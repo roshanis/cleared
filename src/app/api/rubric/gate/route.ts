@@ -1,7 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { HEURISTIC_CRITERION_IDS } from "@/agent/heuristic";
+import { heuristicSupports } from "@/agent/heuristic";
 import { activeReviewer, runReview } from "@/agent/run";
 import { grade, loadGoldenCases } from "../../../../../evals/grade";
 import type { GoldenGateReport } from "@/lib/rubric";
@@ -45,8 +45,8 @@ export async function POST(req: Request) {
   const unexercisedCriteria =
     reviewer === "heuristic"
       ? rubric.criteria
+          .filter((criterion) => !heuristicSupports(criterion))
           .map((criterion) => criterion.id)
-          .filter((id) => !HEURISTIC_CRITERION_IDS.has(id))
       : [];
   const cases: GoldenGateReport["cases"] = [];
   try {
