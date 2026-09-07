@@ -1163,3 +1163,34 @@ gating, and document-detail wiring, and narrowed the document placeholder to
 only the no-run state. No re-run backend files were changed in this round.
 ### Recommendations / Next steps:
 None. Verification passed with `npm test`, `npx tsc --noEmit`, and `npm run build`.
+
+
+## [AGENT: Codex] [2026-09-07T16:50Z]
+### Action: Implemented the GO-approved product and review-trust upgrade
+### Files changed:
+- Review engine/schema, submission/rerun/decision routes and store helpers
+- Landing, login, navigation, intake, documents, queue, dashboard and audit views
+- Evidence, coverage, decision, recovery and shared UI components
+- Regression tests, four golden evaluations, README and product verification docs
+- agents-build-log.md
+### Diff summary:
+Implemented explicit coverage and retained contradictory model allegations; fixed
+reproduced heuristic masking misses. Rebuilt the responsive evidence workspace,
+exact-run history, role affordances, market-preserving resubmission, tab-scoped
+drafts, idempotent retries and honest progress. Human approval now explicitly
+acknowledges coverage gaps in the immutable audit note. Luna reviewed and Codex
+reproduced/fixed its final finding. Existing data and application checkout intact.
+### Verification:
+352 tests passed, 3 Postgres integration tests skipped; typecheck and isolated
+production build passed. Offline eval: 14 passed, 1 model-only skipped. Browser
+checks exercised desktop/mobile authors, officers, auditors and admin navigation.
+Offline production-dependency audit had no cached advisories (not a fresh audit).
+Full evidence and limitations: docs/PRODUCT-UPGRADE-VERIFICATION.md.
+### Recommendations / Next steps:
+Review uncommitted codex/product-upgrade in this isolated worktree before
+integration. No paid calls, real OAuth/DB use, commit, push, merge or deploy.
+Stable user-ID ownership migration and customer-specific model validation remain
+release blockers. Keep the worktree before temporary-directory cleanup.
+Final fresh-login browser check exposed and fixed a push/refresh navigation race;
+retest reached the author workspace. Final source-only backup (no credentials or
+review data): /Users/roshanvenugopal/Documents/github/eveagents/.codex-backups/product-upgrade-final-20260907.0Up3ra.

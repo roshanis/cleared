@@ -40,9 +40,10 @@ export default function RootLayout({
       className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable}`}
     >
       <body className="min-h-screen bg-paper font-sans text-ink antialiased">
+        <a href="#main-content" className="sr-only fixed left-4 top-4 z-50 rounded-md bg-accent px-4 py-3 text-white focus:not-sr-only">Skip to content</a>
         <Nav />
         <DemoStrip />
-        <main className="mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">{children}</main>
       </body>
     </html>
   );

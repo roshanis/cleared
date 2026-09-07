@@ -146,6 +146,41 @@ describe("POST /api/submissions model budget", () => {
 });
 
 describe("POST /api/submissions rate and input caps", () => {
+  it("recovers the same response after the rate limit is exhausted", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("RATE_LIMIT_SUBMISSIONS", "1");
+    const request = () => { const req = submissionRequest(); req.headers.set("Idempotency-Key", "recover-request"); return req; };
+    const first = await POST(request());
+    const replay = await POST(request());
+    expect(first.status).toBe(200); expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual(await first.json());
+    expect((await getDb()).runs).toHaveLength(1);
+  });
+  it("recovers a saved model submission after the daily model budget is exhausted", async () => {
+    vi.stubEnv("DEMO_PUBLIC", "");
+    vi.stubEnv("GLOBAL_MODEL_DAILY_CAP", "1");
+    const request = () => { const req = submissionRequest(); req.headers.set("Idempotency-Key", "model-recover-request"); return req; };
+    const first = await POST(request());
+    const replay = await POST(request());
+    expect(first.status).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual(await first.json());
+    expect((await getDb()).runs).toHaveLength(1);
+  });
+  it("rejects a key reused with changed content", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const request = (content: string) => { const req = submissionRequest(content); req.headers.set("Idempotency-Key", "recover-request"); return req; };
+    expect((await POST(request("First"))).status).toBe(200);
+    expect((await POST(request("Changed"))).status).toBe(409);
+    expect((await getDb()).runs).toHaveLength(1);
+  });
+  it("does not allow an auditor to replay a submission", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const request = () => { const req = submissionRequest(); req.headers.set("Idempotency-Key", "recover-request"); return req; };
+    await POST(request());
+    getSessionMock.mockResolvedValue({ userId: "demo:maya", role: "auditor", name: "Maya Chen" });
+    expect((await POST(request())).status).toBe(403);
+  });
   it("rate-limits submission creation per session user", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     vi.stubEnv("RATE_LIMIT_SUBMISSIONS", "1");

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ReviewResult } from "@/schema";
 import type { ReviewerKind } from "@/agent/run";
 import type { Role } from "./session";
@@ -307,12 +308,47 @@ export interface SubmissionInput {
   documentId?: string;
   reviewer: ReviewerKind;
   jurisdictions?: string[];
+  idempotencyKey?: string;
+}
+
+export class IdempotencyConflictError extends Error {
+  constructor() { super("This request key was already used for a different request. Start a new submission."); }
+}
+
+export function requestRunId(operation: "submit" | "rerun", actorId: string, key: string, source = "") {
+  return `run_${createHash("sha256").update(JSON.stringify([operation, actorId, source, key])).digest("hex")}`;
+}
+const marketsKey = (markets?: string[]) => [...new Set(markets ?? ["US"])].sort().join(",");
+const requestDocumentId = (actorId: string, key: string) => `doc_${createHash("sha256").update(JSON.stringify([actorId, key])).digest("hex")}`;
+type ReplayInput = Omit<SubmissionInput, "reviewer">;
+
+async function submissionReplay(tx: Tx, input: ReplayInput) {
+  if (!input.idempotencyKey || !input.actorId) return null;
+  const run = await tx.getRun(requestRunId("submit", input.actorId, input.idempotencyKey));
+  if (!run) return null;
+  const document = await tx.getDocument(run.documentId);
+  const version = await tx.getVersion(run.versionId);
+  if (!document || !version || run.actorId !== input.actorId || version.content !== input.content ||
+      marketsKey(run.jurisdictions) !== marketsKey(input.jurisdictions) ||
+      (input.documentId ? run.documentId !== input.documentId || document.id === requestDocumentId(input.actorId, input.idempotencyKey)
+        : document.id !== requestDocumentId(input.actorId, input.idempotencyKey) || version.number !== 1 || document.title !== input.title)) {
+    throw new IdempotencyConflictError();
+  }
+  return { document, version, run };
+}
+
+/** A committed retry bypasses new-submission rate and budget admission. */
+export async function findSubmissionReplay(input: ReplayInput) {
+  if (!input.idempotencyKey) return null;
+  return transact(tx => submissionReplay(tx, input));
 }
 
 async function doCreateSubmission(
   input: SubmissionInput,
 ): Promise<{ document: DocumentRecord; version: DocVersion; run: ReviewRun }> {
   return transact(async (tx) => {
+    const replay = await submissionReplay(tx, input);
+    if (replay) return replay;
     const now = new Date().toISOString();
 
     // Find or create the document.
@@ -332,7 +368,7 @@ async function doCreateSubmission(
       }
     } else {
       document = {
-        id: newId("doc"),
+        id: input.idempotencyKey && input.actorId ? requestDocumentId(input.actorId, input.idempotencyKey) : newId("doc"),
         title: input.title || "Untitled document",
         author: input.author,
         createdAt: now,
@@ -356,7 +392,7 @@ async function doCreateSubmission(
     if (!rubric) throw new Error("no published rubric — store was not seeded");
 
     const run: ReviewRun = {
-      id: newId("run"),
+      id: input.idempotencyKey && input.actorId ? requestRunId("submit", input.actorId, input.idempotencyKey) : newId("run"),
       documentId: document.id,
       versionId: version.id,
       status: "queued",
@@ -387,20 +423,36 @@ export async function createSubmission(input: SubmissionInput) {
   }
 }
 
-export async function rerunVersion(input: {
+interface RerunInput {
   versionId: string;
   reviewer: ReviewerKind;
   actorId?: string | null;
   jurisdictions?: string[];
-}): Promise<{ status: "created"; run: ReviewRun } | { status: "missing" }> {
+  idempotencyKey?: string;
+  sourceRunId?: string;
+}
+
+export async function rerunVersion(input: RerunInput): Promise<{ status: "created"; run: ReviewRun } | { status: "missing" }> {
+  try { return await doRerunVersion(input); }
+  catch (error) { if (error instanceof UniqueViolationError) return doRerunVersion(input); throw error; }
+}
+
+async function doRerunVersion(input: RerunInput): Promise<{ status: "created"; run: ReviewRun } | { status: "missing" }> {
   return transact(async (tx) => {
+    const runId = input.idempotencyKey && input.actorId
+      ? requestRunId("rerun", input.actorId, input.idempotencyKey, input.sourceRunId ?? input.versionId) : newId("run");
+    const existing = await tx.getRun(runId);
+    if (existing) {
+      if (existing.versionId !== input.versionId || existing.actorId !== input.actorId || marketsKey(existing.jurisdictions) !== marketsKey(input.jurisdictions)) throw new IdempotencyConflictError();
+      return { status: "created", run: existing };
+    }
     const version = await tx.getVersion(input.versionId);
     if (!version) return { status: "missing" };
     const rubric = await tx.latestPublishedRubric();
     if (!rubric) throw new Error("no published rubric — store was not seeded");
     const now = new Date().toISOString();
     const run: ReviewRun = {
-      id: newId("run"),
+      id: runId,
       documentId: version.documentId,
       versionId: version.id,
       status: "queued",
@@ -502,6 +554,7 @@ export interface DecisionInput {
   action: "approve" | "reject";
   note: string;
   overrides: FindingOverride[];
+  acknowledgedCoverageGaps?: string[];
 }
 
 export type AddDecisionResult =
@@ -522,6 +575,10 @@ export async function addDecision(
       }
       if (run.result.verdict === "pass") {
         return { status: "not_decidable" };
+      }
+      const gaps = run.result.coverage?.filter(check => ["uncertain", "unsupported", "omitted"].includes(check.status)).map(check => check.criterionId) ?? [];
+      if (input.action === "approve" && gaps.some(id => !input.acknowledgedCoverageGaps?.includes(id))) {
+        return { status: "invalid_overrides", message: "Explicitly acknowledge every coverage gap and explain your independent review before approving." };
       }
       const findingCount = run.result.findings.length;
       const indexes = new Set(
@@ -547,7 +604,11 @@ export async function addDecision(
         documentId: run.documentId,
         officer: input.officer,
         action: input.action,
-        note: input.note,
+        // Persist the server-validated acknowledgment in the existing audit note,
+        // so all storage drivers and historical exports retain it without a migration.
+        note: input.action === "approve" && gaps.length > 0
+          ? `${input.note}\n\nCoverage gaps explicitly acknowledged (not automatically resolved): ${gaps.join(", ")}.`
+          : input.note,
         overrides: input.overrides,
         createdAt: new Date().toISOString(),
         actorId: input.actorId ?? null,

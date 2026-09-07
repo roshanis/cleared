@@ -6,11 +6,12 @@ import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { SUPPORTED_JURISDICTIONS } from "@/lib/rubric";
 import { checkSubmissionRateLimit } from "@/lib/submission-rate-limiter";
-import { createSubmission, getDb } from "@/lib/store";
+import { maxDocumentChars } from "@/lib/submission-limits";
+import { createSubmission, getDb, findSubmissionReplay, IdempotencyConflictError } from "@/lib/store";
 
 const bodySchema = z.object({
   title: z.string().max(200).optional().default(""),
-  content: z.string().min(1, "Document is empty"),
+  content: z.string().min(1, "Document is empty").refine(value => value.trim().length > 0, "Document is empty"),
   documentId: z.string().optional(),
   jurisdictions: z
     .array(z.enum(SUPPORTED_JURISDICTIONS))
@@ -18,8 +19,6 @@ const bodySchema = z.object({
     .optional()
     .default(["US"]),
 });
-
-const DEFAULT_MAX_DOCUMENT_CHARS = 50_000;
 
 export async function POST(req: Request) {
   const sameOriginError = requireSameOrigin(req);
@@ -43,6 +42,10 @@ export async function POST(req: Request) {
     );
   }
   const { title, content, documentId, jurisdictions } = parsed.data;
+  const idempotencyKey = req.headers.get("Idempotency-Key") ?? undefined;
+  if (idempotencyKey && !/^[a-zA-Z0-9_-]{8,128}$/.test(idempotencyKey)) {
+    return NextResponse.json({ error: "Invalid request key." }, { status: 400 });
+  }
   const documentLimit = maxDocumentChars();
   if (content.length > documentLimit) {
     return NextResponse.json(
@@ -64,6 +67,16 @@ export async function POST(req: Request) {
     }
   }
 
+  const derivedTitle = title.trim() || content.match(/^Subject:\s*(.+)$/m)?.[1]?.trim() || "Untitled document";
+  const replayInput = { title: derivedTitle, content, documentId, jurisdictions, actorId: session.userId, author: session.name, idempotencyKey };
+  try {
+    const replay = await findSubmissionReplay(replayInput);
+    if (replay) return NextResponse.json({ documentId: replay.document.id, versionNumber: replay.version.number, runId: replay.run.id, reviewer: replay.run.reviewer, reviewerNote: reviewerNoteFor(replay.run.reviewer) });
+  } catch (error) {
+    if (error instanceof IdempotencyConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
+    throw error;
+  }
+
   const rateLimit = checkSubmissionRateLimit(session.userId);
   if (!rateLimit.allowed) {
     return NextResponse.json(
@@ -77,11 +90,6 @@ export async function POST(req: Request) {
       },
     );
   }
-
-  const derivedTitle =
-    title.trim() ||
-    content.match(/^Subject:\s*(.+)$/m)?.[1]?.trim() ||
-    "Untitled document";
 
   const choice = await chooseReviewer();
   if (!choice.ok) {
@@ -98,8 +106,8 @@ export async function POST(req: Request) {
     );
   }
   const reviewer = choice.reviewer;
-  const reviewerNote = choice.note;
 
+  try {
   const { document, version, run } = await createSubmission({
     title: derivedTitle,
     content,
@@ -108,6 +116,7 @@ export async function POST(req: Request) {
     documentId,
     reviewer,
     jurisdictions: [...new Set(jurisdictions)],
+    idempotencyKey,
   });
 
   return NextResponse.json({
@@ -115,17 +124,16 @@ export async function POST(req: Request) {
     versionNumber: version.number,
     runId: run.id,
     reviewer: run.reviewer,
-    reviewerNote,
+    reviewerNote: reviewerNoteFor(run.reviewer),
   });
+  } catch (error) {
+    if (error instanceof IdempotencyConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
+    throw error;
+  }
 }
 
-function maxDocumentChars(): number {
-  const raw = process.env.MAX_DOCUMENT_CHARS?.trim();
-  if (!raw || !/^\d+$/.test(raw)) return DEFAULT_MAX_DOCUMENT_CHARS;
-  const parsed = Number(raw);
-  return Number.isSafeInteger(parsed) && parsed > 0
-    ? parsed
-    : DEFAULT_MAX_DOCUMENT_CHARS;
+function reviewerNoteFor(reviewer: "model" | "heuristic") {
+  return reviewer === "heuristic" ? "This run uses limited demo checks. Inspect coverage before relying on the result." : null;
 }
 
 function formatRetryAfter(seconds: number): string {

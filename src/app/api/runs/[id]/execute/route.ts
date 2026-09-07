@@ -4,6 +4,7 @@ import { executeRun } from "@/lib/execute-run";
 import { requireSameOrigin } from "@/lib/request-guard";
 import { getSession } from "@/lib/session";
 import { getDb } from "@/lib/store";
+import { canRerun } from "@/lib/roles";
 
 // Model reviews can take a minute; give the function room.
 export const maxDuration = 300;
@@ -19,6 +20,7 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
+  if (!canRerun(session.role)) return NextResponse.json({ error: "Auditors have read-only access." }, { status: 403 });
   const { id } = await params;
   const db = await getDb();
   const run = db.runs.find((r) => r.id === id);

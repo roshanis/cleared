@@ -14,6 +14,16 @@ export interface Segment {
 export function segmentDocument(content: string, quotes: string[]): Segment[] {
   const ranges: { start: number; end: number; idx: number }[] = [];
   quotes.forEach((quote, idx) => {
+    const trimmed = quote.trim();
+    if (!trimmed) return;
+    let start = content.indexOf(trimmed);
+    if (start !== -1) {
+      while (start !== -1) {
+        ranges.push({ start, end: start + trimmed.length, idx });
+        start = content.indexOf(trimmed, start + trimmed.length);
+      }
+      return;
+    }
     const located = locateQuote(content, quote);
     if (!located) return;
     ranges.push({ start: located.start, end: located.end, idx });

@@ -12,7 +12,15 @@ export const findingSchema = z.object({
     .describe("Exact verbatim text from the document that triggered the finding"),
   explanation: z.string().describe("One or two sentences on why this violates the criterion"),
   recommendation: z.string().describe("Concrete fix the author can apply"),
+  evidenceType: z.enum(["quote", "absence"]).optional(),
 });
+
+export const coverageSchema = z.object({
+  criterionId: z.string(),
+  status: z.enum(["checked", "finding", "not_applicable", "uncertain", "unsupported", "omitted"]),
+  detail: z.string(),
+});
+export type Coverage = z.infer<typeof coverageSchema>;
 
 export const verdicts = ["pass", "fail", "needs_human_review"] as const;
 
@@ -43,6 +51,8 @@ export const reviewResultSchema = z.object({
   jurisdictionVerdicts: z.array(jurisdictionVerdictSchema).optional(),
   /** Judge review of the review; absent on runs from before the judge. */
   judge: judgeReportSchema.optional(),
+  /** Absent on historical runs; never infer coverage from zero findings. */
+  coverage: z.array(coverageSchema).optional(),
 });
 
 export type JudgeReport = z.infer<typeof judgeReportSchema>;

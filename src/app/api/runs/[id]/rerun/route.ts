@@ -6,7 +6,7 @@ import { chooseReviewer } from "@/lib/reviewer-choice";
 import { canRerun } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { checkSubmissionRateLimit } from "@/lib/submission-rate-limiter";
-import { getDb, rerunVersion } from "@/lib/store";
+import { getDb, rerunVersion, requestRunId } from "@/lib/store";
 
 export const maxDuration = 300;
 
@@ -35,6 +35,13 @@ export async function POST(
       { error: "Auditors can't re-run reviews." },
       { status: 403 },
     );
+  }
+  const idempotencyKey = req.headers.get("Idempotency-Key") ?? undefined;
+  if (idempotencyKey && !/^[a-zA-Z0-9_-]{8,128}$/.test(idempotencyKey)) return NextResponse.json({ error: "Invalid request key." }, { status: 400 });
+  const existing = idempotencyKey ? db.runs.find(candidate => candidate.id === requestRunId("rerun", session.userId, idempotencyKey, id)) : null;
+  if (existing) {
+    const outcome = await executeRun(existing.id);
+    return NextResponse.json({ ...outcome, runId: existing.id, documentId: existing.documentId }, { status: outcome.status === "error" ? 500 : outcome.status === "reviewing" ? 202 : 200 });
   }
   if (run.status === "queued" || run.status === "reviewing") {
     return NextResponse.json(
@@ -77,6 +84,8 @@ export async function POST(
     reviewer: choice.reviewer,
     actorId: session.userId,
     jurisdictions: run.jurisdictions,
+    idempotencyKey,
+    sourceRunId: id,
   });
   if (created.status === "missing") {
     return NextResponse.json(
@@ -94,8 +103,8 @@ export async function POST(
   }
   if (outcome.status === "reviewing") {
     return NextResponse.json(
-      { status: "reviewing", error: outcome.error },
-      { status: 409 },
+      { status: "reviewing", error: outcome.error, runId: created.run.id },
+      { status: 202 },
     );
   }
   if (outcome.status === "error") {

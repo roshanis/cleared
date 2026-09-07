@@ -37,6 +37,24 @@ beforeEach(async () => {
 });
 
 describe("store", () => {
+  it("requires an explicit coverage acknowledgment before approving a zero-finding review", async () => {
+    const { run } = await createSubmission({ title: "Incomplete", content: "Example", author: "Maya", reviewer: "heuristic" });
+    await updateRun(run.id, { status: "done", result: { verdict: "needs_human_review", findings: [], summary: "Incomplete", coverage: [{ criterionId: "C8", status: "unsupported", detail: "Human review needed" }] } });
+    const input = { runId: run.id, officer: "Devon", action: "approve" as const, overrides: [], note: "Checked supporting material manually." };
+    expect((await addDecision(input)).status).toBe("invalid_overrides");
+    expect((await addDecision({ ...input, acknowledgedCoverageGaps: ["C9"] })).status).toBe("invalid_overrides");
+    const approved = await addDecision({ ...input, acknowledgedCoverageGaps: ["C8"] });
+    expect(approved.status).toBe("created");
+    if (approved.status === "created") expect(approved.decision.note).toContain("Coverage gaps explicitly acknowledged (not automatically resolved): C8");
+  });
+
+  it("allows requesting changes without representing coverage gaps as resolved", async () => {
+    const { run } = await createSubmission({ title: "Incomplete", content: "Example", author: "Maya", reviewer: "heuristic" });
+    await updateRun(run.id, { status: "done", result: { verdict: "needs_human_review", findings: [], summary: "Incomplete", coverage: [{ criterionId: "C8", status: "omitted", detail: "Human review needed" }] } });
+    const rejected = await addDecision({ runId: run.id, officer: "Devon", action: "reject", overrides: [], note: "Please provide evidence for C8." });
+    expect(rejected.status).toBe("created");
+    if (rejected.status === "created") expect(rejected.decision.note).not.toContain("acknowledged");
+  });
   it("seeds a published rubric on reset", async () => {
     const db = await getDb();
     expect(publishedRubric(db).version).toBe(1);

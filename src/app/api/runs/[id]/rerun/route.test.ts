@@ -4,6 +4,7 @@ import {
   createSubmission,
   getDb,
   resetStoreForTests,
+  rerunVersion,
   updateRun,
 } from "@/lib/store";
 import { POST } from "./route";
@@ -24,10 +25,10 @@ vi.mock("@/lib/session", () => ({
   getSession: getSessionMock,
 }));
 
-const rerunRequest = (id: string) =>
+const rerunRequest = (id: string, key?: string) =>
   new Request(`http://localhost/api/runs/${id}/rerun`, {
     method: "POST",
-    headers: { origin: "http://localhost" },
+    headers: { origin: "http://localhost", ...(key ? { "Idempotency-Key": key } : {}) },
   });
 
 async function existingRun() {
@@ -76,6 +77,29 @@ afterEach(() => {
 });
 
 describe("POST /api/runs/[id]/rerun", () => {
+  it("replays a completed rerun after the rate limit is exhausted", async () => {
+    vi.stubEnv("RATE_LIMIT_SUBMISSIONS", "1");
+    const { run } = await existingRun();
+    const params = { params: Promise.resolve({ id: run.id }) };
+    const first = await POST(rerunRequest(run.id, "durable-rerun"), params);
+    const retry = await POST(rerunRequest(run.id, "durable-rerun"), params);
+    const original = await first.json();
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({ runId: original.runId, result: original.result, status: "done" });
+    expect((await getDb()).runs).toHaveLength(2);
+  });
+
+  it.each(["reviewing", "error"] as const)("recovers a %s rerun using its saved request identity", async status => {
+    const { run, version } = await existingRun();
+    const created = await rerunVersion({ versionId: version.id, actorId: "demo:maya", reviewer: "heuristic", jurisdictions: ["US"], idempotencyKey: "saved-rerun", sourceRunId: run.id });
+    if (created.status !== "created") throw new Error("Expected test run");
+    await updateRun(created.run.id, { status });
+    const res = await POST(rerunRequest(run.id, "saved-rerun"), { params: Promise.resolve({ id: run.id }) });
+    expect(res.status).toBe(status === "reviewing" ? 202 : 200);
+    expect(await res.json()).toMatchObject({ runId: created.run.id, status: status === "reviewing" ? "reviewing" : "done" });
+    expect((await getDb()).runs).toHaveLength(2);
+  });
+
   it("returns 401 when unauthenticated", async () => {
     const { run } = await existingRun();
     getSessionMock.mockResolvedValueOnce(null);

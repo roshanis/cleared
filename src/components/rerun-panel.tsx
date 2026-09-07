@@ -1,253 +1,94 @@
 "use client";
-
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ReviewProgress } from "./review-progress";
-import { theaterDone } from "./review-theater";
-import { Card, buttonClass } from "./ui";
+import { buttonClass } from "./ui";
 
-type RunStatus = "queued" | "reviewing" | "done" | "error";
-type Phase = "idle" | "reviewing" | "error";
-type WatchKind = "none" | "auto" | "manual";
-
-export function RerunPanel({
-  runId,
-  status,
-  canRerun,
-}: {
-  runId: string;
-  status: RunStatus;
-  canRerun: boolean;
+export function RerunPanel({ runId, documentId, userId, status, canRerun }: {
+  runId: string; documentId: string; userId: string;
+  status: "queued" | "reviewing" | "done" | "error"; canRerun: boolean;
 }) {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [watchKind, setWatchKind] = useState<WatchKind>("none");
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [pendingRefresh, setPendingRefresh] = useState(false);
-  const startRef = useRef(0);
-  const mountedRef = useRef(false);
-
+  const [watch, setWatch] = useState(0);
+  const start = useRef(Date.now());
+  const inFlight = status === "reviewing";
+  const key = useRef<string | null>(null);
+  const locked = useRef(false);
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    setReducedMotion(
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    );
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "reviewing") return;
-    const timer = setInterval(
-      () => setElapsedMs(Date.now() - startRef.current),
-      200,
-    );
+    if (!busy && !inFlight) return;
+    start.current = Date.now();
+    const timer = setInterval(() => setElapsed(Date.now() - start.current), 1000);
     return () => clearInterval(timer);
-  }, [phase]);
+  }, [busy, inFlight]);
 
   useEffect(() => {
-    if (status !== "queued" && status !== "reviewing") return;
+    if (!inFlight) return;
     let cancelled = false;
-
-    startRef.current = Date.now();
-    setElapsedMs(0);
+    let timer: ReturnType<typeof setTimeout>;
+    const controller = new AbortController();
     setError(null);
-    setPendingRefresh(false);
-    setWatchKind("auto");
-    setPhase("reviewing");
-
-    let poller: ReturnType<typeof setInterval>;
     async function poll() {
       try {
-        const res = await fetch(`/api/runs/${runId}`, {
-          credentials: "same-origin",
-        });
-        const body = await readJson(res);
-        if (cancelled || !mountedRef.current) return;
-        if (!res.ok) {
-          setError(apiErrorMessage(asString(body.error)));
-          setWatchKind("none");
-          setPhase("error");
+        const res = await fetch(`/api/runs/${runId}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) });
+        const body = await res.json();
+        if (cancelled) return;
+        if (!res.ok) throw new Error(body.error ?? "Unable to check this review.");
+        if (body.status === "done" || body.status === "error") { router.refresh(); return; }
+        if (Date.now() - start.current > 310_000) {
+          setError("The review is taking longer than expected. Its result is not confirmed. Check again to recover the latest status.");
           return;
         }
-        if (body.status === "done" || body.status === "error") {
-          clearInterval(poller);
-          setError(asString(body.error) ?? null);
-          setPendingRefresh(true);
-        }
-      } catch {
-        if (cancelled || !mountedRef.current) return;
-        setError("The review status could not be loaded. Try again.");
-        setWatchKind("none");
-        setPhase("error");
+        timer = setTimeout(poll, 2000);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Connection interrupted. Check the review status again.");
       }
     }
-
-    poller = setInterval(poll, 2000);
     void poll();
-    return () => {
-      cancelled = true;
-      clearInterval(poller);
-    };
-  }, [runId, status]);
+    return () => { cancelled = true; clearTimeout(timer); controller.abort(); };
+  }, [runId, inFlight, router, watch]);
 
-  useEffect(() => {
-    if (status !== "done" && status !== "error") return;
-    if (watchKind !== "auto") return;
-    setPhase("idle");
-    setWatchKind("none");
-    setPendingRefresh(false);
-  }, [status, watchKind]);
-
-  useEffect(() => {
-    if (phase !== "reviewing" || !pendingRefresh) return;
-    if (!theaterDone(elapsedMs, reducedMotion)) return;
-    setPendingRefresh(false);
-    router.refresh();
-  }, [elapsedMs, pendingRefresh, phase, reducedMotion, router]);
-
-  async function startRerun() {
-    setPhase("reviewing");
-    setWatchKind("manual");
-    setError(null);
-    setPendingRefresh(false);
-    startRef.current = Date.now();
-    setElapsedMs(0);
-
+  async function run() {
+    if (locked.current) return;
+    locked.current = true;
+    setBusy(true); setError(null); setElapsed(0);
+    const retry = status === "error" || status === "queued";
+    const storageKey = `cleared:rerun:${userId}:${runId}`;
     try {
-      const res = await fetch(`/api/runs/${runId}/rerun`, {
-        method: "POST",
-        credentials: "same-origin",
+      if (!retry && !key.current) {
+        try { key.current = sessionStorage.getItem(storageKey); } catch { /* storage can be unavailable */ }
+        key.current ??= crypto.randomUUID();
+        try { sessionStorage.setItem(storageKey, key.current); } catch { /* keep in-memory retry key */ }
+      }
+      const res = await fetch(`/api/runs/${runId}/${retry ? "execute" : "rerun"}`, {
+        method: "POST", headers: retry ? {} : { "Idempotency-Key": key.current! },
+        signal: AbortSignal.timeout(310_000),
       });
-      const body = await readJson(res);
-      if (!mountedRef.current) return;
-      if (!res.ok) {
-        setError(
-          apiErrorMessage(
-            asString(body.error),
-            asNumber(body.retryAfterSeconds),
-          ),
-        );
-        setWatchKind("none");
-        setPhase("error");
-        return;
+      const body = await res.json();
+      if (body.runId) {
+        try { sessionStorage.removeItem(storageKey); } catch { /* optional recovery storage */ }
+        router.push(`/documents/${documentId}?run=${body.runId}`);
+        router.refresh();
       }
-      if (body.status === "done") {
-        setPendingRefresh(true);
-        return;
-      }
-      setError("The review did not finish. Try again.");
-      setWatchKind("none");
-      setPhase("error");
-    } catch {
-      if (!mountedRef.current) return;
-      setError("The review could not be started. Try again.");
-      setWatchKind("none");
-      setPhase("error");
-    }
+      if (!res.ok && !(res.status === 409 && body.status === "reviewing")) throw new Error(body.error ?? "The review could not complete.");
+      if (retry) router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Connection interrupted. Retry with the same request to recover your review.");
+    } finally { setBusy(false); locked.current = false; }
   }
 
-  if (!canRerun) return null;
-
-  if (phase === "reviewing" || status === "queued" || status === "reviewing") {
-    return (
-      <ReviewProgress elapsedMs={elapsedMs} reducedMotion={reducedMotion} />
-    );
-  }
-
-  if (phase === "error") {
-    return (
-      <Card className="grid gap-3 border-fail/40 bg-fail-soft p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div>
-          <p role="alert" className="text-sm font-semibold text-fail">
-            {error ?? "The review failed. Try again."}
-          </p>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            Run the agents again on this version when you are ready.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={startRerun}
-          className={buttonClass("secondary", "sm")}
-        >
-          Re-run review
-        </button>
-      </Card>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <Card className="grid gap-3 border-fail/40 bg-fail-soft p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-        <div>
-          <p className="text-sm font-semibold text-fail">The review failed.</p>
-          <p className="mt-1 text-xs leading-5 text-muted">
-            Run the agents again on this version to retry.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={startRerun}
-          className={buttonClass("secondary", "sm")}
-        >
-          Re-run review
-        </button>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="grid gap-3 border-accent/20 bg-rail p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-      <div>
-        <p className="text-sm font-semibold">Review complete</p>
-        <p className="mt-1 text-xs leading-5 text-muted">
-          Run the agents again on this version — picks up the latest published
-          rubric.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={startRerun}
-        className={buttonClass("secondary", "sm")}
-      >
-        Re-run review
-      </button>
-    </Card>
-  );
-}
-
-async function readJson(res: Response): Promise<Record<string, unknown>> {
-  try {
-    const json = await res.json();
-    return typeof json === "object" && json !== null
-      ? (json as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function apiErrorMessage(error?: string, retryAfterSeconds?: number) {
-  if (!error) return "Submission failed.";
-  if (!retryAfterSeconds || error.includes("Wait")) return error;
-  if (retryAfterSeconds < 60) {
-    return `${error} Retry in ${retryAfterSeconds} second${retryAfterSeconds === 1 ? "" : "s"}.`;
-  }
-  const minutes = Math.ceil(retryAfterSeconds / 60);
-  return `${error} Retry in about ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+  if (busy || (inFlight && !error)) return <ReviewProgress elapsedMs={elapsed} />;
+  return <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-line bg-rail/60 p-4">
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-medium">{status === "error" ? "Review needs recovery" : status === "queued" ? "Document saved · review not started" : inFlight ? "Review status unconfirmed" : "Need another review?"}</p>
+      <p className="mt-1 text-xs leading-5 text-muted">{status === "done" ? "A new run uses the current published rubric. This review and its decision remain in history." : "Recover this saved review without creating another document version."}</p>
+      {error && <p role="alert" className="mt-2 text-sm text-fail">{error}</p>}
+    </div>
+    {inFlight ? <button type="button" onClick={() => { start.current = Date.now(); setWatch(v => v + 1); }} className={buttonClass("secondary", "sm")}>Check status again</button> :
+      canRerun ? <button type="button" onClick={run} className={buttonClass("secondary", "sm")}>{status === "done" ? "Re-run review" : "Resume review"}</button> :
+      <Link href="/documents" className={buttonClass("secondary", "sm")}>Back to documents</Link>}
+  </div>;
 }

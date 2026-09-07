@@ -1,228 +1,56 @@
 import Link from "next/link";
-import { getSession, homeByRole, personas } from "@/lib/session";
+import { getSession, homeByRole, demoAuthEnabled } from "@/lib/session";
 import { runReview } from "@/agent/run";
 import { defaultRubricDraft } from "@/lib/rubric";
 import { sampleDocument } from "@/lib/copy";
 import { ResultView } from "@/components/result-view";
-import { HowItWorksStep, buttonClass, initials } from "@/components/ui";
-
-const steps = [
-  {
-    step: 1,
-    title: "Submit",
-    detail:
-      "Authors paste customer-facing text — emails, letters, landing pages — into one intake path.",
-  },
-  {
-    step: 2,
-    title: "Review",
-    detail:
-      "AI reviewers check every claim against the compliance rubric and cite exact quotes with severity and fix guidance.",
-  },
-  {
-    step: 3,
-    title: "Decide",
-    detail:
-      "Compliance officers work one queue with every finding highlighted; every override requires a note.",
-  },
-  {
-    step: 4,
-    title: "Audit",
-    detail:
-      "Rubric version, review result, decision notes, timestamps, and export records stay traceable for each document version.",
-  },
-];
-
-const onDarkPrimary =
-  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-accent-strong transition-colors duration-150 hover:bg-white/90 active:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
-
-const onDarkGhost =
-  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:border-white/50 hover:bg-white/10 active:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+import { StatusBadge, SeverityLabel, buttonClass } from "@/components/ui";
 
 export default async function LandingPage() {
   const session = await getSession();
-  const appHref = session ? homeByRole[session.role] : "/login";
-  const appLabel = session ? "Open Cleared" : "Try the demo";
-
-  const result = await runReview(
-    sampleDocument.content,
-    defaultRubricDraft,
-    "heuristic",
-  );
-
-  return (
-    <div className="-mx-6 -mt-8">
-      {/* ── Hero: one statement, drenched ─────────────────────────────── */}
-      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col bg-accent-strong text-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-20">
-          <h1
-            className="animate-rise max-w-4xl font-serif text-5xl leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.75rem]"
-            style={{ "--rise-delay": "0ms" } as React.CSSProperties}
-          >
-            Cleared. Every claim checked,
-            <br />
-            <em className="text-white/80">before it ships.</em>
-          </h1>
-          <p
-            className="animate-rise mt-8 max-w-xl text-lg leading-8 text-white/75"
-            style={{ "--rise-delay": "120ms" } as React.CSSProperties}
-          >
-            Get a verdict in seconds, with exact quotes, drafted fixes, and a
-            judge that verifies the evidence. Your team keeps the final word.
-          </p>
-          <div
-            className="animate-rise mt-10 flex flex-wrap gap-3"
-            style={{ "--rise-delay": "240ms" } as React.CSSProperties}
-          >
-            <Link href={appHref} className={onDarkPrimary}>
-              {appLabel}
-            </Link>
-            <Link href="#live-review" className={onDarkGhost}>
-              See a real review
-            </Link>
+  const demo = demoAuthEnabled();
+  const href = session ? homeByRole[session.role] : "/login";
+  const result = await runReview(sampleDocument.content, defaultRubricDraft, "heuristic");
+  return <div className="-mx-4 -mt-8 sm:-mx-6">
+    <section className="relative overflow-hidden border-b border-line bg-[#103d3d] text-white">
+      <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 sm:px-10 sm:py-20 lg:grid-cols-[1fr_0.95fr] lg:gap-16 lg:py-24">
+        <div>
+          <p className="mb-6 text-xs font-semibold tracking-[0.16em] text-[#b5d6cc]">FOR INVESTMENT COMMUNICATIONS</p>
+          <h1 className="max-w-xl font-serif text-5xl leading-[1.08] tracking-tight sm:text-6xl">A clearer path<br />from draft<br /><em className="text-[#c5ded3]">to decision.</em></h1>
+          <p className="mt-6 max-w-lg text-base leading-8 text-[#deebe5]">Find risky claims, see the evidence, and keep your compliance team in control. Cleared brings review, revisions, and the decision record into one workspace.</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href={href} className="inline-flex min-h-12 items-center rounded-md bg-[#e7eee0] px-5 py-3 text-sm font-semibold text-[#103d3d] hover:bg-white">{session ? "Open your workspace" : demo ? "Explore the demo" : "Sign in to your workspace"} →</Link>
+            <Link href="#sample-review" className="inline-flex min-h-12 items-center rounded-md border border-white/40 px-5 py-3 text-sm font-medium text-white hover:bg-white/10">Inspect a sample review</Link>
           </div>
+          <p className="mt-5 text-xs leading-5 text-[#b5d6cc]">Evidence you can inspect. Coverage gaps you can see. Decisions your team owns.</p>
         </div>
-        <div
-          className="animate-rise mx-auto w-full max-w-6xl px-6 pb-8"
-          style={{ "--rise-delay": "480ms" } as React.CSSProperties}
-        >
-          <p className="flex items-center gap-2 text-xs font-medium text-white/50">
-            <svg
-              aria-hidden
-              viewBox="0 0 16 16"
-              className="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M8 3v10M3.5 8.5 8 13l4.5-4.5" />
-            </svg>
-            The review below was run by the live pipeline when this page loaded
-          </p>
+        <div className="rounded-xl border border-white/20 bg-paper p-3 text-ink shadow-raised sm:p-5">
+          <div className="flex items-center justify-between border-b border-line px-2 pb-4"><span className="text-sm font-semibold">Review workspace</span><StatusBadge tone="warn">Synthetic sample</StatusBadge></div>
+          <div className="px-2 py-5"><p className="text-xs text-muted">INVESTOR EMAIL · US · RUBRIC V1</p><h2 className="mt-2 text-xl font-semibold">Q3 investor update</h2><p className="mt-2 text-sm text-muted">{result.findings.length} findings to inspect · Human decision pending</p></div>
+          <div className="rounded-lg border border-line bg-surface p-5"><p className="font-serif text-base leading-8">“With our proven strategy you get <mark className="bg-warn-soft text-ink">guaranteed returns with zero risk.</mark>”</p></div>
+          <div className="mt-3 space-y-2">{result.findings.slice(0,2).map((finding,i) => <div key={i} className="rounded-lg border border-line bg-surface p-4"><div className="flex items-center gap-2"><span className="font-mono text-xs text-accent-strong">{finding.criterionId}</span><SeverityLabel severity={finding.severity} /></div><p className="mt-2 text-sm leading-6">{finding.explanation}</p></div>)}</div>
+          <Link href="#sample-review" className="mt-4 block px-2 text-sm font-semibold text-accent-strong">Inspect findings and coverage ↗</Link>
         </div>
-      </section>
-
-      {/* ── Live review proof (centerpiece) ───────────────────────────── */}
-      <section id="live-review" className="bg-surface">
-        <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
-          <div className="max-w-2xl">
-            <h2 className="font-serif text-3xl tracking-tight text-ink sm:text-4xl">
-              This is not a screenshot.
-            </h2>
-            <p className="mt-4 text-base leading-7 text-muted">
-              When this page loaded, the demo reviewer read the synthetic
-              investor email below and produced this verdict — {" "}
-              <span className="font-semibold text-ink">
-                {result.findings.length} findings
-              </span>
-              , each with the exact quote and the fix. Reload and it runs
-              again.
-            </p>
-          </div>
-          <div className="mt-10 rounded-xl border border-line bg-paper p-4 shadow-raised sm:p-6">
-            <ResultView
-              content={sampleDocument.content}
-              result={result}
-              criteria={defaultRubricDraft.criteria}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ──────────────────────────────────────────────── */}
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-          <h2 className="font-serif text-3xl tracking-tight text-ink">
-            How it works
-          </h2>
-          <p className="mt-3 max-w-xl text-base leading-7 text-muted">
-            One path from draft to cleared — AI finds the problems, humans make
-            the calls.
-          </p>
-          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((s) => (
-              <HowItWorksStep key={s.step} {...s} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Personas ──────────────────────────────────────────────────── */}
-      <section className="border-t border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-          <h2 className="font-serif text-3xl tracking-tight text-ink">
-            Four seats, one system
-          </h2>
-          <p className="mt-3 max-w-xl text-base leading-7 text-muted">
-            Sign in as any persona to see the review system from their vantage
-            point.
-          </p>
-          <div className="mt-10 grid gap-3 sm:grid-cols-2">
-            {personas.map((persona) => (
-              <Link
-                key={persona.id}
-                href={`/login?as=${persona.id}`}
-                className="group flex items-center gap-4 rounded-xl border border-line bg-paper p-5 shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-accent hover:shadow-raised"
-              >
-                <span
-                  aria-hidden
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-strong"
-                >
-                  {initials(persona.name)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-ink">
-                      {persona.name}
-                    </span>
-                    <span className="rounded-md bg-well px-2 py-0.5 text-[11px] font-medium text-muted">
-                      {persona.role}
-                    </span>
-                  </span>
-                  <span className="mt-1 block text-sm leading-6 text-muted">
-                    {persona.sees}
-                  </span>
-                </span>
-                <svg
-                  aria-hidden
-                  viewBox="0 0 16 16"
-                  className="h-4 w-4 shrink-0 text-line-strong transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-accent"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 3.5 10.5 8 6 12.5" />
-                </svg>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Closer: mirror the hero ───────────────────────────────────── */}
-      <section className="bg-accent-strong text-white">
-        <div className="mx-auto max-w-6xl px-6 py-20 text-center sm:py-24">
-          <h2 className="mx-auto max-w-2xl font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-            {session
-              ? "Your workspace is waiting."
-              : "Ready when your next document is."}
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/70">
-            {session
-              ? "Continue into the demo workspace and inspect the seeded review data."
-              : "Pick a seat — author, officer, admin, or auditor — and see the same review from every side."}
-          </p>
-          <div className="mt-8">
-            <Link href={appHref} className={onDarkPrimary}>
-              {session ? "Open Cleared" : "Sign in as a persona"}
-            </Link>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+      </div>
+    </section>
+    <section className="border-b border-line bg-surface px-6 py-8 sm:px-10">
+      <div className="mx-auto grid max-w-6xl gap-7 sm:grid-cols-3">
+        {[["01", "Review with context", "Select the markets and rubric that apply. See which checks ran and which still need attention."], ["02", "Move from finding to fix", "Inspect a claim beside its rule, review proposed edits, and resubmit without losing the history."], ["03", "Make the decision traceable", "Record who approved or requested changes, why, and the exact version they reviewed."]].map(([n,title,detail]) => <div key={n}><p className="text-xs font-mono text-accent-strong">{n}</p><h2 className="mt-3 text-base font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-muted">{detail}</p></div>)}
+      </div>
+    </section>
+    <section id="sample-review" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-14 sm:px-8 sm:py-20">
+      <div className="mb-8 grid items-end gap-5 lg:grid-cols-[1fr_26rem]">
+        <div><p className="text-xs font-semibold tracking-wide text-accent-strong">INSIDE CLEARED</p><h2 className="mt-3 font-serif text-3xl tracking-tight sm:text-4xl">The finding is only the beginning.</h2><p className="mt-4 max-w-xl text-sm leading-7 text-muted">Select a finding to locate its source. Open Coverage to inspect the checks behind the result. This sample runs through the same deterministic review path as the demo.</p></div>
+        <p className="rounded-lg border border-line bg-surface p-4 text-xs leading-6 text-muted">This is synthetic investment copy checked against a starter rubric. Demo checks are limited; the result is not a legal opinion, approval, or independent verification of the claims.</p>
+      </div>
+      <ResultView content={sampleDocument.content} result={result} criteria={defaultRubricDraft.criteria} />
+    </section>
+    <section className="border-y border-line bg-surface px-6 py-14 sm:px-10">
+      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_1fr]">
+        <div><h2 className="font-serif text-3xl tracking-tight">Your rules.<br />Your team’s final word.</h2><p className="mt-4 max-w-md text-sm leading-7 text-muted">Authors, officers, compliance leads, and auditors share one record, with the actions appropriate to their role.</p></div>
+        <dl className="divide-y divide-line text-sm">{[["Versioned review rules", "Publish rubric changes after running the evaluation gate. Each review retains its original rubric version."], ["Visible uncertainty", "Unsupported checks and conflicting assessments stay visible for human investigation."], ["A record that stays intact", "Revisions and re-runs keep their earlier outcomes. Inspect each review and its recorded decision."]].map(([title,detail]) => <div key={title} className="py-4 first:pt-0"><dt className="font-semibold">{title}</dt><dd className="mt-2 leading-6 text-muted">{detail}</dd></div>)}</dl>
+      </div>
+    </section>
+    <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-6 py-10"><div><p className="font-semibold text-accent-strong">Cleared.</p><p className="mt-1 text-xs text-muted">From draft to a documented decision.</p></div><Link href={href} className={buttonClass("primary")}>{session ? "Open workspace" : demo ? "Try the workflow" : "Sign in"} →</Link></footer>
+  </div>;
 }

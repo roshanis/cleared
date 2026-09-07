@@ -12,10 +12,15 @@ import { ResetDemoDataButton } from "@/components/reset-demo-data-button";
 import { computeMetrics, computeUtilizationMetrics } from "@/lib/metrics";
 import { demoAuthEnabled, requireRole } from "@/lib/session";
 import { getDb, publishedRubric, storageKind } from "@/lib/store";
+import { currentQueue, currentRun } from "@/lib/review-workspace";
 
 export default async function DashboardPage() {
   const session = await requireRole("officer", "admin", "auditor");
   const db = await getDb();
+  const queue = currentQueue(db);
+  const current = db.documents.map(d => currentRun(db, d.id)).filter(Boolean);
+  const coverageGaps = queue.filter(({ run }) => run.result?.coverage?.some(c => ["unsupported", "uncertain", "omitted"].includes(c.status))).length;
+  const interrupted = current.filter(r => r?.status === "error").length;
   const metrics = computeMetrics(db);
   const utilization = computeUtilizationMetrics(db);
   const maxVolume = Math.max(1, ...metrics.volumeByDay.map((d) => d.count));
@@ -46,14 +51,20 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Dashboard"
-        subtitle="Review volume, outcomes, and where documents keep going wrong."
+        title="Workspace overview"
+        subtitle="Start with the reviews and coverage gaps that need attention."
         action={
           <a href="/api/export" className={buttonClass("secondary")}>
             Export audit CSV
           </a>
         }
       />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Link href={session.role === "auditor" ? "/documents?status=in_review" : "/queue"} className="rounded-xl border border-line bg-surface p-5 hover:border-accent"><p className="text-xs text-muted">Waiting for a decision</p><p className="mt-2 text-3xl font-semibold">{queue.length}</p><p className="mt-2 text-xs text-accent-strong">Inspect current work →</p></Link>
+        <Link href={session.role === "auditor" ? "/documents" : "/queue?priority=coverage"} className="rounded-xl border border-line bg-surface p-5 hover:border-accent"><p className="text-xs text-muted">Reviews with coverage gaps</p><p className="mt-2 text-3xl font-semibold">{coverageGaps}</p><p className="mt-2 text-xs text-accent-strong">Investigate incomplete checks →</p></Link>
+        <Link href="/documents?status=attention" className="rounded-xl border border-line bg-surface p-5 hover:border-accent"><p className="text-xs text-muted">Interrupted reviews</p><p className="mt-2 text-3xl font-semibold">{interrupted}</p><p className="mt-2 text-xs text-accent-strong">Recover saved work →</p></Link>
+      </div>
 
       <Card className="overflow-hidden">
         <div className="grid divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">

@@ -34,6 +34,7 @@
 }
 
 body {
+  margin: 0;
   background-color: var(--color-paper);
   color: var(--color-ink);
   font-feature-settings:
@@ -79,6 +80,16 @@ mark {
   box-decoration-break: clone;
   border-radius: 3px;
   padding: 0 1px;
+}
+
+main { min-width: 0; }
+button, summary, a { -webkit-tap-highlight-color: transparent; }
+input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--color-accent); }
+pre, blockquote { overflow-wrap: anywhere; }
+@media print {
+  header, form, button, nav { display: none !important; }
+  main { max-width: none !important; padding: 0 !important; }
+  .hidden { display: block !important; }
 }
 
 @keyframes pulse-soft {

@@ -8,12 +8,13 @@ const finding = (criterionId: string) => ({
 });
 
 describe("reconcileReviewerOutput", () => {
-  it("drops a finding whose criterion the reviewer itself declared compliant", () => {
+  it("retains a contradictory finding at low confidence", () => {
     const kept = reconcileReviewerOutput(
       [finding("C2"), finding("C3")],
       ["C3", "C5"],
     );
-    expect(kept.map((f) => f.criterionId)).toEqual(["C2"]);
+    expect(kept.map((f) => f.criterionId)).toEqual(["C2", "C3"]);
+    expect(kept[1].confidence).toBe("low");
   });
 
   it("keeps all findings when there is no contradiction", () => {

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { NavLinks } from "@/components/nav-links";
 import { initials } from "@/components/ui";
-import { getSession, type Role } from "@/lib/session";
+import { getSession, homeByRole, type Role } from "@/lib/session";
+import { canManageUsers } from "@/lib/roles";
 
 const linksByRole: Record<Role, { href: string; label: string }[]> = {
   author: [
@@ -34,12 +35,12 @@ export async function Nav() {
     <header className="sticky top-0 z-30 border-b border-line bg-surface">
       <div className="mx-auto flex min-h-14 w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:flex-nowrap sm:px-6">
         <Link
-          href="/"
+          href={session ? homeByRole[session.role] : "/"}
           className="shrink-0 text-2xl font-semibold tracking-tight text-accent-strong"
         >
           Cleared<span className="text-accent">.</span>
         </Link>
-        {session && <NavLinks links={linksByRole[session.role]} />}
+        {session && <NavLinks links={linksByRole[session.role].filter(link => link.href !== "/users" || canManageUsers(session))} />}
         <div className="ml-auto flex min-w-0 items-center gap-3 text-sm">
           {session ? (
             <>

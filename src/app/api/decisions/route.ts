@@ -9,6 +9,7 @@ const bodySchema = z.object({
   runId: z.string(),
   action: z.enum(["approve", "reject"]),
   note: z.string().trim().min(3, "A note is required for the audit trail."),
+  acknowledgedCoverageGaps: z.array(z.string()).optional(),
   overrides: z.array(
     z.object({
       findingIndex: z.number().int().min(0),
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
     action: parsed.data.action,
     note: parsed.data.note,
     overrides: parsed.data.overrides,
+    acknowledgedCoverageGaps: parsed.data.acknowledgedCoverageGaps,
   });
   if (result.status === "missing") {
     return NextResponse.json(

@@ -1,4 +1,4 @@
-import type { RubricCriterion } from "@/lib/rubric";
+import { defaultRubricDraft, type RubricCriterion } from "@/lib/rubric";
 import type { ReviewerFinding } from "./merge";
 
 /**
@@ -18,11 +18,18 @@ export const HEURISTIC_CRITERION_IDS = new Set([
   "C7",
 ]);
 
+/** Matching an ID alone does not mean a changed rule is implemented. */
+export function heuristicSupports(criterion: RubricCriterion): boolean {
+  const original = defaultRubricDraft.criteria.find(c => c.id === criterion.id);
+  return !!original && original.description === criterion.description && original.area === criterion.area;
+}
+
 export function heuristicReview(
   document: string,
   criteria: RubricCriterion[],
 ): ReviewerFinding[] {
   const findings: ReviewerFinding[] = [];
+  criteria = criteria.filter(heuristicSupports);
   const has = (id: string) => criteria.some((c) => c.id === id);
   const sev = (id: string) =>
     criteria.find((c) => c.id === id)?.severity ?? "major";
@@ -45,6 +52,7 @@ export function heuristicReview(
         criterionId: "C1",
         severity: sev("C1"),
         quote: firstLine(document),
+        evidenceType: "absence",
         explanation: `Required risk disclaimer language is absent: ${missing}.`,
         recommendation:
           "Add the standard risk disclaimer before the sign-off: past performance language plus the may-lose-value statement.",
@@ -55,19 +63,18 @@ export function heuristicReview(
 
   if (has("C2")) {
     const guaranteePattern =
-      /guarant\w*|risk[\s\-\u2010-\u2015]*free|can['’]?t\s+lose|returns?\s+you\s+can\s+count\s+on/i;
-    const match = guaranteePattern.exec(document);
-    const sentence = match ? sentenceAt(document, match.index) : "";
-    const normalizedSentence = sentence
+      /guarant\w*|risk[\s\-\u2010-\u2015]*free|can['’]?t\s+lose|returns?\s+you\s+can\s+count\s+on/gi;
+    for (const match of document.matchAll(guaranteePattern)) {
+    const sentence = sentenceAt(document, match.index!);
+    // Scope negation to this occurrence; later claims remain independent.
+    const prefix = document.slice(Math.max(0, match.index! - 65), match.index! + match[0].length)
       .replace(/[\u2010-\u2015]/g, "-")
       .replace(/[’]/g, "'")
       .toLowerCase();
     const negated =
-      /\bno\s+investment\s+is\s+risk[-\s]*free\b/.test(normalizedSentence) ||
-      /\bnot\s+risk[-\s]*free\b/.test(normalizedSentence) ||
-      /\bdo(?:es)?\s+not\s+guarantee\b/.test(normalizedSentence) ||
-      /\bno\s+guarantee\b/.test(normalizedSentence);
-    if (match && !negated && !/past\s+performance/i.test(sentence)) {
+      /\b(?:no\s+investment\s+is\s+|not\s+)risk[-\s]*free$/.test(prefix) ||
+      /\b(?:do(?:es)?\s+not\s+|cannot\s+|no\s+|not\s+)guarant\w*$/.test(prefix);
+    if (!negated) {
       findings.push({
         criterionId: "C2",
         severity: sev("C2"),
@@ -78,27 +85,26 @@ export function heuristicReview(
         confidence: "high",
       });
     }
+    }
   }
 
   if (has("C3")) {
-    const competitor =
-      /\b(outperform\w*|beats?|better\s+than|superior\s+to)\b[^.]{0,120}?\b(Vanguard|Fidelity|Schwab|BlackRock)\b|\b(Vanguard|Fidelity|Schwab|BlackRock)\b[^.]{0,120}?\b(outperform\w*|beats?|better\s+than|superior\s+to)\b/i.exec(
-        document,
-      );
-    const substantiated = /\b(study|benchmark|according to|source:)\b/i.test(
-      document,
-    );
-    if (competitor && !substantiated) {
+    const pattern = /\b(outperform\w*|beats?|better\s+than|superior\s+to)\b[^.]{0,120}?\b(Vanguard|Fidelity|Schwab|BlackRock)\b|\b(Vanguard|Fidelity|Schwab|BlackRock)\b[^.]{0,120}?\b(outperform\w*|beats?|better\s+than|superior\s+to)\b/gi;
+    for (const competitor of document.matchAll(pattern)) {
+    const sentence = sentenceAt(document, competitor.index!);
+    const substantiated = /\b(?:study|benchmark)\b/i.test(sentence) && /\b(?:19|20)\d{2}\b/.test(sentence);
+    if (!substantiated) {
       findings.push({
         criterionId: "C3",
         severity: sev("C3"),
-        quote: sentenceAt(document, competitor.index),
+        quote: sentence,
         explanation:
           "Comparative claim names a competitor without citing substantiation.",
         recommendation:
           "Cite a dated study or published benchmark, or remove the named comparison.",
         confidence: "high",
       });
+    }
     }
   }
 
@@ -107,20 +113,25 @@ export function heuristicReview(
       /reply\s+(?:(?:to|in)\s+this\s+(email|message|chat)\s+)?with\s+your\b[^.]{0,120}?\b(account\s+number|ssn|social\s+security|password)/i.exec(
         document,
       );
+    const paraphrase = /\b(?:email|send|reply)\b[^.!?\n]{0,60}\b(?:your\s+)?(?:password|ssn|social\s+security\s+number|full\s+account\s+number)\b/i.exec(document);
     const exposed = /\b\d{3}-\d{2}-\d{4}\b/.exec(document);
-    const match = request ?? exposed;
+    const match = request ?? paraphrase ?? exposed;
     if (match) {
+      const sentence = sentenceAt(document, match.index);
+      const warning = /\b(?:never|do\s+not|don['’]t)\s+(?:email|send|reply)\b/i.test(sentence);
+      if (!warning || exposed) {
       findings.push({
         criterionId: "C4",
         severity: sev("C4"),
         quote: sentenceAt(document, match.index),
-        explanation: request
+        explanation: request || paraphrase
           ? "Requests sensitive account data over an unsecured channel (email reply)."
           : "Exposes what appears to be a Social Security number.",
         recommendation:
           "Direct the customer to the secure portal instead; never collect account data by email.",
         confidence: "high",
       });
+      }
     }
   }
 
@@ -151,6 +162,7 @@ export function heuristicReview(
         criterionId: "C6",
         severity: sev("C6"),
         quote: firstLine(document),
+        evidenceType: "absence",
         explanation:
           'UK promotion of investment content lacks a capital-at-risk warning (e.g. "your capital is at risk").',
         recommendation:
@@ -161,9 +173,8 @@ export function heuristicReview(
   }
 
   if (has("C7")) {
-    const greenClaim = /\b(green|sustainable|eco-friendly)\b/i.exec(document);
-    if (greenClaim) {
-      const sentence = sentenceAt(document, greenClaim.index);
+    for (const greenClaim of document.matchAll(/\b(green|sustainable|eco-friendly)\b/gi)) {
+      const sentence = sentenceAt(document, greenClaim.index!);
       const substantiated =
         /\b(certified|accredit\w+|according\s+to|source:)\b/i.test(sentence);
       if (!substantiated) {

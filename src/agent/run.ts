@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { reviewResultSchema, type ReviewResult } from "@/schema";
+import { reviewResultSchema, type ReviewResult, type Coverage } from "@/schema";
 import { publicDemoEnabled, publicModelEnabled } from "@/lib/demo";
 import {
   renderRubricMarkdown,
@@ -10,7 +10,7 @@ import {
   type RubricCriterion,
   type RubricDraft,
 } from "@/lib/rubric";
-import { heuristicReview } from "./heuristic";
+import { heuristicReview, heuristicSupports } from "./heuristic";
 import { applyJudgeGating, heuristicJudge, modelJudge } from "./judge";
 import { mergeFindings, type ReviewerFinding } from "./merge";
 import { modelReview } from "./model-reviewer";
@@ -58,6 +58,7 @@ export async function runReview(
   const sliced = sliceRubric(rubric, jurisdictions);
 
   let perReviewer: ReviewerFinding[][];
+  let coverage: Coverage[];
   if (reviewer === "heuristic") {
     perReviewer = reviewerAreas.map(({ area }) =>
       heuristicReview(
@@ -65,16 +66,27 @@ export async function runReview(
         sliced.criteria.filter((c) => c.area === area),
       ),
     );
+    const found = perReviewer.flat();
+    coverage = sliced.criteria.map(criterion => ({
+      criterionId: criterion.id,
+      status: !heuristicSupports(criterion) ? "unsupported" : found.some(f => f.criterionId === criterion.id) ? "finding" : "checked",
+      detail: !heuristicSupports(criterion)
+        ? "The demo reviewer cannot evaluate this rule. Request a model or human review."
+        : "Limited pattern check against the starter rule; context, paraphrases, and external sources are not fully verified.",
+    }));
   } else {
-    perReviewer = await Promise.all(
+    const reports = await Promise.all(
       reviewerAreas.map(({ area, prompt }) =>
-        modelReview({
+        sliced.criteria.some(c => c.area === area) ? modelReview({
           document,
           instructions: `${promptFile(prompt)}\n\n${renderRubricMarkdown(sliced, area)}`,
           modelId: MODEL_ID,
-        }),
+          criteria: sliced.criteria.filter(c => c.area === area),
+        }) : Promise.resolve({ findings: [], coverage: [] }),
       ),
     );
+    perReviewer = reports.map(r => r.findings);
+    coverage = reports.flatMap(r => r.coverage);
   }
 
   const findings = mergeFindings(perReviewer, sliced.criteria);
@@ -104,15 +116,30 @@ export async function runReview(
     jurisdictions,
   });
 
+  coverage = coverage.map(check => gated.findings.some(f => f.criterionId === check.criterionId && f.confidence === "low")
+    ? { ...check, status: "uncertain", detail: "This assessment is uncertain or its evidence was challenged. A human needs to resolve it." }
+    : check);
+  const gaps = coverage.filter(c => ["uncertain", "unsupported", "omitted"].includes(c.status));
+  const verdict = gaps.length > 0 && gated.verdict === "pass" ? "needs_human_review" : gated.verdict;
+  const jurisdictionVerdicts = gated.jurisdictionVerdicts.map(market => ({
+    ...market,
+    verdict: market.verdict === "pass" && gaps.some(gap => {
+      const rule = sliced.criteria.find(c => c.id === gap.criterionId);
+      return !rule?.jurisdictions || rule.jurisdictions.includes(market.jurisdiction);
+    }) ? "needs_human_review" : market.verdict,
+  }));
+
   return reviewResultSchema.parse({
-    verdict: gated.verdict,
+    verdict,
     findings: gated.findings.map(
       ({ confidence: _confidence, ...finding }) => finding,
     ),
-    summary:
-      gated.summaryOverride ?? buildSummary(gated.verdict, gated.findings),
-    jurisdictionVerdicts: gated.jurisdictionVerdicts,
+    summary: gaps.length > 0
+      ? `${gated.findings.length} finding(s); ${gaps.length} rule assessment(s) need human attention. Review the coverage gaps before making a decision.`
+      : buildSummary(verdict, gated.findings),
+    jurisdictionVerdicts,
     judge: gated.judge,
+    coverage,
   });
 }
 
@@ -123,7 +150,7 @@ function buildSummary(
   findings: ReviewerFinding[],
 ): string {
   if (findings.length === 0) {
-    return "Pass: no rubric violations found. The document is clear to ship.";
+    return verdict === "pass" ? "No issues found under the checked rules. This automated result is not an approval or a verification of external facts." : "Human review needed. The verification stage could not confirm a clean review.";
   }
   const counts = severityOrder
     .map((s) => [s, findings.filter((f) => f.severity === s).length] as const)
