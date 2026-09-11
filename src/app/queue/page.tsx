@@ -140,7 +140,7 @@ export default async function QueuePage() {
           })}
         </ul>
 
-        <TableCard className="hidden md:block">
+        <TableCard label="Review queue" className="hidden md:block">
           <table className="w-full min-w-[880px] text-sm">
             <thead className="bg-rail">
               <tr>
@@ -150,7 +150,9 @@ export default async function QueuePage() {
                 <Th>Agent verdict</Th>
                 <Th>Severity</Th>
                 <Th>Findings</Th>
-                <Th />
+                <Th>
+                  <span className="sr-only">Actions</span>
+                </Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">

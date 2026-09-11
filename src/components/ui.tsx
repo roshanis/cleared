@@ -168,14 +168,26 @@ export function Card({
 
 export function TableCard({
   children,
+  label,
   className = "",
 }: {
   children: React.ReactNode;
+  /** Names the scroll region, and tells a screen reader what it holds. */
+  label: string;
   className?: string;
 }) {
   return (
     <Card className={`overflow-hidden ${className}`}>
-      <div className="overflow-x-auto">{children}</div>
+      {/* These tables are wider than a tablet. Without a tab stop the only
+          way to reach the right-hand columns is a mouse or a swipe. */}
+      <div
+        role="region"
+        aria-label={label}
+        tabIndex={0}
+        className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+      >
+        {children}
+      </div>
     </Card>
   );
 }

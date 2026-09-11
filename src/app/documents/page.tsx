@@ -56,7 +56,11 @@ function StatusCell({
     return <StatusBadge tone="info">In review</StatusBadge>;
   if (status === "rejected")
     return (
-      <Link href={`/submit?documentId=${documentId}`} className="inline-flex">
+      // z-10 keeps this above the card's stretched title link on phones.
+      <Link
+        href={`/submit?documentId=${documentId}`}
+        className="relative z-10 inline-flex rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
         <StatusBadge tone="fail">Rejected — fix &amp; resubmit</StatusBadge>
       </Link>
     );
@@ -190,57 +194,65 @@ export default async function DocumentsPage({
             visible instead of scrolling off an 820px-wide table. */}
         <ul className="space-y-3 md:hidden">
           {documents.map(({ document, latestVersion, run, decision, status }) => (
-            <li key={document.id}>
-              <Link
-                href={`/documents/${document.id}`}
-                className="block rounded-lg border border-line bg-surface p-4 shadow-card transition-colors duration-150 hover:border-accent"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  {run?.result ? (
-                    <VerdictBadge verdict={run.result.verdict} />
-                  ) : (
-                    <span className="text-xs text-muted">
-                      {run ? run.status : "no review"}
-                    </span>
-                  )}
+            /* The card is not itself a link: the "fix & resubmit" shortcut
+               below is one, and an <a> inside an <a> is invalid HTML that
+               browsers repair by closing the outer anchor early — which both
+               breaks hydration and cuts the card's tap area short. The title
+               link stretches over the card instead. */
+            <li
+              key={document.id}
+              className="relative rounded-lg border border-line bg-surface p-4 shadow-card transition-colors duration-150 focus-within:border-accent hover:border-accent"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {run?.result ? (
+                  <VerdictBadge verdict={run.result.verdict} />
+                ) : (
                   <span className="text-xs text-muted">
-                    {latestVersion ? <TimeAgo iso={latestVersion.createdAt} /> : "—"}
+                    {run ? run.status : "no review"}
                   </span>
-                </div>
-                <p className="mt-2.5 font-medium text-accent-strong">
+                )}
+                <span className="text-xs text-muted">
+                  {latestVersion ? <TimeAgo iso={latestVersion.createdAt} /> : "—"}
+                </span>
+              </div>
+              <p className="mt-2.5 font-medium text-accent-strong">
+                <Link
+                  href={`/documents/${document.id}`}
+                  className="rounded-sm after:absolute after:inset-0 after:rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
                   {document.title}
-                  <span className="ml-2 text-xs font-normal tabular-nums text-muted">
-                    v{latestVersion?.number ?? "—"}
-                  </span>
+                </Link>
+                <span className="ml-2 text-xs font-normal tabular-nums text-muted">
+                  v{latestVersion?.number ?? "—"}
+                </span>
+              </p>
+              {!isAuthor && (
+                <p className="mt-0.5 text-xs text-muted">
+                  by {document.author}
                 </p>
-                {!isAuthor && (
-                  <p className="mt-0.5 text-xs text-muted">
-                    by {document.author}
-                  </p>
-                )}
-                {(isAuthor || decision) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                    {isAuthor && (
-                      <StatusCell status={status} documentId={document.id} />
-                    )}
-                    {decision && (
-                      <StatusBadge
-                        tone={decision.action === "approve" ? "pass" : "fail"}
-                      >
-                        {decision.action === "approve" ? "Approved" : "Rejected"}
-                        <span className="font-normal text-muted">
-                          by {decision.officer}
-                        </span>
-                      </StatusBadge>
-                    )}
-                  </div>
-                )}
-              </Link>
+              )}
+              {(isAuthor || decision) && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                  {isAuthor && (
+                    <StatusCell status={status} documentId={document.id} />
+                  )}
+                  {decision && (
+                    <StatusBadge
+                      tone={decision.action === "approve" ? "pass" : "fail"}
+                    >
+                      {decision.action === "approve" ? "Approved" : "Rejected"}
+                      <span className="font-normal text-muted">
+                        by {decision.officer}
+                      </span>
+                    </StatusBadge>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
 
-        <TableCard className="hidden md:block">
+        <TableCard label="Documents" className="hidden md:block">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-rail">
               <tr>

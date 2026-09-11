@@ -59,6 +59,9 @@ export function SubmitForm({
   const [reducedMotion, setReducedMotion] = useState(false);
   const [fixDraftLoaded, setFixDraftLoaded] = useState(false);
   const startRef = useRef(0);
+  /* What the form was handed, so the unload guard can tell typed work from a
+     prefill. On the resubmit path `content` starts non-empty. */
+  const baselineRef = useRef(resubmit?.content ?? "");
 
   useEffect(() => {
     setReducedMotion(
@@ -75,6 +78,7 @@ export function SubmitForm({
       const draft = JSON.parse(raw) as { content?: string };
       if (draft.content) {
         setContent(draft.content);
+        baselineRef.current = draft.content;
         setFixDraftLoaded(true);
       }
     } catch {
@@ -82,6 +86,18 @@ export function SubmitForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixDraftRequested]);
+
+  /* A pasted document is the only copy of the reader's work until the review
+     starts. Reload, back, or a closed tab would drop it without a word. The
+     guard keys off a CHANGE from what the form was given, so arriving at a
+     prefilled resubmit and leaving again does not prompt for nothing. */
+  useEffect(() => {
+    const unsaved = content !== baselineRef.current && phase !== "done";
+    if (!unsaved) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [content, phase]);
 
   useEffect(() => {
     if (phase !== "reviewing") return;
@@ -156,6 +172,10 @@ export function SubmitForm({
   }
 
   const busy = phase === "submitting" || phase === "reviewing";
+  const currentStage =
+    phase === "submitting"
+      ? 0
+      : Math.max(1, stageIndexAt(elapsedMs, reducedMotion));
   const wordCount = content.trim().length
     ? content.trim().split(/\s+/).length
     : 0;
@@ -302,28 +322,27 @@ export function SubmitForm({
       </Card>
 
       {busy && (
-        <Card className="space-y-4 border-accent/25 bg-accent-soft/45 p-5" aria-live="polite">
+        <Card className="space-y-4 border-accent/25 bg-accent-soft/45 p-5">
+          {/* Only the stage name is announced. Marking the whole card live
+              would re-read it every time the seconds counter ticks. */}
+          <p className="sr-only" aria-live="polite">
+            {REVIEW_STAGES[currentStage]}
+          </p>
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Review in progress</h2>
-            <span className="text-xs tabular-nums text-muted">
+            <span aria-hidden className="text-xs tabular-nums text-muted">
               {Math.round(elapsedMs / 1000)}s
             </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {REVIEW_STAGES.map((label, i) => {
-              const stage =
-                phase === "submitting"
-                  ? 0
-                  : Math.max(1, stageIndexAt(elapsedMs, reducedMotion));
-              return (
-                <ProgressStep
-                  key={label}
-                  done={i < stage}
-                  active={i === stage}
-                  label={label}
-                />
-              );
-            })}
+            {REVIEW_STAGES.map((label, i) => (
+              <ProgressStep
+                key={label}
+                done={i < currentStage}
+                active={i === currentStage}
+                label={label}
+              />
+            ))}
           </div>
           <p className="pt-1 text-xs text-muted">
             Two reviewers check policy claims and data-handling risk in

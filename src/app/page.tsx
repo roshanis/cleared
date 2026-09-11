@@ -33,8 +33,11 @@ const steps = [
   },
 ];
 
+/* This button sits on the permanently dark hero, so its label must not follow
+   the reader's theme: `accent-strong` inverts to a pale cyan in dark mode and
+   lands at 1.79:1 on white. `brand-deep` is dark in both themes. */
 const onDarkPrimary =
-  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-accent-strong transition-colors duration-150 hover:bg-white/90 active:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-brand-deep transition-colors duration-150 hover:bg-white/90 active:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 const onDarkGhost =
   "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-white/25 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:border-white/50 hover:bg-white/10 active:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
@@ -88,7 +91,7 @@ export default async function LandingPage() {
           className="animate-rise gutter mx-auto w-full max-w-6xl pb-8"
           style={{ "--rise-delay": "480ms" } as React.CSSProperties}
         >
-          <p className="flex items-center gap-2 text-xs font-medium text-white/50">
+          <p className="flex items-center gap-2 text-xs font-medium text-white/70">
             <svg
               aria-hidden
               viewBox="0 0 16 16"
