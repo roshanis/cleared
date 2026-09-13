@@ -59,9 +59,13 @@ export function SubmitForm({
   const [reducedMotion, setReducedMotion] = useState(false);
   const [fixDraftLoaded, setFixDraftLoaded] = useState(false);
   const startRef = useRef(0);
-  /* What the form was handed, so the unload guard can tell typed work from a
-     prefill. On the resubmit path `content` starts non-empty. */
+  /* What the form was handed and what it has already sent — the unload guard
+     needs both to tell real unsaved work from text the server already holds.
+     Only the resubmit prefill counts as a baseline: it is a stored document
+     version. A loaded fix draft does NOT, because FixDraftPanel clears its
+     sessionStorage entry on the way here, so this page holds the only copy. */
   const baselineRef = useRef(resubmit?.content ?? "");
+  const submittedRef = useRef("");
 
   useEffect(() => {
     setReducedMotion(
@@ -78,7 +82,6 @@ export function SubmitForm({
       const draft = JSON.parse(raw) as { content?: string };
       if (draft.content) {
         setContent(draft.content);
-        baselineRef.current = draft.content;
         setFixDraftLoaded(true);
       }
     } catch {
@@ -87,17 +90,21 @@ export function SubmitForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixDraftRequested]);
 
-  /* A pasted document is the only copy of the reader's work until the review
-     starts. Reload, back, or a closed tab would drop it without a word. The
-     guard keys off a CHANGE from what the form was given, so arriving at a
-     prefilled resubmit and leaving again does not prompt for nothing. */
+  /* A pasted document is the only copy of the reader's work until it reaches
+     the server. Reload, back, or a closed tab would drop it without a word.
+     Warn only about text that is neither the prefill we were handed nor the
+     text we already submitted — including edits made AFTER a verdict, when
+     the textarea is enabled again and the result panel invites a rewrite. */
   useEffect(() => {
-    const unsaved = content !== baselineRef.current && phase !== "done";
+    const unsaved =
+      content.trim().length > 0 &&
+      content !== baselineRef.current &&
+      content !== submittedRef.current;
     if (!unsaved) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [content, phase]);
+  }, [content]);
 
   useEffect(() => {
     if (phase !== "reviewing") return;
@@ -147,6 +154,8 @@ export function SubmitForm({
           apiErrorMessage(submission.error, submission.retryAfterSeconds),
         );
       }
+      // The server now holds this text, so it is no longer unsaved work.
+      submittedRef.current = content;
       setDocumentId(submission.documentId ?? null);
       setRunId(submission.runId);
       setSubmissionReviewer(submission.reviewer ?? null);
@@ -190,6 +199,9 @@ export function SubmitForm({
 
   return (
     <div className="space-y-6">
+      <p className="sr-only" aria-live="polite">
+        {busy ? REVIEW_STAGES[currentStage] : ""}
+      </p>
       {showIntro && (
         <Card className="grid gap-4 p-5 sm:grid-cols-3 sm:gap-6">
           <HowItWorksStep
@@ -323,14 +335,11 @@ export function SubmitForm({
 
       {busy && (
         <Card className="space-y-4 border-accent/25 bg-accent-soft/45 p-5">
-          {/* Only the stage name is announced. Marking the whole card live
-              would re-read it every time the seconds counter ticks. */}
-          <p className="sr-only" aria-live="polite">
-            {REVIEW_STAGES[currentStage]}
-          </p>
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">Review in progress</h2>
-            <span aria-hidden className="text-xs tabular-nums text-muted">
+            {/* Readable on demand, but not announced: the whole card used to
+                be aria-live, so this counter re-read it once a second. */}
+            <span className="text-xs tabular-nums text-muted">
               {Math.round(elapsedMs / 1000)}s
             </span>
           </div>

@@ -30,6 +30,29 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  /* The banner reports one past write; the moment the admin does anything
+     else it is stale, so any new interaction retires it. */
+  const editDraft = (id: string, patch: Partial<Draft>) => {
+    setNotice(null);
+    setDrafts((current) => ({
+      ...current,
+      [id]: { ...(current[id] as Draft), ...patch },
+    }));
+  };
+  const askToDeactivate = (id: string | null) => {
+    setNotice(null);
+    if (id === null && confirming) returnFocusTo.current = confirming;
+    setConfirming(id);
+  };
+  /* Swapping the row's buttons for the confirm prompt unmounts the button that
+     had focus, which drops focus to <body>. Send it to Confirm on the way in
+     (autoFocus below) and back to the row's own control on the way out. */
+  const returnFocusTo = useRef<string | null>(null);
+  useEffect(() => {
+    if (confirming !== null || !returnFocusTo.current) return;
+    document.getElementById(`user-status-action-${returnFocusTo.current}`)?.focus();
+    returnFocusTo.current = null;
+  }, [confirming]);
   const [isPending, startTransition] = useTransition();
   const serverRef = useRef(draftFromUsers(users));
 
@@ -38,10 +61,16 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
      row the server actually changed is overwritten now. */
   useEffect(() => {
     const next = draftFromUsers(users);
+    // Read the old snapshot HERE, not inside the updater: React may run the
+    // updater during a later render, by which point serverRef already holds
+    // `next` and every row would compare equal to itself — so a change made
+    // by someone else would never reach the form.
+    const previousServer = serverRef.current;
+    serverRef.current = next;
     setDrafts((current) => {
       const merged: Record<string, Draft> = {};
       for (const [id, fromServer] of Object.entries(next)) {
-        const previous = serverRef.current[id];
+        const previous = previousServer[id];
         const local = current[id];
         const serverChanged =
           !previous ||
@@ -51,7 +80,6 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
       }
       return merged;
     });
-    serverRef.current = next;
   }, [users]);
 
   const mutate = (
@@ -66,21 +94,28 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
     setError(null);
     setNotice(null);
     startTransition(async () => {
-      const response = await fetch(url, {
-        method: opts.method,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(opts.body),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        setError(body?.error ?? "User update failed.");
-        return;
+      try {
+        const response = await fetch(url, {
+          method: opts.method,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(opts.body),
+        });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          setError(body?.error ?? "User update failed.");
+          return;
+        }
+        opts.onSuccess?.();
+        setNotice(opts.success);
+        router.refresh();
+      } catch {
+        // A dropped connection rejects the fetch. Uncaught, it would escape
+        // the transition to the error boundary and take every unsaved row
+        // edit on the page down with it.
+        setError("Could not reach the server — your changes were not saved.");
       }
-      opts.onSuccess?.();
-      setNotice(opts.success);
-      router.refresh();
     });
   };
 
@@ -104,8 +139,15 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
     patch: Partial<UserRecord>,
     success: string,
   ) => {
-    setConfirming(null);
-    mutate(`/api/users/${user.id}`, { method: "PATCH", body: patch, success });
+    mutate(`/api/users/${user.id}`, {
+      method: "PATCH",
+      body: patch,
+      success,
+      // Cleared on success only: if the PATCH is refused, the row stays in the
+      // confirm state instead of silently snapping back as though nothing
+      // happened — the error banner can be scrolled off above a long table.
+      onSuccess: () => setConfirming(null),
+    });
   };
 
   return (
@@ -154,15 +196,16 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
       </form>
 
       {/* Every mutation here is invisible otherwise — the table redraws to the
-          same shape whether the write landed or not. */}
-      <div aria-live="polite" className="sr-only">
-        {notice}
+          same shape whether the write landed or not. The wrapper is always
+          mounted so the first notice counts as a change to a live region;
+          one copy, so it is not read out twice. */}
+      <div aria-live="polite">
+        {notice && (
+          <p className="rounded-md border border-pass/25 bg-pass-soft px-3.5 py-2.5 text-sm font-medium text-pass">
+            {notice}
+          </p>
+        )}
       </div>
-      {notice && (
-        <p className="rounded-md border border-pass/25 bg-pass-soft px-3.5 py-2.5 text-sm font-medium text-pass">
-          {notice}
-        </p>
-      )}
       {error && (
         <p
           role="alert"
@@ -208,13 +251,7 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
                       aria-label={`Display name for ${user.email}`}
                       value={draft.displayName}
                       onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [user.id]: {
-                            ...draft,
-                            displayName: event.target.value,
-                          },
-                        }))
+                        editDraft(user.id, { displayName: event.target.value })
                       }
                       disabled={isPending}
                     />
@@ -225,13 +262,7 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
                       aria-label={`Role for ${user.email}`}
                       value={draft.role}
                       onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [user.id]: {
-                            ...draft,
-                            role: event.target.value as Role,
-                          },
-                        }))
+                        editDraft(user.id, { role: event.target.value as Role })
                       }
                       disabled={isPending}
                     >
@@ -261,11 +292,17 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
                   <td className="px-4 py-3">
                     {confirming === user.id ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-fail">
+                        <span
+                          id={`confirm-deactivate-${user.id}`}
+                          className="text-xs font-medium text-fail"
+                        >
                           Deactivate {user.displayName}?
                         </span>
                         <button
                           type="button"
+                          // eslint-disable-next-line jsx-a11y/no-autofocus
+                          autoFocus
+                          aria-describedby={`confirm-deactivate-${user.id}`}
                           className={buttonClass("danger", "sm")}
                           onClick={() =>
                             update(
@@ -281,7 +318,7 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
                         <button
                           type="button"
                           className={buttonClass("ghost", "sm")}
-                          onClick={() => setConfirming(null)}
+                          onClick={() => askToDeactivate(null)}
                           disabled={isPending}
                         >
                           Cancel
@@ -309,11 +346,12 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
                             isPending || !dirty || !draft.displayName.trim()
                           }
                         >
-                          {dirty ? "Save changes" : "Saved"}
+                          Save changes
                         </button>
                         {user.status === "deactivated" ? (
                           <button
                             type="button"
+                            id={`user-status-action-${user.id}`}
                             className={buttonClass("secondary", "sm")}
                             onClick={() =>
                               update(
@@ -331,8 +369,9 @@ export function UserManagement({ users }: { users: UserRecord[] }) {
                              once rather than acting on a stray click. */
                           <button
                             type="button"
+                            id={`user-status-action-${user.id}`}
                             className={buttonClass("danger", "sm")}
-                            onClick={() => setConfirming(user.id)}
+                            onClick={() => askToDeactivate(user.id)}
                             disabled={isPending}
                           >
                             Deactivate

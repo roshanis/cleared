@@ -1,5 +1,6 @@
 import type { ReviewResult } from "@/schema";
 import type { Severity } from "@/lib/rubric";
+import { ScrollRegion } from "./scroll-region";
 
 /* Shared control vocabulary — every button and input in the app draws from
    these so the same action looks the same on every screen. */
@@ -178,16 +179,7 @@ export function TableCard({
 }) {
   return (
     <Card className={`overflow-hidden ${className}`}>
-      {/* These tables are wider than a tablet. Without a tab stop the only
-          way to reach the right-hand columns is a mouse or a swipe. */}
-      <div
-        role="region"
-        aria-label={label}
-        tabIndex={0}
-        className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
-      >
-        {children}
-      </div>
+      <ScrollRegion label={label}>{children}</ScrollRegion>
     </Card>
   );
 }

@@ -27,7 +27,7 @@ export default async function RubricPage() {
         <h2 className="mb-3 text-sm font-semibold tracking-tight">
           Version history
         </h2>
-        <TableCard label="Rubric criteria">
+        <TableCard label="Rubric version history">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-rail">
               <tr>

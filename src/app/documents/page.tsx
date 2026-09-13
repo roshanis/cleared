@@ -59,7 +59,7 @@ function StatusCell({
       // z-10 keeps this above the card's stretched title link on phones.
       <Link
         href={`/submit?documentId=${documentId}`}
-        className="relative z-10 inline-flex rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="touch-band relative z-10 inline-flex rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <StatusBadge tone="fail">Rejected — fix &amp; resubmit</StatusBadge>
       </Link>
@@ -211,7 +211,9 @@ export default async function DocumentsPage({
                     {run ? run.status : "no review"}
                   </span>
                 )}
-                <span className="text-xs text-muted">
+                {/* Above the stretched link, or the overlay swallows the
+                    hover that reveals the exact UTC timestamp. */}
+                <span className="relative z-10 text-xs text-muted">
                   {latestVersion ? <TimeAgo iso={latestVersion.createdAt} /> : "—"}
                 </span>
               </div>
