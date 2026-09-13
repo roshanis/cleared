@@ -5,7 +5,11 @@ import { canAccessDocument } from "@/lib/access";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric } from "@/lib/store";
 
-export const metadata = { title: "Submit a document" };
+export const metadata = {
+  title: "Submit a document",
+  description:
+    "Paste customer-facing text and get a verdict in under a minute, with an exact quote and a drafted fix for every finding.",
+};
 
 export default async function SubmitPage({
   searchParams,

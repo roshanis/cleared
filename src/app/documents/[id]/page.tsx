@@ -27,7 +27,12 @@ export async function generateMetadata({
   const { id } = await params;
   const db = await getDb();
   const document = db.documents.find((d) => d.id === id);
-  return { title: document?.title ?? "Document" };
+  return {
+    title: document?.title ?? "Document",
+    description: document
+      ? `Review history, findings and decisions for "${document.title}".`
+      : "Review history, findings and decisions for a submitted document.",
+  };
 }
 
 export default async function DocumentPage({

@@ -67,7 +67,11 @@ function StatusCell({
   return null;
 }
 
-export const metadata = { title: "Documents" };
+export const metadata = {
+  title: "Documents",
+  description:
+    "Every submitted document with its latest verdict, version and decision.",
+};
 
 export default async function DocumentsPage({
   searchParams,

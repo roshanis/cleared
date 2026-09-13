@@ -16,7 +16,11 @@ interface SearchParams {
   action?: string;
 }
 
-export const metadata = { title: "Audit log" };
+export const metadata = {
+  title: "Audit log",
+  description:
+    "Every review, decision and note in one timeline, exportable as CSV for an auditor.",
+};
 
 export default async function AuditPage({
   searchParams,

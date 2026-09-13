@@ -53,7 +53,11 @@ function SeveritySummary({
   );
 }
 
-export const metadata = { title: "Review queue" };
+export const metadata = {
+  title: "Review queue",
+  description:
+    "Documents the agent failed or flagged for human judgment, oldest first.",
+};
 
 export default async function QueuePage() {
   await requireRole("officer", "admin");

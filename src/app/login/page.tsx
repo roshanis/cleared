@@ -33,7 +33,11 @@ async function signInWithGoogle() {
   await signIn("google", { redirectTo: "/" });
 }
 
-export const metadata = { title: "Sign in" };
+export const metadata = {
+  title: "Sign in",
+  description:
+    "Take a seat as an author, compliance officer, admin or auditor and see the same review from every side.",
+};
 
 export default async function LoginPage({
   searchParams,

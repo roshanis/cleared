@@ -4,6 +4,7 @@ import { runReview } from "@/agent/run";
 import { defaultRubricDraft } from "@/lib/rubric";
 import { sampleDocument } from "@/lib/copy";
 import { ResultView } from "@/components/result-view";
+import { StickyCta } from "@/components/sticky-cta";
 import { HowItWorksStep, buttonClass, initials } from "@/components/ui";
 
 const steps = [
@@ -79,7 +80,7 @@ export default async function LandingPage() {
             className="animate-rise mt-10 flex flex-wrap gap-3"
             style={{ "--rise-delay": "240ms" } as React.CSSProperties}
           >
-            <Link href={appHref} className={onDarkPrimary}>
+            <Link id="hero-cta" href={appHref} className={onDarkPrimary}>
               {appLabel}
             </Link>
             <Link href="#live-review" className={onDarkGhost}>
@@ -228,6 +229,11 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Signed in, the bottom of a phone screen belongs to the tab bar. */}
+      {!session && (
+        <StickyCta href={appHref} label={appLabel} watch="hero-cta" />
+      )}
     </div>
   );
 }
