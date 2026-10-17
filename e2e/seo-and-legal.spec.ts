@@ -117,17 +117,17 @@ test("the phone CTA appears only once the hero button has scrolled away", async 
   const page = await context.newPage(); // signed OUT on purpose
   await page.goto("/", { waitUntil: "networkidle" });
 
-  const cta = page.locator("a#hero-cta");
-  await expect(cta).toBeVisible();
-  const sticky = page.getByRole("link", { name: "Try the demo" }).nth(1);
-  await expect(sticky).toHaveCount(0);
+  // Keyed off the hook, not the copy — the CTA wording changes with the design.
+  const sticky = page.locator("[data-sticky-cta]");
+  await expect(page.locator("a#hero-cta")).toBeVisible();
+  await expect(sticky, "the bar duplicates a button already on screen").toHaveCount(0);
 
   await page.evaluate(() =>
     window.scrollTo({ top: document.body.scrollHeight / 2, behavior: "instant" }),
   );
-  await expect(page.getByRole("link", { name: "Try the demo" }).last()).toBeVisible();
+  await expect(sticky).toBeVisible();
 
-  const box = await page.getByRole("link", { name: "Try the demo" }).last().boundingBox();
+  const box = await sticky.locator("a").boundingBox();
   expect(box!.height, "the sticky CTA is under the 44px touch minimum").toBeGreaterThanOrEqual(44);
   await context.close();
 });

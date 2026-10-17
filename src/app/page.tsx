@@ -5,6 +5,7 @@ import { defaultRubricDraft } from "@/lib/rubric";
 import { sampleDocument } from "@/lib/copy";
 import { ResultView } from "@/components/result-view";
 import { StatusBadge, SeverityLabel, buttonClass } from "@/components/ui";
+import { StickyCta } from "@/components/sticky-cta";
 
 export default async function LandingPage() {
   const session = await getSession();
@@ -19,7 +20,7 @@ export default async function LandingPage() {
           <h1 className="max-w-xl font-serif text-5xl leading-[1.08] tracking-tight sm:text-6xl">A clearer path<br />from draft<br /><em className="text-[#c5ded3]">to decision.</em></h1>
           <p className="mt-6 max-w-lg text-base leading-8 text-[#deebe5]">Find risky claims, see the evidence, and keep your compliance team in control. Cleared brings review, revisions, and the decision record into one workspace.</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href={href} className="inline-flex min-h-12 items-center rounded-md bg-[#e7eee0] px-5 py-3 text-sm font-semibold text-[#103d3d] hover:bg-white">{session ? "Open your workspace" : demo ? "Explore the demo" : "Sign in to your workspace"} →</Link>
+            <Link id="hero-cta" href={href} className="inline-flex min-h-12 items-center rounded-md bg-[#e7eee0] px-5 py-3 text-sm font-semibold text-[#103d3d] hover:bg-white">{session ? "Open your workspace" : demo ? "Explore the demo" : "Sign in to your workspace"} →</Link>
             <Link href="#sample-review" className="inline-flex min-h-12 items-center rounded-md border border-white/40 px-5 py-3 text-sm font-medium text-white hover:bg-white/10">Inspect a sample review</Link>
           </div>
           <p className="mt-5 text-xs leading-5 text-[#b5d6cc]">Evidence you can inspect. Coverage gaps you can see. Decisions your team owns.</p>
@@ -52,5 +53,7 @@ export default async function LandingPage() {
       </div>
     </section>
     <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-6 py-10"><div><p className="font-semibold text-accent-strong">Cleared.</p><p className="mt-1 text-xs text-muted">From draft to a documented decision.</p></div><Link href={href} className={buttonClass("primary")}>{session ? "Open workspace" : demo ? "Try the workflow" : "Sign in"} →</Link></footer>
+    {/* Signed in, the bottom of a phone screen belongs to the tab bar. */}
+    {!session && <StickyCta href={href} label={demo ? "Explore the demo" : "Sign in"} watch="hero-cta" />}
   </div>;
 }

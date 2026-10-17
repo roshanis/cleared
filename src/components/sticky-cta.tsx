@@ -41,7 +41,10 @@ export function StickyCta({
     <>
       {/* Holds space so the bar never covers the end of the page. */}
       <div aria-hidden className="h-[calc(4.5rem+env(safe-area-inset-bottom))] md:hidden" />
-      <div className="safe-bottom gutter fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden">
+      <div
+        data-sticky-cta
+        className="safe-bottom gutter fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden"
+      >
         <div className="flex items-center gap-3 py-3">
           <p className="min-w-0 flex-1 text-xs leading-5 text-muted">
             A verdict in under a minute, with the exact quote.
