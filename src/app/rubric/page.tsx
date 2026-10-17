@@ -3,7 +3,11 @@ import { PageHeader, StatusBadge, TableCard, Th } from "@/components/ui";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric } from "@/lib/store";
 
-export const metadata = { title: "Rubric" };
+export const metadata = {
+  title: "Rubric",
+  description:
+    "The compliance rules every review is measured against, with a golden-set gate before publishing a new version.",
+};
 
 export default async function RubricPage() {
   await requireRole("admin");
@@ -27,7 +31,7 @@ export default async function RubricPage() {
         <h2 className="mb-3 text-sm font-semibold tracking-tight">
           Version history
         </h2>
-        <TableCard>
+        <TableCard label="Rubric version history">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-rail">
               <tr>

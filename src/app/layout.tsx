@@ -3,7 +3,11 @@ import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import { DemoStrip } from "@/components/demo-strip";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { Nav } from "@/components/nav";
+import { SiteFooter } from "@/components/site-footer";
+import { Analytics } from "@/components/analytics";
 import { themeInitScript } from "@/components/theme-toggle";
+import { analyticsConfig } from "@/lib/analytics";
+import { site } from "@/lib/site";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -16,11 +20,13 @@ const sourceSerif = Source_Serif_4({
   variable: "--font-source-serif",
 });
 
-const siteTitle = "Cleared — compliance review, before it ships";
-const siteDescription =
-  "Fast feedback for writers. Full authority for compliance. A complete trail for auditors.";
+const siteTitle = `${site.name} — compliance review, before it ships`;
+const siteDescription = site.description;
 
 export const metadata: Metadata = {
+  // Resolves the OG image, canonicals and the sitemap against the real origin
+  // instead of emitting relative URLs that crawlers and link unfurlers drop.
+  metadataBase: new URL(site.url),
   // Pages set their own title; this suffixes them so a tab is identifiable
   // when several are open at once (queue, a document, the audit log).
   title: { default: siteTitle, template: "%s · Cleared" },
@@ -59,6 +65,7 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const analytics = analyticsConfig();
   return (
     <html
       lang="en"
@@ -89,7 +96,9 @@ export default function RootLayout({
         >
           {children}
         </main>
+        <SiteFooter />
         <MobileTabBar />
+        {analytics && <Analytics config={analytics} />}
       </body>
     </html>
   );

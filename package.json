@@ -11,7 +11,9 @@
     "seed": "tsx src/lib/seed-cli.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy": "vercel deploy"
+    "deploy": "vercel deploy",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.7",
@@ -24,6 +26,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^26.1.0",
     "@types/pg": "^8.20.0",

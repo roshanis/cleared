@@ -19,9 +19,9 @@
   publish.
 - Roles (`author`/`officer`/`admin`/`auditor`) and `requireRole()` are
   real and carry over to any identity provider unchanged.
-- Known gaps (GOAL-HARDENING.md): auth is decorative, no rate limiting,
-  long-running review routes depend on `maxDuration = 300`, model path
-  failure modes need exercising.
+- Known gaps (GOAL-HARDENING.md): auth is decorative, rate limiting is
+  per-process only, long-running review routes depend on `maxDuration = 300`,
+  model path failure modes need exercising.
 
 **Cost model used throughout** (verify with `npm run eval` in model mode):
 one review ≈ 2 model calls ≈ ~8K tokens in + ~2K out ≈ 10K tokens. At
@@ -44,8 +44,11 @@ defer multi-tenancy), ~30–40 weekly-active authors, ~200 reviews/day.
       restructure long reviews to background execution + status polling so
       a review survives function timeouts; every provider failure surfaces
       as an honest `error` state.
-- [ ] Rate limiting + input size caps on submit/execute routes (none exist
-      today). Per-user and per-IP.
+- [ ] Rate limiting: per-user fixed-window limits now guard `/api/submissions`
+      and the fixes route (`src/lib/submission-rate-limiter.ts`), but the
+      counters live in a process-local `Map`, so they reset on redeploy and do
+      not add up across serverless instances. Move them to a shared store
+      (Postgres or Upstash) and add per-IP limits plus input size caps.
 - [ ] Secrets hygiene: `AUTH_SECRET`/`OPENAI_API_KEY` only in Vercel env,
       documented rotation; `DEMO_PUBLIC`/`DEMO_AUTH` must be **unset** on
       client deployments — add a startup assertion that refuses to boot a

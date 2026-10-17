@@ -8,7 +8,11 @@ import { getDb, publishedRubric, latestRunForVersion } from "@/lib/store";
 import { maxDocumentChars } from "@/lib/submission-limits";
 import { SUPPORTED_JURISDICTIONS, type Jurisdiction } from "@/lib/rubric";
 
-export const metadata = { title: "Submit a document" };
+export const metadata = {
+  title: "Submit a document",
+  description:
+    "Paste customer-facing text and get a verdict in under a minute, with an exact quote and a drafted fix for every finding.",
+};
 
 export default async function SubmitPage({
   searchParams,
