@@ -69,7 +69,7 @@ export function ResultView({ content, result, criteria }: {
       </div>
     </div>
 
-    <div className="flex gap-2 lg:hidden" aria-label="Workspace panels">
+    <div role="group" className="flex gap-2 lg:hidden" aria-label="Workspace panels">
       {(["document", "review"] as const).map(name => <button type="button" key={name} aria-pressed={mobilePanel === name} onClick={() => setMobilePanel(name)} className={buttonClass(mobilePanel === name ? "primary" : "secondary")}>
         {name === "document" ? "Source document" : "Review & coverage"}
       </button>)}
@@ -81,7 +81,7 @@ export function ResultView({ content, result, criteria }: {
           <h2 className="text-sm font-semibold">Source document</h2>
           <span className="text-xs text-muted">Original text · read only</span>
         </div>
-        <div ref={sourceRef} tabIndex={-1} aria-label="Original document text" className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-6 py-7 font-serif text-base leading-8 sm:px-8">
+        <div ref={sourceRef} tabIndex={-1} role="region" aria-label="Original document text" className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-6 py-7 font-serif text-base leading-8 sm:px-8">
           {segments.map((segment, index) => segment.findingIndexes.length ? <mark
             key={index} tabIndex={0} role="button"
             aria-label={`View finding ${segment.findingIndexes[0] + 1}: ${segment.text}`}
@@ -95,7 +95,7 @@ export function ResultView({ content, result, criteria }: {
       </Card>
 
       <div className={`min-w-0 ${mobilePanel === "review" ? "" : "hidden lg:block"}`}>
-        <div className="mb-4 flex items-center gap-2" aria-label="Review sections">
+        <div role="group" className="mb-4 flex items-center gap-2" aria-label="Review sections">
           <button type="button" aria-pressed={panel === "findings"} className={buttonClass(panel === "findings" ? "primary" : "secondary")} onClick={() => setPanel("findings")}>Findings ({result.findings.length})</button>
           <button type="button" aria-pressed={panel === "coverage"} className={buttonClass(panel === "coverage" ? "primary" : "secondary")} onClick={() => setPanel("coverage")}>Coverage{gaps.length ? ` · ${gaps.length} gaps` : ""}</button>
         </div>
