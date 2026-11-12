@@ -27,7 +27,7 @@ get to set one. Keep it that way — it is why verdicts are auditable.
 - `src/agent/` — the pipeline. Two reviewer subagents in parallel, then a
   judge, then deterministic merge and verdict. `run.ts` is the orchestrator.
 - `src/agent/provider.ts` — resolves the model backend from the environment.
-  *(Reintroduce if absent: it was lost with an unpushed commit.)*
+  OpenAI, the Hugging Face router, or any OpenAI-compatible endpoint.
 - `src/lib/store.ts` + `src/lib/db/` — three drivers: `sqlite`, `postgres`,
   `memory`.
 - `src/components/ui.tsx` — the shared control vocabulary. Buttons, inputs and

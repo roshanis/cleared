@@ -1,5 +1,5 @@
 // Eval CLI: golden set through the full pipeline, graded. Uses the model
-// reviewers when OPENAI_API_KEY is set, the deterministic heuristic
+// reviewers when a model backend is configured, the deterministic heuristic
 // otherwise. Exits non-zero on any failure so it can gate CI.
 import { activeReviewer, runReview } from "../src/agent/run";
 import { defaultRubricDraft } from "../src/lib/rubric";

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runReview } from "./run";
 import { defaultRubricDraft } from "@/lib/rubric";
 
@@ -7,6 +7,11 @@ vi.mock("ai", () => ({ generateObject: generate }));
 vi.mock("@ai-sdk/openai", () => ({ openai: () => "mock-model" }));
 
 describe("model coverage safety through the complete pipeline", () => {
+  // The model path resolves its backend from the environment before calling
+  // generateObject, so a backend has to be configured even though it is mocked.
+  beforeEach(() => vi.stubEnv("OPENAI_API_KEY", "sk-test"));
+  afterEach(() => vi.unstubAllEnvs());
+
   it("does not pass an omitted assigned criterion even if the judge recommends pass", async () => {
     generate.mockResolvedValueOnce({ object: { findings: [], compliantCriteria: [], notApplicableCriteria: [] } })
       .mockResolvedValueOnce({ object: { recommendedVerdict: "pass", rationale: "No findings to challenge.", challenges: [] } });

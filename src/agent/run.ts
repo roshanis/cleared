@@ -15,6 +15,12 @@ import { applyJudgeGating, heuristicJudge, modelJudge } from "./judge";
 import { mergeFindings, type ReviewerFinding } from "./merge";
 import { modelReview } from "./model-reviewer";
 import {
+  activeModel,
+  providerLabel,
+  resolveProvider,
+  DEFAULT_OPENAI_MODEL,
+} from "./provider";
+import {
   partitionFindingsByJurisdiction,
   verdictsByJurisdiction,
   worstVerdict,
@@ -24,16 +30,44 @@ export { partitionFindingsByJurisdiction };
 
 export type ReviewerKind = "model" | "heuristic";
 
-export const MODEL_ID = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+/**
+ * The model id in play, for logs and the run record. Falls back to the OpenAI
+ * default so the value is never empty. `||`, not `??`: OPENAI_MODEL="" must
+ * fall back too, and an empty string is not nullish.
+ */
+export const MODEL_ID =
+  resolveProvider()?.modelId ||
+  process.env.OPENAI_MODEL?.trim() ||
+  DEFAULT_OPENAI_MODEL;
 
 /**
- * Model reviewers when a key is configured, deterministic demo reviewer
+ * Model reviewers when a backend is configured, deterministic demo reviewer
  * otherwise. A public demo only spends model budget behind the explicit
  * DEMO_PUBLIC_MODEL opt-in; otherwise visitors stay on the heuristic path.
+ *
+ * "Configured" means any of OpenAI, the Hugging Face router, or a self-hosted
+ * OpenAI-compatible endpoint — see src/agent/provider.ts.
  */
 export function activeReviewer(): ReviewerKind {
   if (publicDemoEnabled() && !publicModelEnabled()) return "heuristic";
-  return process.env.OPENAI_API_KEY ? "model" : "heuristic";
+  return resolveProvider() ? "model" : "heuristic";
+}
+
+/** Which backend is live, e.g. "Hugging Face · Qwen/Qwen3-32B". */
+export function activeReviewerLabel(): string | null {
+  const choice = resolveProvider();
+  return choice ? providerLabel(choice) : null;
+}
+
+/** Resolve the model, or explain why there isn't one. */
+function requireModel() {
+  const configured = activeModel();
+  if (!configured) {
+    throw new Error(
+      "No model backend is configured. Set OPENAI_API_KEY, or HF_TOKEN with HF_MODEL, or MODEL_BASE_URL with MODEL_ID.",
+    );
+  }
+  return configured.model;
 }
 
 const promptFile = (name: string) =>
@@ -75,12 +109,15 @@ export async function runReview(
         : "Limited pattern check against the starter rule; context, paraphrases, and external sources are not fully verified.",
     }));
   } else {
+    // One handle for every call in this run, so the reviewers and the judge
+    // cannot end up on different backends mid-review.
+    const model = requireModel();
     const reports = await Promise.all(
       reviewerAreas.map(({ area, prompt }) =>
         sliced.criteria.some(c => c.area === area) ? modelReview({
           document,
           instructions: `${promptFile(prompt)}\n\n${renderRubricMarkdown(sliced, area)}`,
-          modelId: MODEL_ID,
+          model,
           criteria: sliced.criteria.filter(c => c.area === area),
         }) : Promise.resolve({ findings: [], coverage: [] }),
       ),
@@ -107,7 +144,7 @@ export async function runReview(
           rubric: sliced,
           draftVerdict,
           instructions: promptFile("judge"),
-          modelId: MODEL_ID,
+          model: requireModel(),
         });
   const gated = applyJudgeGating({
     findings,

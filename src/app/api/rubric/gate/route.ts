@@ -6,6 +6,7 @@ import { activeReviewer, runReview } from "@/agent/run";
 import { grade, loadGoldenCases } from "../../../../../evals/grade";
 import type { GoldenGateReport } from "@/lib/rubric";
 import { requireSameOrigin } from "@/lib/request-guard";
+import { activeCredentialEnvName } from "@/agent/provider";
 import { reviewErrorMessage } from "@/lib/review-error";
 import { getSession } from "@/lib/session";
 import { getDb, setGoldenGate } from "@/lib/store";
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
       });
     }
   } catch (error) {
-    return NextResponse.json({ error: reviewErrorMessage(error) }, { status: 502 });
+    return NextResponse.json({ error: reviewErrorMessage(error, activeCredentialEnvName()) }, { status: 502 });
   }
 
   const report: GoldenGateReport = {

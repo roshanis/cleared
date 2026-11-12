@@ -1,5 +1,4 @@
-import { openai } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import { severityOrder, type RubricCriterion } from "@/lib/rubric";
 import type { Coverage } from "@/schema";
@@ -41,8 +40,8 @@ export interface ModelReviewOptions {
   document: string;
   /** Reviewer prompt + rendered rubric slice for this reviewer's area. */
   instructions: string;
-  /** OpenAI model id, e.g. "gpt-5.4-mini". */
-  modelId: string;
+  /** Resolved backend handle — see src/agent/provider.ts. */
+  model: LanguageModel;
   criteria: RubricCriterion[];
 }
 
@@ -86,7 +85,7 @@ export async function modelReview(
   opts: ModelReviewOptions,
 ): Promise<{ findings: ReviewerFinding[]; coverage: Coverage[] }> {
   const { object } = await generateObject({
-    model: openai(opts.modelId),
+    model: opts.model,
     schema: reviewerOutputSchema,
     system: opts.instructions,
     prompt: [

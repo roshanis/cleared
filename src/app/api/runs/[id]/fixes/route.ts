@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { MODEL_ID } from "@/agent/run";
+import { activeModel, credentialEnvName } from "@/agent/provider";
 import { heuristicFixes, modelFixes } from "@/agent/fixer";
 import { canAccessDocument } from "@/lib/access";
 import { publicDemoEnabled } from "@/lib/demo";
@@ -12,6 +12,7 @@ import { canSubmit } from "@/lib/roles";
 import { getSession } from "@/lib/session";
 import { checkSubmissionRateLimit } from "@/lib/submission-rate-limiter";
 import { getDb } from "@/lib/store";
+import { reviewErrorMessage } from "@/lib/review-error";
 
 export const maxDuration = 60;
 
@@ -98,17 +99,36 @@ export async function POST(
     }
   }
 
-  const fixes = !useModel
-    ? heuristicFixes(run.result.findings)
-    : await modelFixes({
-          document: version.content,
-          findings: run.result.findings,
-          instructions: readFileSync(
-            path.join(process.cwd(), "src", "prompts", "fixer.md"),
-            "utf8",
-          ),
-          modelId: MODEL_ID,
-        });
+  /* `useModel` comes from the stored run, so a run recorded while a backend
+     was configured can be replayed after it is gone. Fall back rather than
+     dereference a model that is not there. */
+  const configured = activeModel();
+  let fixes;
+  if (!useModel || !configured) {
+    fixes = heuristicFixes(run.result.findings);
+  } else {
+    try {
+      fixes = await modelFixes({
+        document: version.content,
+        findings: run.result.findings,
+        instructions: readFileSync(
+          path.join(process.cwd(), "src", "prompts", "fixer.md"),
+          "utf8",
+        ),
+        model: configured.model,
+      });
+    } catch (error) {
+      /* An open model is markedly more likely than OpenAI to return output
+         that does not satisfy the fixer schema. Uncaught, that surfaced as a
+         bare 500 with a stack trace; the panel can show this instead. */
+      return NextResponse.json(
+        {
+          error: reviewErrorMessage(error, credentialEnvName(configured.choice)),
+        },
+        { status: 502 },
+      );
+    }
+  }
 
   const { patched, applied, unlocated } = applyFixes(version.content, fixes);
 

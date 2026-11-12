@@ -1,7 +1,7 @@
 import { SubmitForm } from "@/components/submit-form";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui";
-import { activeReviewer } from "@/agent/run";
+import { activeReviewer, activeReviewerLabel } from "@/agent/run";
 import { canAccessDocument } from "@/lib/access";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric, latestRunForVersion } from "@/lib/store";
@@ -60,6 +60,7 @@ export default async function SubmitPage({
         maxChars={maxDocumentChars()}
         resubmit={resubmit}
         reviewer={activeReviewer()}
+        reviewerLabel={activeReviewerLabel()}
         criteria={rubric.criteria}
         fixDraftRequested={fixDraft === "1"}
       />

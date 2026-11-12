@@ -8,6 +8,7 @@
  * legal pages can say "not configured" instead of quietly shipping a
  * plausible-looking lie about who runs the service and how to reach them.
  */
+import { resolveProvider } from "@/agent/provider";
 
 function env(name: string): string | null {
   const value = process.env[name]?.trim();
@@ -59,5 +60,8 @@ export function siteGaps(): string[] {
 
 /** Whether the review pipeline sends document text to a third-party model. */
 export function usesThirdPartyModel(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+  // Any configured backend counts: OpenAI and the Hugging Face router plainly
+  // are third parties, and a "self-hosted" base URL is often a gateway. The
+  // privacy notice should over-disclose rather than under-disclose.
+  return resolveProvider() !== null;
 }

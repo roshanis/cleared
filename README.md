@@ -43,7 +43,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-No configuration needed: without an `OPENAI_API_KEY` the app runs in demo
+No configuration needed: without a model backend the app runs in demo
 mode (a deterministic heuristic reviewer — the UI says so), storage is local
 SQLite (`.data/app.db`, Node >= 22.5), and the store self-seeds with demo documents on
 first run.
@@ -59,13 +59,45 @@ Sign in as a persona to see each customer's experience:
 
 ## Model mode
 
-Set `OPENAI_API_KEY` and reviews run through two model reviewer subagents
-(`gpt-5.4-mini` by default via the Vercel AI SDK; override with
-`OPENAI_MODEL`) — one for content criteria, one for data-handling risk. Their
+Configure a model backend and reviews run through two model reviewer subagents
+— one for content criteria, one for data-handling risk. Their
 findings are merged, deduped, and scored **in code**
 (`src/agent/`): the rubric owns severities and verdict rules, so verdicts stay
 auditable regardless of model behavior. Low-confidence fail-level findings
 route to a human instead of failing outright.
+
+### Choosing a backend
+
+The pipeline needs one chat model that can return structured output, so any
+OpenAI-compatible endpoint works. There is no second SDK dependency — one
+provider factory, three base URLs (`src/agent/provider.ts`).
+
+| Backend | Set | Notes |
+| --- | --- | --- |
+| OpenAI | `OPENAI_API_KEY`, optional `OPENAI_MODEL` | Defaults to `gpt-5.4-mini`. Uses the Responses API. |
+| Hugging Face | `HF_TOKEN` **and** `HF_MODEL` | Inference Providers' OpenAI-compatible router. `HF_MODEL` is a repo id, e.g. `Qwen/Qwen3-32B`. |
+| Self-hosted | `MODEL_BASE_URL` **and** `MODEL_ID`, optional `MODEL_API_KEY` | vLLM, TGI, Ollama, or a gateway. |
+
+`MODEL_PROVIDER` (`openai`, `huggingface` or `compatible`) picks one
+deliberately. Left unset, OpenAI wins when its key is present, so adding a
+second backend never silently re-points an existing deployment. A named
+provider that is not fully configured falls back to the deterministic
+reviewer rather than to a provider you did not ask for, and Hugging Face and
+self-hosted both require an explicit model id.
+
+The submit screen names the live backend (e.g. "Hugging Face · Qwen/Qwen3-32B")
+because which model read the document belongs in the compliance record.
+
+Two things to know when picking an open model:
+
+- **It must support JSON-schema structured output.** The reviewers, judge and
+  fixer all call `generateObject`. A model or provider that cannot honour a
+  response schema fails the run with "returned malformed review output".
+- **Everything but OpenAI is called through Chat Completions, not the
+  Responses API.** The bare `openai(id)` callable targets `/responses`, which
+  the Hugging Face router and the usual self-hosted servers do not implement;
+  the resulting 404 reads like a bad model id. `provider.ts` uses `.chat()`
+  for those backends for exactly this reason.
 
 Model-mode failures are explicit and retryable. If the provider rejects the
 key, rate-limits the request, times out, refuses, or returns malformed
