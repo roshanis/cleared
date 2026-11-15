@@ -7,7 +7,11 @@ import { canAccessDocument } from "@/lib/access";
 import { currentRun, documentHistory, runHref } from "@/lib/review-workspace";
 import { documentStatus } from "@/lib/document-status";
 
-export const metadata = { title: "Documents" };
+export const metadata = {
+  title: "Documents",
+  description:
+    "Every document, its current review, and the decision behind it.",
+};
 
 export default async function DocumentsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; page?: string }> }) {
   const session = await requireSession();

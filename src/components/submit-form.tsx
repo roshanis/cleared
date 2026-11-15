@@ -12,9 +12,12 @@ import { ResultView } from "./result-view";
 import { Card, StatusBadge, buttonClass, fieldLabelClass, inputClass, textareaClass } from "./ui";
 
 type Phase = "idle" | "saving" | "reviewing" | "done" | "error";
-export function SubmitForm({ resubmit, reviewer, criteria = [], fixDraftRequested = false, userId, rubricVersion, maxChars }: {
+export function SubmitForm({ resubmit, reviewer, reviewerLabel = null, criteria = [], fixDraftRequested = false, userId, rubricVersion, maxChars }: {
   resubmit: { documentId: string; title: string; content: string; markets: Jurisdiction[] } | null;
-  reviewer: "model" | "heuristic"; criteria?: RubricCriterion[]; fixDraftRequested?: boolean;
+  reviewer: "model" | "heuristic";
+  /** Which backend is live, e.g. "Hugging Face · Qwen/Qwen3-32B". */
+  reviewerLabel?: string | null;
+  criteria?: RubricCriterion[]; fixDraftRequested?: boolean;
   userId: string; rubricVersion: number; maxChars: number;
 }) {
   const [title, setTitle] = useState(resubmit?.title ?? "");
@@ -148,7 +151,7 @@ export function SubmitForm({ resubmit, reviewer, criteria = [], fixDraftRequeste
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-rail px-5 py-4">
           <h2 className="font-semibold">{resubmit ? "Revise your document" : "Your draft"}</h2>
-          <StatusBadge tone={actualReviewer === "model" ? "accent" : "warn"}>{actualReviewer === "model" ? "Model review" : "Demo review"}</StatusBadge>
+          <StatusBadge tone={actualReviewer === "model" ? "accent" : "warn"}>{actualReviewer === "model" ? (reviewerLabel ?? "Model review") : "Demo review"}</StatusBadge>
         </div>
         <form onSubmit={submit} className="space-y-5 p-5 sm:p-6">
           <label className="block"><span className={fieldLabelClass}>Document title</span>
@@ -191,6 +194,8 @@ export function SubmitForm({ resubmit, reviewer, criteria = [], fixDraftRequeste
           <ul className="mt-3 space-y-3">{applicable.map(c => <li key={c.id} className="border-t border-line pt-3 text-xs leading-5 text-muted"><span className="mr-2 font-mono font-semibold text-accent-strong">{c.id}</span>{c.description}</li>)}</ul>
         </details>
         {reviewer === "heuristic" && <p className="rounded-lg bg-warn-soft p-4 text-xs leading-5 text-warn">Demo mode uses limited pattern checks. Custom rules and uncovered language need a model or human review. Coverage gaps are shown with the result.</p>}
+        {/* Which model read the document is part of the compliance record, and it is no longer always OpenAI. */}
+        {reviewer === "model" && reviewerLabel && <p className="text-xs leading-5 text-muted">Reviewed by <span className="font-semibold text-ink">{reviewerLabel}</span></p>}
       </aside>
     </div>
     {busy && <ReviewProgress elapsedMs={elapsed} submitting={phase === "saving"} />}

@@ -7,8 +7,10 @@ exact quotes and fixes. Humans stay in charge: failed or uncertain documents
 land in a review queue, every decision needs a note, and the full history is
 exportable for audit.
 
-Built from [GOAL.md](./GOAL.md). Tests: `npm test` and `npm run typecheck`.
-Deploys to Vercel as a single Next.js project.
+Built from [GOAL.md](./GOAL.md). Tests: `npm test` (320 unit tests +
+golden-set evals) and `npm run e2e` (browser tests across iPhone and iPad
+viewports). Both run on every pull request. Deploys to Vercel as a single
+Next.js project.
 
 ## Product upgrade — September 2026
 
@@ -41,7 +43,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-No configuration needed: without an `OPENAI_API_KEY` the app runs in demo
+No configuration needed: without a model backend the app runs in demo
 mode (a deterministic heuristic reviewer — the UI says so), storage is local
 SQLite (`.data/app.db`, Node >= 22.5), and the store self-seeds with demo documents on
 first run.
@@ -57,13 +59,45 @@ Sign in as a persona to see each customer's experience:
 
 ## Model mode
 
-Set `OPENAI_API_KEY` and reviews run through two model reviewer subagents
-(`gpt-5.4-mini` by default via the Vercel AI SDK; override with
-`OPENAI_MODEL`) — one for content criteria, one for data-handling risk. Their
+Configure a model backend and reviews run through two model reviewer subagents
+— one for content criteria, one for data-handling risk. Their
 findings are merged, deduped, and scored **in code**
 (`src/agent/`): the rubric owns severities and verdict rules, so verdicts stay
 auditable regardless of model behavior. Low-confidence fail-level findings
 route to a human instead of failing outright.
+
+### Choosing a backend
+
+The pipeline needs one chat model that can return structured output, so any
+OpenAI-compatible endpoint works. There is no second SDK dependency — one
+provider factory, three base URLs (`src/agent/provider.ts`).
+
+| Backend | Set | Notes |
+| --- | --- | --- |
+| OpenAI | `OPENAI_API_KEY`, optional `OPENAI_MODEL` | Defaults to `gpt-5.4-mini`. Uses the Responses API. |
+| Hugging Face | `HF_TOKEN` **and** `HF_MODEL` | Inference Providers' OpenAI-compatible router. `HF_MODEL` is a repo id, e.g. `Qwen/Qwen3-32B`. |
+| Self-hosted | `MODEL_BASE_URL` **and** `MODEL_ID`, optional `MODEL_API_KEY` | vLLM, TGI, Ollama, or a gateway. |
+
+`MODEL_PROVIDER` (`openai`, `huggingface` or `compatible`) picks one
+deliberately. Left unset, OpenAI wins when its key is present, so adding a
+second backend never silently re-points an existing deployment. A named
+provider that is not fully configured falls back to the deterministic
+reviewer rather than to a provider you did not ask for, and Hugging Face and
+self-hosted both require an explicit model id.
+
+The submit screen names the live backend (e.g. "Hugging Face · Qwen/Qwen3-32B")
+because which model read the document belongs in the compliance record.
+
+Two things to know when picking an open model:
+
+- **It must support JSON-schema structured output.** The reviewers, judge and
+  fixer all call `generateObject`. A model or provider that cannot honour a
+  response schema fails the run with "returned malformed review output".
+- **Everything but OpenAI is called through Chat Completions, not the
+  Responses API.** The bare `openai(id)` callable targets `/responses`, which
+  the Hugging Face router and the usual self-hosted servers do not implement;
+  the resulting 404 reads like a bad model id. `provider.ts` uses `.chat()`
+  for those backends for exactly this reason.
 
 Model-mode failures are explicit and retryable. If the provider rejects the
 key, rate-limits the request, times out, refuses, or returns malformed
@@ -161,7 +195,7 @@ robot verdict.
 
 - `evals/golden/` — golden documents with expected outcomes
 - `evals/grade.ts` — grading harness (verdict + expected criteria)
-- `npm test` — runs the golden set through the full pipeline in CI
+- `npm test` — runs the golden set through the full pipeline
 - `npm run eval` — same from the CLI (uses model reviewers when a key is set)
 - **Rubric publish gate** — editing the rubric in the UI creates a draft
   version; the app runs the golden set against it and shows per-case deltas
@@ -170,6 +204,29 @@ robot verdict.
 
 Grow `evals/golden/` with sanitized real documents — that's what makes prompt,
 rubric, and model changes safe.
+
+### Browser tests
+
+`npm run e2e` (Playwright, `e2e/`) covers what a unit test cannot see: real
+layout at real device sizes. Every assertion corresponds to a defect the app
+actually shipped, so a failure is a regression rather than a matter of taste —
+sideways scrolling on any of seven iPhone and iPad viewports, the header link
+rail overlapping the account controls at iPad-portrait widths, the phone tab
+bar hiding a destination or covering the end of a page, a text field small
+enough to make Safari zoom on focus, and content landing under the notch or
+the home indicator.
+
+The Playwright config builds the app and starts it in demo mode itself, so no
+server needs to be running first. In sandboxes that ship a prebuilt browser,
+point at it with `PLAYWRIGHT_CHROMIUM_PATH`; otherwise run `npx playwright
+install chromium` once.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs typecheck, unit tests, and a production build
+in one job, and the browser tests in another, on every pull request and every
+push to `main`. A failing browser run uploads its report and traces as an
+artifact.
 
 Golden `expected.json` files can also mark eval metadata:
 

@@ -1,5 +1,4 @@
-import { openai } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import {
   defaultRubricDraft,
@@ -143,17 +142,17 @@ export async function modelJudge({
   rubric,
   draftVerdict,
   instructions,
-  modelId,
+  model,
 }: {
   document: string;
   findings: ReviewerFinding[];
   rubric: RubricDraft;
   draftVerdict: ReviewResult["verdict"];
   instructions: string;
-  modelId: string;
+  model: LanguageModel;
 }): Promise<JudgeOutput> {
   const { object } = await generateObject({
-    model: openai(modelId),
+    model,
     schema: judgeOutputSchema,
     system: `${instructions}\n\n${renderRubricMarkdown(rubric)}`,
     prompt: [

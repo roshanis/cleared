@@ -5,7 +5,11 @@ import { canManageUsers } from "@/lib/roles";
 import { requireRole } from "@/lib/session";
 import { listUsers } from "@/lib/store";
 
-export const metadata = { title: "Users" };
+export const metadata = {
+  title: "Users",
+  description:
+    "Invite people, assign roles, and deactivate accounts.",
+};
 
 export default async function UsersPage() {
   const session = await requireRole("admin");

@@ -44,7 +44,11 @@ function SeveritySummary({
   );
 }
 
-export const metadata = { title: "Review queue" };
+export const metadata = {
+  title: "Review queue",
+  description:
+    "Documents awaiting a compliance decision, with the findings and evidence to make it.",
+};
 
 export default async function QueuePage({ searchParams }: { searchParams: Promise<{ q?: string; priority?: string; sort?: string; scope?: string; page?: string }> }) {
   await requireRole("officer", "admin");

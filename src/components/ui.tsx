@@ -1,5 +1,6 @@
 import type { ReviewResult } from "@/schema";
 import type { Severity } from "@/lib/rubric";
+import { ScrollRegion } from "./scroll-region";
 
 /* Shared control vocabulary — every button and input in the app draws from
    these so the same action looks the same on every screen. */
@@ -168,14 +169,17 @@ export function Card({
 
 export function TableCard({
   children,
+  label,
   className = "",
 }: {
   children: React.ReactNode;
+  /** Names the scroll region, and tells a screen reader what it holds. */
+  label: string;
   className?: string;
 }) {
   return (
     <Card className={`overflow-hidden ${className}`}>
-      <div className="overflow-x-auto">{children}</div>
+      <ScrollRegion label={label}>{children}</ScrollRegion>
     </Card>
   );
 }

@@ -14,5 +14,10 @@ export async function POST(req: Request) {
     const { signOut } = await import("../../../../../auth");
     await signOut({ redirect: false });
   }
-  return NextResponse.redirect(new URL("/login", req.url), 303);
+  // Land on a confirmation rather than the sign-in form: "here is the login
+  // page again" does not tell you whether signing out actually worked.
+  return NextResponse.redirect(
+    new URL("/thank-you?for=signed-out", req.url),
+    303,
+  );
 }

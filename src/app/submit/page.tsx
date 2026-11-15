@@ -1,14 +1,18 @@
 import { SubmitForm } from "@/components/submit-form";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui";
-import { activeReviewer } from "@/agent/run";
+import { activeReviewer, activeReviewerLabel } from "@/agent/run";
 import { canAccessDocument } from "@/lib/access";
 import { requireRole } from "@/lib/session";
 import { getDb, publishedRubric, latestRunForVersion } from "@/lib/store";
 import { maxDocumentChars } from "@/lib/submission-limits";
 import { SUPPORTED_JURISDICTIONS, type Jurisdiction } from "@/lib/rubric";
 
-export const metadata = { title: "Submit a document" };
+export const metadata = {
+  title: "Submit a document",
+  description:
+    "Paste customer-facing text and get a verdict in under a minute, with an exact quote and a drafted fix for every finding.",
+};
 
 export default async function SubmitPage({
   searchParams,
@@ -56,6 +60,7 @@ export default async function SubmitPage({
         maxChars={maxDocumentChars()}
         resubmit={resubmit}
         reviewer={activeReviewer()}
+        reviewerLabel={activeReviewerLabel()}
         criteria={rubric.criteria}
         fixDraftRequested={fixDraft === "1"}
       />

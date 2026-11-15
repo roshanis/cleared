@@ -2,7 +2,10 @@ import Link from "next/link";
 import { Card, buttonClass } from "@/components/ui";
 import { getSession, homeByRole } from "@/lib/session";
 
-export const metadata = { title: "Page not found" };
+export const metadata = {
+  title: "Page not found",
+  description: "That page does not exist, or it is not yours to see.",
+};
 
 export default async function NotFound() {
   const session = await getSession();

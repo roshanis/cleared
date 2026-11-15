@@ -111,6 +111,18 @@ select {
   font: inherit;
 }
 
+/* `font: inherit` above means a field takes its size from whatever wraps it,
+   and a compact filter form wraps them in a 12px label. Safari zooms the whole
+   page when a field under 16px takes focus, so floor it on touch devices only
+   — pointer-precise screens keep the compact design. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
 /* iOS taps: replace Safari's grey flash with the app's accent, and opt out of
    double-tap-to-zoom so the first tap registers immediately. */
 a,

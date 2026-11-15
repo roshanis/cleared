@@ -73,3 +73,26 @@ describe("reviewErrorMessage", () => {
     );
   });
 });
+
+describe("provider-aware credential hint", () => {
+  const authError = { status: 401, message: "invalid_api_key" };
+
+  it("names OPENAI_API_KEY by default", () => {
+    expect(reviewErrorMessage(authError)).toContain("OPENAI_API_KEY");
+  });
+
+  it("names the Hugging Face token when that is the live backend", () => {
+    // Telling an operator on the HF router to check OPENAI_API_KEY sends them
+    // to a variable that is not set and was never going to be.
+    expect(reviewErrorMessage(authError, "HF_TOKEN")).toContain("HF_TOKEN");
+    expect(reviewErrorMessage(authError, "HF_TOKEN")).not.toContain(
+      "OPENAI_API_KEY",
+    );
+  });
+
+  it("leaves non-auth messages alone", () => {
+    expect(
+      reviewErrorMessage({ status: 429, message: "rate limit" }, "HF_TOKEN"),
+    ).not.toContain("HF_TOKEN");
+  });
+});

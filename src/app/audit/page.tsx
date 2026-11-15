@@ -16,7 +16,11 @@ interface SearchParams {
   action?: string;
 }
 
-export const metadata = { title: "Audit log" };
+export const metadata = {
+  title: "Audit log",
+  description:
+    "Every review, decision and note in one timeline, exportable as CSV for an auditor.",
+};
 
 export default async function AuditPage({
   searchParams,
@@ -88,7 +92,7 @@ export default async function AuditPage({
           hint="Decisions appear here once a compliance officer approves or rejects a document review."
         />
       ) : (
-        <TableCard>
+        <TableCard label="Audit log">
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-rail">
               <tr>

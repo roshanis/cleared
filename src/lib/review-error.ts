@@ -9,8 +9,8 @@ type ErrorLike = {
   lastError?: unknown;
 };
 
-const AUTH_MESSAGE =
-  "Model provider authentication failed. Check OPENAI_API_KEY and retry the review.";
+const authMessage = (credentialEnvName: string) =>
+  `Model provider authentication failed. Check ${credentialEnvName} and retry the review.`;
 const RATE_LIMIT_MESSAGE =
   "Model provider rate limit reached. Wait a moment, then retry the review.";
 const TIMEOUT_MESSAGE =
@@ -50,7 +50,15 @@ function collect(error: unknown, seen = new Set<unknown>()): ErrorLike[] {
   return [like, ...nested.flatMap((value) => collect(value, seen))];
 }
 
-export function reviewErrorMessage(error: unknown): string {
+/**
+ * `credentialEnvName` names the backend actually in use — the reviewers can
+ * run on OpenAI, the Hugging Face router, or a self-hosted endpoint, so
+ * "check OPENAI_API_KEY" is wrong advice for two of the three.
+ */
+export function reviewErrorMessage(
+  error: unknown,
+  credentialEnvName = "OPENAI_API_KEY",
+): string {
   const chain = collect(error);
   const fields = chain.map((like) => ({
     name: lower(like.name),
@@ -68,7 +76,7 @@ export function reviewErrorMessage(error: unknown): string {
     text.includes("incorrect api key") ||
     text.includes("authentication")
   ) {
-    return AUTH_MESSAGE;
+    return authMessage(credentialEnvName);
   }
 
   if (

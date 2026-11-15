@@ -1,5 +1,4 @@
-import { openai } from "@ai-sdk/openai";
-import { generateObject } from "ai";
+import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import type { Fix } from "@/lib/patch";
 import type { Finding } from "@/schema";
@@ -98,15 +97,15 @@ export async function modelFixes({
   document,
   findings,
   instructions,
-  modelId,
+  model,
 }: {
   document: string;
   findings: Finding[];
   instructions: string;
-  modelId: string;
+  model: LanguageModel;
 }): Promise<Fix[]> {
   const { object } = await generateObject({
-    model: openai(modelId),
+    model,
     schema: fixerOutputSchema,
     system: instructions,
     prompt: [

@@ -11,12 +11,21 @@ import { canAccessDocument } from "@/lib/access";
 import { decisionForRun, getDb } from "@/lib/store";
 import { currentRun, documentHistory, selectRun, runHref } from "@/lib/review-workspace";
 
+/** Name the tab after the document — reviewers keep several open at once. */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
   const db = await getDb();
   const document = db.documents.find(d => d.id === id);
-  return { title: document && canAccessDocument(session, document) ? document.title : "Document" };
+  const visible = document && canAccessDocument(session, document);
+  return {
+    title: visible ? document.title : "Document",
+    // Gated like the title: naming the document in a description would leak
+    // it to someone who is not allowed to open it.
+    description: visible
+      ? `Review history, findings and decisions for "${document.title}".`
+      : "Review history, findings and decisions for a submitted document.",
+  };
 }
 
 export default async function DocumentPage({ params, searchParams }: {

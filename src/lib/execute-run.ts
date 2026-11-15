@@ -1,6 +1,7 @@
 import { runReview } from "@/agent/run";
 import type { ReviewerKind } from "@/agent/run";
 import type { ReviewResult } from "@/schema";
+import { activeCredentialEnvName } from "@/agent/provider";
 import { reviewErrorMessage } from "@/lib/review-error";
 import { claimRunForReview, completeRun, failRun } from "@/lib/store";
 
@@ -47,7 +48,7 @@ export async function executeRun(runId: string): Promise<ExecuteRunResult> {
       documentId: claimed.run.documentId,
     };
   } catch (error) {
-    const message = reviewErrorMessage(error);
+    const message = reviewErrorMessage(error, activeCredentialEnvName());
     await failRun(runId, message);
     return { status: "error", error: message };
   }

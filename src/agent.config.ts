@@ -5,8 +5,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { reviewResultSchema } from "./schema";
-
-export const MODEL_ID = process.env.OPENAI_MODEL ?? "gpt-5.4-mini";
+export { MODEL_ID } from "./agent/run";
+import { MODEL_ID } from "./agent/run";
 
 export const promptFile = (name: string) =>
   readFileSync(path.join(process.cwd(), "src", "prompts", `${name}.md`), "utf8");

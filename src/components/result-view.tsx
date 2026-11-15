@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Coverage, ReviewResult } from "@/schema";
 import type { RubricCriterion } from "@/lib/rubric";
 import { segmentDocument, locatedQuoteIndexes } from "@/lib/highlight";
@@ -21,6 +21,19 @@ export function ResultView({ content, result, criteria }: {
   const [mobilePanel, setMobilePanel] = useState<"document" | "review">("review");
   const [selected, setSelected] = useState<number | null>(null);
   const sourceRef = useRef<HTMLDivElement>(null);
+  /* A long document overflows the 70vh pane. With no highlighted passages to
+     tab to, keyboard users could not scroll it at all, so the pane takes a tab
+     stop while (and only while) it overflows, like ScrollRegion does. */
+  const [sourceScrolls, setSourceScrolls] = useState(false);
+  useEffect(() => {
+    const node = sourceRef.current;
+    if (!node) return;
+    const measure = () => setSourceScrolls(node.scrollHeight > node.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [content]);
   const findingRefs = useRef<(HTMLLIElement | null)[]>([]);
   const quotes = result.findings.map(f => f.evidenceType === "absence" ? "" : f.quote);
   const segments = segmentDocument(content, quotes);
@@ -69,7 +82,7 @@ export function ResultView({ content, result, criteria }: {
       </div>
     </div>
 
-    <div className="flex gap-2 lg:hidden" aria-label="Workspace panels">
+    <div role="group" className="flex gap-2 lg:hidden" aria-label="Workspace panels">
       {(["document", "review"] as const).map(name => <button type="button" key={name} aria-pressed={mobilePanel === name} onClick={() => setMobilePanel(name)} className={buttonClass(mobilePanel === name ? "primary" : "secondary")}>
         {name === "document" ? "Source document" : "Review & coverage"}
       </button>)}
@@ -81,7 +94,7 @@ export function ResultView({ content, result, criteria }: {
           <h2 className="text-sm font-semibold">Source document</h2>
           <span className="text-xs text-muted">Original text · read only</span>
         </div>
-        <div ref={sourceRef} tabIndex={-1} aria-label="Original document text" className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-6 py-7 font-serif text-base leading-8 sm:px-8">
+        <div ref={sourceRef} tabIndex={sourceScrolls ? 0 : -1} role="region" aria-label="Original document text" className="max-h-[70vh] overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent whitespace-pre-wrap break-words px-6 py-7 font-serif text-base leading-8 sm:px-8">
           {segments.map((segment, index) => segment.findingIndexes.length ? <mark
             key={index} tabIndex={0} role="button"
             aria-label={`View finding ${segment.findingIndexes[0] + 1}: ${segment.text}`}
@@ -95,7 +108,7 @@ export function ResultView({ content, result, criteria }: {
       </Card>
 
       <div className={`min-w-0 ${mobilePanel === "review" ? "" : "hidden lg:block"}`}>
-        <div className="mb-4 flex items-center gap-2" aria-label="Review sections">
+        <div role="group" className="mb-4 flex items-center gap-2" aria-label="Review sections">
           <button type="button" aria-pressed={panel === "findings"} className={buttonClass(panel === "findings" ? "primary" : "secondary")} onClick={() => setPanel("findings")}>Findings ({result.findings.length})</button>
           <button type="button" aria-pressed={panel === "coverage"} className={buttonClass(panel === "coverage" ? "primary" : "secondary")} onClick={() => setPanel("coverage")}>Coverage{gaps.length ? ` · ${gaps.length} gaps` : ""}</button>
         </div>

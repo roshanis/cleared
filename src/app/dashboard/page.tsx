@@ -15,7 +15,11 @@ import { demoAuthEnabled, requireRole } from "@/lib/session";
 import { getDb, publishedRubric, storageKind } from "@/lib/store";
 import { currentQueue, currentRun } from "@/lib/review-workspace";
 
-export const metadata = { title: "Dashboard" };
+export const metadata = {
+  title: "Dashboard",
+  description:
+    "Pass and fail rates, the findings that trigger most often, and how long documents wait for a human decision.",
+};
 
 export default async function DashboardPage() {
   const session = await requireRole("officer", "admin", "auditor");
